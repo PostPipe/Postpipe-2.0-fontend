@@ -10,13 +10,15 @@
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 279 69% 61%; /* #9D4EDD */
+    --primary: 279 69% 61%;
+    /* #9D4EDD */
     --primary-foreground: 0 0% 98%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
-    --accent: 333 79% 55%; /* #E5388B */
+    --accent: 333 79% 55%;
+    /* #E5388B */
     --accent-foreground: 0 0% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
@@ -52,13 +54,15 @@
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 2%;
     --popover-foreground: 0 0% 98%;
-    --primary: 279 69% 61%; /* #9D4EDD */
+    --primary: 279 69% 61%;
+    /* #9D4EDD */
     --primary-foreground: 0 0% 98%;
     --secondary: 0 0% 10%;
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 10%;
     --muted-foreground: 0 0% 63.9%;
-    --accent: 333 79% 55%; /* #E5388B */
+    --accent: 333 79% 55%;
+    /* #E5388B */
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
@@ -85,9 +89,11 @@
   * {
     @apply border-border;
   }
+
   html {
     @apply scroll-smooth;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -97,21 +103,18 @@
   .btn-31 {
     @apply relative overflow-hidden bg-zinc-950 text-white;
   }
+
   .btn-31:before {
     --progress: 100%;
     background: #ffffff;
-    -webkit-clip-path: polygon(
-      100% 0,
-      var(--progress) var(--progress),
-      0 100%,
-      100% 100%
-    );
-    clip-path: polygon(
-      100% 0,
-      var(--progress) var(--progress),
-      0 100%,
-      100% 100%
-    );
+    -webkit-clip-path: polygon(100% 0,
+        var(--progress) var(--progress),
+        0 100%,
+        100% 100%);
+    clip-path: polygon(100% 0,
+        var(--progress) var(--progress),
+        0 100%,
+        100% 100%);
     content: "";
     inset: 0;
     position: absolute;
@@ -130,6 +133,7 @@
   .animated-underline {
     @apply relative;
   }
+
   .animated-underline::after {
     content: '';
     position: absolute;
@@ -140,7 +144,12 @@
     background-color: hsl(var(--foreground));
     transition: width 0.3s ease-out;
   }
+
   .animated-underline:hover::after {
     width: 100%;
+  }
+
+  .ai-glow-aurora {
+    filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.6)) drop-shadow(0 0 60px rgba(59, 130, 246, 0.4));
   }
 }

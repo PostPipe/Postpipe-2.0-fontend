@@ -17,7 +17,7 @@ export function AuthButton() {
   }
 
   return isAuthenticated ? (
-    <ShinyButton onClick={() => router.push("/dashboard/workflows")}>
+    <ShinyButton onClick={() => router.push("/dashboard/forms")}>
       Dashboard
     </ShinyButton>
   ) : (

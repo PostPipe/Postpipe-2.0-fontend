@@ -14,9 +14,9 @@ export function Header2() {
 	const scrolled = useScroll(10);
 
 	const links = [
-		{ href: "/dashboard/forms", label: "Forms" },
+		{ href: "#dynamic", label: "Dynamic" },
+		{ href: "#static", label: "Static" },
 		{ href: "/dashboard/workflows", label: "Workflows" },
-		{ href: "#pricing", label: "Pricing" },
 		{ href: "#docs", label: "Docs" },
 	];
 
