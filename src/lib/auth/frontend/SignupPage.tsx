@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { useFormState } from 'react-dom';
-import { signup } from '../actions'; // Update path after moving
+import { signup, type AuthState } from '../actions'; // Update path after moving
 
-const initialState = {
+const initialState: AuthState = {
     message: '',
     success: false,
 };
