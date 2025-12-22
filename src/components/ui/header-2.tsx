@@ -36,9 +36,9 @@ export function Header2() {
 						<Logo className="size-6 text-primary" />
 						<span className="font-bold font-headline">PostPipe Pro</span>
 					</Link>
-					<div className="hidden items-center gap-2 md:flex">
+					<div className="hidden items-center gap-4 md:flex">
 						{links.map((link, i) => (
-							<Link key={i} className={buttonVariants({ variant: 'ghost' })} href={link.href}>
+							<Link key={i} className="animated-underline text-sm font-medium px-2 py-1" href={link.href}>
 								{link.label}
 							</Link>
 						))}

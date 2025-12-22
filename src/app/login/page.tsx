@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -14,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons/logo';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -58,9 +58,9 @@ export default function LoginPage() {
               </div>
               <Input id="password" type="password" required defaultValue="password" />
             </div>
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90">
+            <RainbowButton type="submit">
               Login
-            </Button>
+            </RainbowButton>
           </form>
           <div className="mt-4 text-center text-sm">
             Don&apos;t have an account?{' '}

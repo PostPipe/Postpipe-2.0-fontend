@@ -37,6 +37,12 @@
     --sidebar-accent-foreground: 0 0% 9%;
     --sidebar-border: 0 0% 89.8%;
     --sidebar-ring: 333 79% 55%;
+
+    --color-1: 0 100% 63%;
+    --color-2: 270 100% 63%;
+    --color-3: 210 100% 63%;
+    --color-4: 195 100% 63%;
+    --color-5: 90 100% 63%;
   }
 
   .dark {
@@ -88,9 +94,12 @@
 }
 
 @layer utilities {
+  .btn-31 {
+    @apply relative overflow-hidden bg-zinc-950 text-white;
+  }
   .btn-31:before {
     --progress: 100%;
-    background: #fff;
+    background: hsl(var(--foreground));
     -webkit-clip-path: polygon(
       100% 0,
       var(--progress) var(--progress),
@@ -106,10 +115,32 @@
     content: "";
     inset: 0;
     position: absolute;
-    transition: clip-path 0.2s ease, -webkit-clip-path 0.2s ease;
+    transition: clip-path 0.3s ease, -webkit-clip-path 0.3s ease;
   }
 
   .btn-31:hover:before {
     --progress: 0%;
+  }
+
+  .btn-31 .text-wrapper {
+    @apply block relative mix-blend-difference;
+  }
+
+
+  .animated-underline {
+    @apply relative;
+  }
+  .animated-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background-color: hsl(var(--foreground));
+    transition: width 0.3s ease-out;
+  }
+  .animated-underline:hover::after {
+    width: 100%;
   }
 }

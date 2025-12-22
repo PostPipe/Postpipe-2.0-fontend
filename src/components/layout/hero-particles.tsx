@@ -5,10 +5,10 @@ import { useTheme } from "next-themes"
 import Link from "next/link"
 
 import { Particles } from "@/components/ui/particles"
-import { Button } from "../ui/button"
 import { AnimatedButton } from "../ui/animated-button"
 import { MagneticText } from "../ui/morphing-cursor"
 import { WordRotate } from "../ui/word-rotate"
+import { CreditCard } from "lucide-react"
 
 export function HeroParticles() {
   const { theme, systemTheme } = useTheme()
@@ -16,7 +16,7 @@ export function HeroParticles() {
 
   useEffect(() => {
     const currentTheme = theme === "system" ? systemTheme : theme
-    setColor(currentTheme === "dark" ? "#ffffff" : "#006aff")
+    setColor(currentTheme === "dark" ? "#ffffff" : "#000000")
   }, [theme, systemTheme])
 
 
@@ -33,9 +33,11 @@ export function HeroParticles() {
             </div>
             <div className="flex gap-4 items-center mt-4">
               <AnimatedButton>Get Started</AnimatedButton>
-              <Button asChild variant="outline" className="h-auto bg-black border-zinc-800 text-white hover:bg-white hover:text-black px-8 py-[18.5px] text-sm uppercase font-black">
-                <Link href="#features">Learn More</Link>
-              </Button>
+              <Link href="#features">
+                <button className="btn-31 h-[56px] px-8 flex items-center justify-center bg-zinc-950 border border-zinc-800 text-white font-black uppercase tracking-wider gap-2 cursor-pointer shadow-lg relative overflow-hidden transition-all duration-300">
+                    <span className="text-wrapper">Learn More</span>
+                </button>
+              </Link>
             </div>
         </div>
       <Particles
