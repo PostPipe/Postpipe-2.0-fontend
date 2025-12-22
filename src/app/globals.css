@@ -99,7 +99,7 @@
   }
   .btn-31:before {
     --progress: 100%;
-    background: hsl(var(--foreground));
+    background: #ffffff;
     -webkit-clip-path: polygon(
       100% 0,
       var(--progress) var(--progress),
