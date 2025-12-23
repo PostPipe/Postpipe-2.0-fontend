@@ -97,16 +97,8 @@ export function ExploreSidebar({ ...props }: React.ComponentProps<typeof Sidebar
 
     return (
         <>
-            <Sidebar {...props}>
-                <SidebarHeader>
-                    <div className="px-2 py-4 flex items-center justify-between">
-                        <h2 className="text-xl font-bold tracking-tight px-2">21st.dev</h2>
-                        <Button variant="ghost" size="icon" onClick={() => setSearchOpen(true)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                            <Search className="h-4 w-4" />
-                            <span className="sr-only">Search</span>
-                        </Button>
-                    </div>
-                </SidebarHeader>
+            <Sidebar {...props} className="pt-16">
+
                 <SidebarContent>
                     {categories.map((group) => (
                         <SidebarGroup key={group.title}>

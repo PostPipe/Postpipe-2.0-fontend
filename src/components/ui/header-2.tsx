@@ -4,6 +4,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useScroll } from '@/hooks/use-scroll';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { AuthButton } from '../layout/auth-button';
 import { Logo } from '../icons/logo';
@@ -12,6 +13,8 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export function Header2() {
 	const scrolled = useScroll(10);
+	const pathname = usePathname();
+	const isExplore = pathname?.startsWith("/explore");
 
 	const links = [
 		{ href: "/explore", label: "Dynamic" },

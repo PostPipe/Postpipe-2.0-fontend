@@ -2,6 +2,7 @@
 
 import { ExploreCard } from "./ExploreCard"
 import { Button } from "@/components/ui/button"
+import { RainbowButton } from "@/components/ui/rainbow-button"
 import { ChevronRight } from "lucide-react"
 
 const MOCK_ITEMS = [
@@ -58,9 +59,9 @@ export function ExplorePageContent() {
             <section>
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Newest</h3>
-                    <Button variant="outline" size="sm" className="hidden sm:flex rounded-full text-xs h-8 px-4 hover:bg-accent hover:text-accent-foreground">
+                    <RainbowButton className="hidden sm:flex h-8 px-4 text-xs rounded-none after:rounded-none">
                         View all <ChevronRight className="ml-1 h-3 w-3" />
-                    </Button>
+                    </RainbowButton>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {MOCK_ITEMS.slice(0, 4).map((item, i) => (
@@ -72,9 +73,9 @@ export function ExplorePageContent() {
             <section>
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Popular</h3>
-                    <Button variant="outline" size="sm" className="hidden sm:flex rounded-full text-xs h-8 px-4 hover:bg-accent hover:text-accent-foreground">
+                    <RainbowButton className="hidden sm:flex h-8 px-4 text-xs rounded-none after:rounded-none">
                         View all <ChevronRight className="ml-1 h-3 w-3" />
-                    </Button>
+                    </RainbowButton>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {MOCK_ITEMS.slice(2, 6).map((item, i) => (
