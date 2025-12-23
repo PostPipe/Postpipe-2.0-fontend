@@ -17,23 +17,25 @@ export function ExploreHeader() {
                 <div className="flex items-center gap-2">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => toggleSidebar()} className="-ml-1 h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-transparent hover:shadow-[0_0_20px_-5px_hsl(var(--foreground)/0.3)] transition-all duration-300">
+                            <Button variant="ghost" size="icon" onClick={() => toggleSidebar()} className="-ml-1 h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-transparent hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] transition-all duration-300">
                                 <PanelLeft className="h-5 w-5" />
                                 <span className="sr-only">Toggle Sidebar</span>
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Toggle Sidebar</TooltipContent>
+                        <TooltipContent side="bottom" align="start">Toggle Sidebar</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => setSearchOpen(true)} className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-transparent hover:shadow-[0_0_20px_-5px_hsl(var(--foreground)/0.3)] transition-all duration-300">
+                            <Button variant="ghost" size="icon" onClick={() => setSearchOpen(true)} className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-transparent hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] transition-all duration-300">
                                 <Search className="h-5 w-5" />
                                 <span className="sr-only">Search</span>
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Search components (⌘K)</TooltipContent>
+                        <TooltipContent side="bottom" align="start">Search components (⌘K)</TooltipContent>
                     </Tooltip>
+
+
 
                     <div className="hidden md:flex ml-2 font-medium text-sm text-foreground/80">
                         Explore
