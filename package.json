@@ -41,6 +41,7 @@
     "@tsparticles/react": "^3.0.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.8.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "create-postpipe-auth": "^1.0.5",

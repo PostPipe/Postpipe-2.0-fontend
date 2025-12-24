@@ -17,20 +17,24 @@ export default async function VerifyEmailPage({
     }
 
     const result = await verifyEmail(token);
+    const isSuccess = result.success;
 
     return (
-        <div style={{ maxWidth: '600px', margin: '50px auto', padding: '20px', textAlign: 'center' }}>
-            <h1>Email Verification</h1>
-            {result.success ? (
-                <div style={{ color: 'green' }}>
-                    <p>{result.message}</p>
-                    <a href="/auth/login" style={{ marginTop: '20px', display: 'inline-block' }}>Go to Login</a>
-                </div>
-            ) : (
-                <div style={{ color: 'red' }}>
+        <div className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
+            <div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-card p-8 shadow-lg text-center">
+                <h1 className="text-2xl font-bold">{isSuccess ? 'Email Verified' : 'Verification Failed'}</h1>
+                <div className={`text-sm font-medium ${isSuccess ? 'text-green-500' : 'text-red-500'}`}>
                     <p>{result.message}</p>
                 </div>
-            )}
+                {isSuccess && (
+                    <a
+                        href="/login"
+                        className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                    >
+                        Go to Login
+                    </a>
+                )}
+            </div>
         </div>
     );
 }

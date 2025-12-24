@@ -36,3 +36,8 @@ export const ResetPasswordSchema = z.object({
 export const VerifyEmailSchema = z.object({
     token: z.string().min(1, 'Token is required'),
 });
+
+export const UpdateProfileSchema = z.object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    image: z.string().optional(),
+});

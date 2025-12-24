@@ -76,13 +76,8 @@ export default function DashboardLayout({
   const bottomLinks = [
     {
       label: "Profile",
-      href: "#", // Placeholder
+      href: "/dashboard/profile",
       icon: <UserCog className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-    },
-    {
-      label: "Settings",
-      href: "#", // Placeholder
-      icon: <Settings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
     },
   ];
 

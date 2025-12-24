@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import dbConnect from './mongodb';
 import User from './User';
-import { SignupSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema } from './schemas';
+import { SignupSchema, LoginSchema, ForgotPasswordSchema, ResetPasswordSchema, UpdateProfileSchema } from './schemas';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -275,5 +275,46 @@ export async function getSession() {
         };
     } catch (error) {
         return null;
+    }
+}
+
+export async function updateProfile(prevState: any, formData: FormData): Promise<AuthState> {
+    const rawData = Object.fromEntries(formData.entries());
+    const validated = UpdateProfileSchema.safeParse(rawData);
+
+    if (!validated.success) {
+        return { success: false, message: 'Validation failed', errors: validated.error.flatten().fieldErrors };
+    }
+
+    const { name, image } = validated.data;
+
+    try {
+        const session = await getSession();
+        if (!session) {
+            return { success: false, message: 'Unauthorized' };
+        }
+
+        await dbConnect();
+        
+        const updateData: any = { name };
+        if (image) {
+             updateData.image = image;
+        }
+
+        const user = await User.findByIdAndUpdate(
+            session.userId,
+            updateData,
+            { new: true }
+        );
+
+        if (!user) {
+            return { success: false, message: 'User not found' };
+        }
+        
+        return { success: true, message: 'Profile updated successfully' };
+
+    } catch (error) {
+        console.error('Update Profile error:', error);
+        return { success: false, message: 'Internal server error' };
     }
 }

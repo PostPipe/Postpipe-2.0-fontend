@@ -182,7 +182,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
 PasswordInput.displayName = "PasswordInput";
 
 import { useRouter } from "next/navigation";
-import { login, signup } from "@/lib/auth/actions";
+import { login, signup, resendVerification } from "@/lib/auth/actions";
 
 function SignInForm() {
     const router = useRouter();
@@ -218,6 +218,44 @@ function SignInForm() {
 
 function SignUpForm() {
     const [state, formAction] = useActionState(signup, { success: false, message: "" });
+    const [resendState, resendAction] = useActionState(resendVerification, { success: false, message: "" });
+    const [submittedEmail, setSubmittedEmail] = useState("");
+
+    // Capture email when user types (simple approach) or from formData if we could intercept.
+    // For simplicity, let's track the input value.
+    const [emailInput, setEmailInput] = useState("");
+
+    useEffect(() => {
+        if (state.success && emailInput) {
+            setSubmittedEmail(emailInput);
+        }
+    }, [state.success, emailInput]);
+
+    if (state.success) {
+        return (
+            <div className="flex flex-col gap-6 text-center">
+                <h1 className="text-2xl font-bold text-green-500">Account Created!</h1>
+                <div className="space-y-2">
+                    <p className="text-muted-foreground">{state.message}</p>
+                    <p className="text-sm">Did not receive the email?</p>
+                </div>
+
+                {submittedEmail && (
+                    <form action={resendAction} className="flex flex-col gap-2">
+                        <input type="hidden" name="email" value={submittedEmail} />
+                        <Button type="submit" variant="outline">
+                            Resend Verification Email
+                        </Button>
+                        {resendState.message && (
+                            <p className={cn("text-xs font-medium", resendState.success ? "text-green-500" : "text-red-500")}>
+                                {resendState.message}
+                            </p>
+                        )}
+                    </form>
+                )}
+            </div>
+        );
+    }
 
     return (
         <form action={formAction} autoComplete="on" className="flex flex-col gap-8">
@@ -227,7 +265,7 @@ function SignUpForm() {
             </div>
             <div className="grid gap-4">
                 <div className="grid gap-1"><Label htmlFor="name">Full Name</Label><Input id="name" name="name" type="text" placeholder="John Doe" required autoComplete="name" /></div>
-                <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="m@example.com" required autoComplete="email" /></div>
+                <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="m@example.com" required autoComplete="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} /></div>
                 <PasswordInput name="password" label="Password" required autoComplete="new-password" placeholder="Password" />
                 <PasswordInput name="confirmPassword" label="Confirm Password" required autoComplete="new-password" placeholder="Confirm Password" />
 
@@ -256,9 +294,13 @@ function AuthFormContainer({ isSignIn, onToggle }: { isSignIn: boolean; onToggle
             <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
                 <span className="relative z-10 bg-background px-2 text-muted-foreground">Or continue with</span>
             </div>
-            <Button variant="outline" type="button" onClick={() => console.log("UI: Google button clicked")}>
+            <Button variant="outline" type="button" onClick={() => window.location.href = "/api/auth/google"}>
                 <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google icon" className="mr-2 h-4 w-4" />
                 Continue with Google
+            </Button>
+            <Button variant="outline" type="button" onClick={() => window.location.href = "/api/auth/github"}>
+                <img src="https://www.svgrepo.com/show/512317/github-142.svg" alt="GitHub icon" className="mr-2 h-4 w-4 dark:invert" />
+                Continue with GitHub
             </Button>
         </div>
     )

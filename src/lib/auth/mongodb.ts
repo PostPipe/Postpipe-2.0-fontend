@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.DATABASE_URI || process.env.MONGODB_URI;
+const MONGODB_URI = process.env.NEW_DATABASE_URI || process.env.DATABASE_URI || process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
     throw new Error(
@@ -31,6 +31,7 @@ async function dbConnect() {
     if (!cached.promise) {
         const opts = {
             bufferCommands: false,
+            dbName: 'postpipe',
         };
 
         cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
