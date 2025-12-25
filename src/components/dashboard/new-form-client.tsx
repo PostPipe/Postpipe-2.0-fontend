@@ -26,7 +26,11 @@ type FormField = {
     required: boolean;
 };
 
-export default function NewFormClient() {
+type NewFormClientProps = {
+    onBack?: () => void;
+};
+
+export default function NewFormClient({ onBack }: NewFormClientProps) {
     const [formName, setFormName] = useState("");
     const [connector, setConnector] = useState("");
     const [fields, setFields] = useState<FormField[]>([
@@ -85,9 +89,15 @@ ${fields.map(f => `      <div>
     return (
         <div className="flex flex-col gap-8 max-w-5xl mx-auto pb-20">
             <div className="flex items-center gap-4">
-                <Link href="/dashboard/forms">
-                    <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
-                </Link>
+                {onBack ? (
+                    <Button variant="ghost" size="icon" onClick={onBack}>
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                ) : (
+                    <Link href="/dashboard/forms">
+                        <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+                    </Link>
+                )}
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Create New Form</h1>
                     <p className="text-muted-foreground text-sm">Design your form and connect it to a database.</p>
