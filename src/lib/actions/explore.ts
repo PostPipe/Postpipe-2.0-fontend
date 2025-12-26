@@ -4,15 +4,22 @@
 import dbConnect from "@/lib/auth/mongodb";
 import Template from "@/lib/models/Template";
 
-export async function getTemplates(searchQuery?: string) {
+export async function getTemplates(searchQuery?: string, category?: string) {
   await dbConnect();
   try {
     const query: any = { isPublished: true };
     
+    if (category) {
+      query.category = category;
+    }
+
     if (searchQuery) {
       const regex = new RegExp(searchQuery, 'i');
       query.$or = [
         { name: regex },
+        // { category: regex }, // Don't search category if explicitly filtering? 
+        // Actually it's fine to keep it, but if user filters by category "Auth" and searches "Nav", we want "Nav" items in "Auth" category.
+        // If we keep searching category field with regex, searching "Auth" while filter is "Auth" is redundant but harmless.
         { category: regex },
         { tags: regex }
       ];

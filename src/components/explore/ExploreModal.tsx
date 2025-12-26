@@ -13,10 +13,13 @@ import { cn } from "@/lib/utils"
 // but better to use a simple toast if available. Using basic alert for now if toast not readily seen or assume shadcn's useToast.
 import { useToast } from "@/hooks/use-toast"
 
+import { createSystem } from "@/lib/actions/systems"
+
 interface ExploreModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     item: {
+        id?: string
         title: string
         author: {
             name: string
@@ -44,13 +47,19 @@ export function ExploreModal({ open, onOpenChange, item }: ExploreModalProps) {
                 title: "Copied!",
                 description: `${type} copied to clipboard.`,
             });
+            if (item.id) {
+                await createSystem(item.id);
+            }
         } catch (err) {
             console.error('Failed to copy', err);
         }
     }
 
-    const handleOpenPackage = () => {
+    const handleOpenPackage = async () => {
         if (item.npmPackageUrl) {
+            if (item.id) {
+                await createSystem(item.id);
+            }
             window.open(item.npmPackageUrl, '_blank');
         }
     }
@@ -90,7 +99,6 @@ export function ExploreModal({ open, onOpenChange, item }: ExploreModalProps) {
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <Dialog.Title className="text-lg font-semibold leading-none">{item.title}</Dialog.Title>
-                                                    <span className="text-muted-foreground text-sm">/ default.tsx</span>
                                                 </div>
                                                 <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                                                     <span>{item.author.name}</span>

@@ -11,7 +11,8 @@ import {
     Settings2,
     Sparkles,
     Tag,
-    Layers
+    Layers,
+    Home
 } from "lucide-react"
 
 import {
@@ -91,6 +92,21 @@ export function ExploreSidebar({ ...props }: React.ComponentProps<typeof Sidebar
         <>
             <Sidebar {...props} className="pt-16">
                 <SidebarContent>
+                    <SidebarGroup>
+                        <SidebarGroupContent>
+                            <SidebarMenu>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton asChild>
+                                        <a href="/explore">
+                                            <Home />
+                                            <span>Home</span>
+                                        </a>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            </SidebarMenu>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+
                     {dynamicGroups.length > 0 ? (
                         dynamicGroups.map((group) => (
                             <SidebarGroup key={group.title}>

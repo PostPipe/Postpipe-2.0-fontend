@@ -59,6 +59,7 @@ export function ExplorePageContent({ templates = [] }: ExplorePageContentProps) 
     // This explicitly strips the data. I need to change line 125 to pass `selectedItem` directly on top of mapToCardProps or just merge them.
     // Map template to ExploreCard props
     const mapToCardProps = (t: Template) => ({
+        id: t._id,
         title: t.name,
         // Card shows thumbnail
         image: t.thumbnailUrl || (t.demoGifUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=60"),
@@ -109,34 +110,38 @@ export function ExplorePageContent({ templates = [] }: ExplorePageContentProps) 
                 </section>
             )}
 
-            <section>
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Newest</h3>
-                    <RainbowButton className="hidden sm:flex h-8 px-4 text-xs rounded-none after:rounded-none">
-                        View all <ChevronRight className="ml-1 h-3 w-3" />
-                    </RainbowButton>
+            {otherTemplates.length > 0 && (
+                <section>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Newest</h3>
+                        <RainbowButton className="hidden sm:flex h-8 px-4 text-xs rounded-none after:rounded-none">
+                            View all <ChevronRight className="ml-1 h-3 w-3" />
+                        </RainbowButton>
+                    </div>
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {otherTemplates.map((item) => (
+                            <ExploreCard
+                                key={item._id}
+                                {...mapToCardProps(item)}
+                                onClick={() => setSelectedItem(item)}
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {templates.length === 0 && (
+                <div className="text-center py-20 text-muted-foreground">
+                    <p>No templates found matching your criteria.</p>
                 </div>
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {otherTemplates.map((item) => (
-                        <ExploreCard
-                            key={item._id}
-                            {...mapToCardProps(item)}
-                            onClick={() => setSelectedItem(item)}
-                        />
-                    ))}
-                    {templates.length === 0 && (
-                        <div className="col-span-full text-center py-10 text-muted-foreground">
-                            No templates found.
-                        </div>
-                    )}
-                </div>
-            </section>
+            )}
 
             <ExploreModal
                 open={!!selectedItem}
                 onOpenChange={(open: boolean) => !open && setSelectedItem(null)}
                 item={selectedItem ? {
                     ...mapToCardProps(selectedItem),
+                    id: selectedItem._id,
                     // Override image for modal to show demoGifUrl if valid, else fallback to thumbnail
                     image: (selectedItem.demoGifUrl && selectedItem.demoGifUrl.startsWith('http'))
                         ? selectedItem.demoGifUrl

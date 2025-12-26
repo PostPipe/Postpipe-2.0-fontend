@@ -12,6 +12,7 @@ type Props = {
 
 export default async function Page({ searchParams }: Props) {
     const q = typeof searchParams.q === 'string' ? searchParams.q : undefined;
-    const templates = await getTemplates(q);
+    const category = typeof searchParams.category === 'string' ? searchParams.category : undefined;
+    const templates = await getTemplates(q, category);
     return <ExplorePageContent templates={templates} />
 }
