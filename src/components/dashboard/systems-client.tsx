@@ -1,97 +1,70 @@
 "use client";
 
-import { useState } from "react";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import {
-    MoreHorizontal,
-    Star,
     Terminal,
-    FolderOpen,
-    RefreshCw,
-    Database,
-    Lock,
-    ShoppingCart
 } from "lucide-react";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getSystems, toggleFavoriteSystem } from "@/lib/actions/systems";
+import { ExploreCard } from "@/components/explore/ExploreCard";
+import { ExploreModal } from "@/components/explore/ExploreModal";
 
 type System = {
     id: string;
     name: string;
-    type: "Auth" | "Ecommerce" | "Custom";
-    database: "MongoDB" | "Postgres";
+    type: string;
+    database: string;
     status: "Active" | "Disabled";
     environment: "Dev" | "Prod";
     lastUsed: string;
     isFavorite: boolean;
+    image: string;
+    author: { name: string; profileUrl?: string };
+    tags: string[];
+    cli?: string;
+    aiPrompt?: string;
+    npmPackageUrl?: string;
 };
 
-const INITIAL_SYSTEMS: System[] = [
-    {
-        id: "1",
-        name: "PostPipe Auth",
-        type: "Auth",
-        database: "MongoDB",
-        status: "Active",
-        environment: "Prod",
-        lastUsed: "2 hours ago",
-        isFavorite: true,
-    },
-    {
-        id: "2",
-        name: "E-commerce V1",
-        type: "Ecommerce",
-        database: "Postgres",
-        status: "Active",
-        environment: "Dev",
-        lastUsed: "2 days ago",
-        isFavorite: false,
-    },
-    {
-        id: "3",
-        name: "Legacy Blog",
-        type: "Custom",
-        database: "MongoDB",
-        status: "Disabled",
-        environment: "Dev",
-        lastUsed: "1 month ago",
-        isFavorite: false,
-    },
-];
-
 export default function SystemsClient() {
-    const [systems, setSystems] = useState<System[]>(INITIAL_SYSTEMS);
+    const [systems, setSystems] = useState<System[]>([]);
+    const [selectedSystem, setSelectedSystem] = useState<System | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    const toggleFavorite = (id: string) => {
+    useEffect(() => {
+        const fetchSystems = async () => {
+            try {
+                const data = await getSystems();
+                setSystems(data as any);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSystems();
+    }, []);
+
+    const toggleFavorite = async (id: string) => {
+        // Optimistic update
         setSystems(prev => prev.map(sys =>
             sys.id === id ? { ...sys, isFavorite: !sys.isFavorite } : sys
         ));
-        toast({ description: "Favorites updated" });
-    };
 
-    const copyCommand = (type: string) => {
-        const cmd = `npx create-postpipe-${type.toLowerCase()}`;
-        navigator.clipboard.writeText(cmd);
-        toast({ title: "Copied CLI Command", description: cmd });
-    }
+        const res = await toggleFavoriteSystem(id);
+        if (res.success) {
+            toast({ description: "Favorites updated" });
+        } else {
+            // Revert if failed
+            setSystems(prev => prev.map(sys =>
+                sys.id === id ? { ...sys, isFavorite: !sys.isFavorite } : sys
+            ));
+        }
+    };
 
     const sortedSystems = [...systems].sort((a, b) => {
         if (a.isFavorite === b.isFavorite) return 0;
@@ -107,93 +80,62 @@ export default function SystemsClient() {
                         Manage your dynamic backend infrastructure.
                     </p>
                 </div>
-                <RainbowButton className="h-9 px-4 text-xs text-white">
-                    <Terminal className="mr-2 h-3.5 w-3.5" />
-                    <span className="whitespace-pre-wrap text-center font-medium leading-none tracking-tight">
-                        New System
-                    </span>
-                </RainbowButton>
+                <Link href="/explore">
+                    <RainbowButton className="h-9 px-4 text-xs text-white">
+                        <Terminal className="mr-2 h-3.5 w-3.5" />
+                        <span className="whitespace-pre-wrap text-center font-medium leading-none tracking-tight">
+                            New System
+                        </span>
+                    </RainbowButton>
+                </Link>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {sortedSystems.map((system) => (
-                    <Card key={system.id} className="relative">
-                        <div className="absolute top-4 right-4 z-10">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className={cn("h-8 w-8", system.isFavorite ? "text-yellow-500" : "text-muted-foreground/30 hover:text-yellow-500")}
-                                onClick={() => toggleFavorite(system.id)}
-                            >
-                                <Star className={cn("h-5 w-5", system.isFavorite && "fill-yellow-500")} />
-                            </Button>
+            {loading ? (
+                <div className="text-center py-10 text-muted-foreground">Loading specific systems...</div>
+            ) : systems.length === 0 ? (
+                <div className="text-center py-20 border border-dashed rounded-lg">
+                    <h3 className="text-lg font-medium">No Backend Systems</h3>
+                    <p className="text-muted-foreground text-sm mt-1 mb-4">
+                        You haven&apos;t added any systems yet. Explore templates to add one.
+                    </p>
+                    <Link href="/explore">
+                        <Button variant="outline">Browse Templates</Button>
+                    </Link>
+                </div>
+            ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {sortedSystems.map((system) => (
+                        <div key={system.id} className="relative group">
+                            <ExploreCard
+                                title={system.name}
+                                image={system.image}
+                                author={{ name: system.author.name, avatar: system.author.profileUrl }}
+                                tags={[system.status, system.environment, ...system.tags].slice(0, 3)}
+                                onClick={() => setSelectedSystem(system)}
+                            />
+                            {/* Optional: Add a subtle favorite button overlay? User didn't ask explicitly but it was there */}
                         </div>
+                    ))}
+                </div>
+            )}
 
-                        <CardHeader>
-                            <div className="flex items-center gap-3">
-                                <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                                    {system.type === 'Auth' ? <Lock className="h-6 w-6" /> :
-                                        system.type === 'Ecommerce' ? <ShoppingCart className="h-6 w-6" /> :
-                                            <Database className="h-6 w-6" />}
-                                </div>
-                                <div>
-                                    <CardTitle className="text-xl">{system.name}</CardTitle>
-                                    <CardDescription className="flex items-center gap-2 mt-1">
-                                        <Badge variant="outline" className="font-normal">{system.database}</Badge>
-                                        <Badge variant={system.environment === 'Prod' ? 'default' : 'secondary'} className="text-xs">
-                                            {system.environment}
-                                        </Badge>
-                                    </CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid gap-2">
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-muted-foreground">Status</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className={cn("h-2 w-2 rounded-full", system.status === 'Active' ? "bg-green-500" : "bg-zinc-300")} />
-                                        <span className="font-medium">{system.status}</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-muted-foreground">Type</span>
-                                    <span className="font-medium">{system.type}</span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-muted-foreground">Last Used</span>
-                                    <span className="text-muted-foreground">{system.lastUsed}</span>
-                                </div>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="grid grid-cols-2 gap-2">
-                            <Button variant="outline" className="w-full" onClick={() => copyCommand(system.type)}>
-                                <Terminal className="mr-2 h-4 w-4" />
-                                CLI
-                            </Button>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" className="w-full">
-                                        <MoreHorizontal className="mr-2 h-4 w-4" />
-                                        Actions
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>System Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem onClick={() => toast({ description: "Opening file browser..." })}>
-                                        <FolderOpen className="mr-2 h-4 w-4" /> View Files
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => toast({ description: "System regeneration started" })}>
-                                        <RefreshCw className="mr-2 h-4 w-4" /> Regenerate
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-destructive">Archive System</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </CardFooter>
-                    </Card>
-                ))}
-            </div>
+            <ExploreModal
+                open={!!selectedSystem}
+                onOpenChange={(open) => !open && setSelectedSystem(null)}
+                item={selectedSystem ? {
+                    id: selectedSystem.id,
+                    title: selectedSystem.name,
+                    author: {
+                        name: selectedSystem.author.name,
+                        avatar: selectedSystem.author.profileUrl
+                    },
+                    image: selectedSystem.image,
+                    tags: selectedSystem.tags,
+                    cli: selectedSystem.cli,
+                    aiPrompt: selectedSystem.aiPrompt,
+                    npmPackageUrl: selectedSystem.npmPackageUrl
+                } : null}
+            />
         </div>
     );
 }
