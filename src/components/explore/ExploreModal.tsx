@@ -136,33 +136,31 @@ export function ExploreModal({ open, onOpenChange, item }: ExploreModalProps) {
 
                                             <div className="h-6 w-px bg-border mx-2" />
 
-                                            {item.aiPrompt && (
-                                                <div className="w-[180px]">
-                                                    <Select
-                                                        value={selectedDb}
-                                                        onValueChange={(val) => {
-                                                            setSelectedDb(val);
-                                                            handleCopy(`${item.aiPrompt} using ${val}`, "Prompt");
-                                                        }}
-                                                    >
-                                                        <SelectTrigger className="h-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 border-none">
-                                                            <div className="flex items-center gap-2">
-                                                                <SelectValue placeholder="Select Database" />
-                                                            </div>
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {databases.map((db) => (
-                                                                <SelectItem key={db.name} value={db.name}>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <img src={db.logo} alt={db.name} className="h-4 w-4" />
-                                                                        <span>{db.name}</span>
-                                                                    </div>
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            )}
+                                            <div className="w-[180px]">
+                                                <Select
+                                                    value={selectedDb}
+                                                    onValueChange={(val) => {
+                                                        setSelectedDb(val);
+                                                        handleCopy(`${item.aiPrompt || ''} using ${val}`, "Prompt");
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="h-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 border-none">
+                                                        <div className="flex items-center gap-2">
+                                                            <SelectValue placeholder="Select Database" />
+                                                        </div>
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {databases.map((db) => (
+                                                            <SelectItem key={db.name} value={db.name}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <img src={db.logo} alt={db.name} className="h-4 w-4" />
+                                                                    <span>{db.name}</span>
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
 
                                             <Dialog.Close asChild>
                                                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full ml-1">
