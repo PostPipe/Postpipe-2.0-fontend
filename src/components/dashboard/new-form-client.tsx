@@ -19,6 +19,24 @@ import { RainbowButton } from "@/components/ui/rainbow-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from "@dnd-kit/core";
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
 type FormField = {
     id: string;
     label: string;
@@ -30,6 +48,91 @@ type NewFormClientProps = {
     onBack?: () => void;
 };
 
+// Sortable Item Component
+function SortableField({
+    field,
+    updateField,
+    removeField
+}: {
+    field: FormField;
+    updateField: (id: string, key: keyof FormField, value: any) => void;
+    removeField: (id: string) => void;
+}) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: field.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : "auto",
+        position: isDragging ? "relative" as const : "static" as const,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style}>
+            <Card className={`relative group ${isDragging ? "opacity-50" : ""}`}>
+                <CardContent className="p-4 flex gap-4 items-start">
+                    {/* Drag Handle */}
+                    <div
+                        className="mt-3 text-muted-foreground cursor-grab active:cursor-grabbing hover:text-foreground transition-colors"
+                        {...attributes}
+                        {...listeners}
+                    >
+                        <GripVertical className="h-4 w-4" />
+                    </div>
+
+                    <div className="grid gap-4 flex-1 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label>Label</Label>
+                            <Input
+                                value={field.label}
+                                onChange={e => updateField(field.id, "label", e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Type</Label>
+                            <Select
+                                value={field.type}
+                                onValueChange={val => updateField(field.id, "type", val)}
+                            >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="text">Text Input</SelectItem>
+                                    <SelectItem value="email">Email</SelectItem>
+                                    <SelectItem value="textarea">Text Area</SelectItem>
+                                    <SelectItem value="number">Number</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Switch
+                                id={`req-${field.id}`}
+                                checked={field.required}
+                                onCheckedChange={checked => updateField(field.id, "required", checked)}
+                            />
+                            <Label htmlFor={`req-${field.id}`}>Required</Label>
+                        </div>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeField(field.id)}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
 export default function NewFormClient({ onBack }: NewFormClientProps) {
     const [formName, setFormName] = useState("");
     const [connector, setConnector] = useState("");
@@ -39,6 +142,29 @@ export default function NewFormClient({ onBack }: NewFormClientProps) {
         { id: "3", label: "Message", type: "textarea", required: true },
     ]);
     const [generatedId, setGeneratedId] = useState<string | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5, // Require drag movement of 5px before activation
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (active.id !== over?.id) {
+            setFields((items) => {
+                const oldIndex = items.findIndex((item) => item.id === active.id);
+                const newIndex = items.findIndex((item) => item.id === over?.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        }
+    };
 
     const addField = () => {
         setFields([...fields, { id: Date.now().toString(), label: "New Field", type: "text", required: false }]);
@@ -145,38 +271,27 @@ ${fields.map(f => `      <div>
                             </Button>
                         </div>
 
-                        {fields.map((field, index) => (
-                            <Card key={field.id} className="relative group">
-                                <CardContent className="p-4 flex gap-4 items-start">
-                                    <div className="mt-3 text-muted-foreground cursor-move"><GripVertical className="h-4 w-4" /></div>
-                                    <div className="grid gap-4 flex-1 md:grid-cols-2">
-                                        <div className="space-y-2">
-                                            <Label>Label</Label>
-                                            <Input value={field.label} onChange={e => updateField(field.id, "label", e.target.value)} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Type</Label>
-                                            <Select value={field.type} onValueChange={val => updateField(field.id, "type", val)}>
-                                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="text">Text Input</SelectItem>
-                                                    <SelectItem value="email">Email</SelectItem>
-                                                    <SelectItem value="textarea">Text Area</SelectItem>
-                                                    <SelectItem value="number">Number</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <Switch id={`req-${field.id}`} checked={field.required} onCheckedChange={checked => updateField(field.id, "required", checked)} />
-                                            <Label htmlFor={`req-${field.id}`}>Required</Label>
-                                        </div>
-                                    </div>
-                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeField(field.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        ))}
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <SortableContext
+                                items={fields.map(f => f.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <div className="space-y-4">
+                                    {fields.map((field) => (
+                                        <SortableField
+                                            key={field.id}
+                                            field={field}
+                                            updateField={updateField}
+                                            removeField={removeField}
+                                        />
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
                     </div>
                 </div>
 

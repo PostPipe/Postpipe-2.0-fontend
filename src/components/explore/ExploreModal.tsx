@@ -14,6 +14,15 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 
 import { createSystem } from "@/lib/actions/systems"
+import databases from "@/data/databases.json"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { useState } from "react"
 
 interface ExploreModalProps {
     open: boolean
@@ -36,6 +45,7 @@ interface ExploreModalProps {
 
 export function ExploreModal({ open, onOpenChange, item }: ExploreModalProps) {
     const { toast } = useToast()
+    const [selectedDb, setSelectedDb] = useState("")
 
     if (!item) return null
 
@@ -127,10 +137,31 @@ export function ExploreModal({ open, onOpenChange, item }: ExploreModalProps) {
                                             <div className="h-6 w-px bg-border mx-2" />
 
                                             {item.aiPrompt && (
-                                                <Button className="h-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 gap-2" onClick={() => handleCopy(item.aiPrompt, "Prompt")}>
-                                                    <Copy className="h-4 w-4" />
-                                                    <span className="font-medium text-xs tracking-wide">COPY PROMPT</span>
-                                                </Button>
+                                                <div className="w-[180px]">
+                                                    <Select
+                                                        value={selectedDb}
+                                                        onValueChange={(val) => {
+                                                            setSelectedDb(val);
+                                                            handleCopy(`${item.aiPrompt} using ${val}`, "Prompt");
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="h-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 border-none">
+                                                            <div className="flex items-center gap-2">
+                                                                <SelectValue placeholder="Select Database" />
+                                                            </div>
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {databases.map((db) => (
+                                                                <SelectItem key={db.name} value={db.name}>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <img src={db.logo} alt={db.name} className="h-4 w-4" />
+                                                                        <span>{db.name}</span>
+                                                                    </div>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
                                             )}
 
                                             <Dialog.Close asChild>
