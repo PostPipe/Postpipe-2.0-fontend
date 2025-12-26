@@ -27,7 +27,11 @@ interface Template {
     isPublished: boolean;
     cli?: string;
     aiPrompt?: string;
-    npmPackageUrl?: string;
+    databaseConfigurations?: {
+        databaseName: string;
+        logo: string;
+        prompt: string;
+    }[];
 }
 
 interface ExplorePageContentProps {
@@ -148,7 +152,8 @@ export function ExplorePageContent({ templates = [] }: ExplorePageContentProps) 
                         : (selectedItem.thumbnailUrl || (selectedItem.demoGifUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=60")),
                     cli: selectedItem.cli,
                     aiPrompt: selectedItem.aiPrompt,
-                    npmPackageUrl: selectedItem.npmPackageUrl
+                    npmPackageUrl: selectedItem.npmPackageUrl,
+                    databaseConfigurations: selectedItem.databaseConfigurations
                 } : null}
             />
         </div>

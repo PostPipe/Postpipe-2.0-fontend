@@ -22,7 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 interface ExploreModalProps {
     open: boolean
@@ -40,12 +40,21 @@ interface ExploreModalProps {
         cli?: string
         aiPrompt?: string
         npmPackageUrl?: string
+        databaseConfigurations?: {
+            databaseName: string;
+            logo: string;
+            prompt: string;
+        }[]
     } | null
 }
 
 export function ExploreModal({ open, onOpenChange, item }: ExploreModalProps) {
     const { toast } = useToast()
     const [selectedDb, setSelectedDb] = useState("")
+
+    useEffect(() => {
+        setSelectedDb("")
+    }, [open, item])
 
     if (!item) return null
 
@@ -141,7 +150,13 @@ export function ExploreModal({ open, onOpenChange, item }: ExploreModalProps) {
                                                     value={selectedDb}
                                                     onValueChange={(val) => {
                                                         setSelectedDb(val);
-                                                        handleCopy(`${item.aiPrompt || ''} using ${val}`, "Prompt");
+                                                        const config = item.databaseConfigurations?.find(c => c.databaseName === val);
+                                                        if (config) {
+                                                            handleCopy(config.prompt, "Prompt");
+                                                        } else {
+                                                            // Fallback if no specific config found, though UI is driven by databases list so this might be generic
+                                                            handleCopy(`${item.aiPrompt || ''} using ${val}`, "Prompt");
+                                                        }
                                                     }}
                                                 >
                                                     <SelectTrigger className="h-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 border-none">
