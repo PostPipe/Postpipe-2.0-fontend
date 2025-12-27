@@ -136,7 +136,6 @@ export function ExploreSidebar({ ...props }: React.ComponentProps<typeof Sidebar
                         <div className="p-4 text-sm text-muted-foreground">Loading filters...</div>
                     )}
                 </SidebarContent>
-                <SidebarRail />
             </Sidebar>
             <SearchPopup open={searchOpen} setOpen={setSearchOpen} />
         </>
