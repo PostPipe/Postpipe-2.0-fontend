@@ -56,7 +56,8 @@ export async function sendVerificationEmail(email: string, token: string) {
 
     try {
         await resend.emails.send({
-            from: 'support@postpipe.in',
+            from: 'PostPipe <no-reply@postpipe.in>',
+            replyTo: 'no-reply@postpipe.in',
             to: email,
             subject: 'Verify your email address',
             html: EmailTemplate(
@@ -80,7 +81,8 @@ export async function sendPasswordResetEmail(email: string, token: string) {
 
     try {
         await resend.emails.send({
-            from: 'support@postpipe.in',
+            from: 'PostPipe <no-reply@postpipe.in>',
+            replyTo: 'no-reply@postpipe.in',
             to: email,
             subject: 'Reset your password',
             html: EmailTemplate(
