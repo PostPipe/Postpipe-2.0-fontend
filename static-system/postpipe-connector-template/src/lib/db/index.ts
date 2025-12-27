@@ -1,3 +1,6 @@
+import { DatabaseAdapter } from '../../types';
+import { MongoAdapter } from './mongodb';
+
 export function getAdapter(): DatabaseAdapter {
   // Auto-detect MongoDB if URI is present
   const type = process.env.DB_TYPE?.toLowerCase() || (process.env.MONGODB_URI ? 'mongodb' : undefined);
