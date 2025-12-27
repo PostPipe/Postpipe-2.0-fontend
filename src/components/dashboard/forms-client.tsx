@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { deleteFormAction } from "@/app/actions/dashboard";
 
 type Form = {
     id: string;
@@ -44,35 +45,22 @@ type Form = {
     status: "Live" | "Paused";
 };
 
-const INITIAL_FORMS: Form[] = [
-    {
-        id: "f1",
-        name: "Contact Us",
-        connectorName: "Primary Prod",
-        submissions: 45,
-        lastSubmission: "10 mins ago",
-        status: "Live",
-    },
-    {
-        id: "f2",
-        name: "Waitlist Signup",
-        connectorName: "Dev Local",
-        submissions: 1203,
-        lastSubmission: "1 min ago",
-        status: "Live",
-    },
-    {
-        id: "f3",
-        name: "Customer Feedback",
-        connectorName: "Primary Prod",
-        submissions: 12,
-        lastSubmission: "3 days ago",
-        status: "Paused",
-    },
-];
 
-export default function FormsClient() {
-    const [forms, setForms] = React.useState<Form[]>(INITIAL_FORMS);
+interface FormsClientProps {
+    initialForms: any[];
+}
+
+
+
+export default function FormsClient({ initialForms = [] }: FormsClientProps) {
+    const [forms, setForms] = React.useState<Form[]>(initialForms.map((f: any) => ({
+        id: f.id,
+        name: f.name,
+        connectorName: "Active Connector", // We might want to fetch connector name if possible, or just generic
+        submissions: 0, // Assuming 0 for now as we don't have submission count in DB yet
+        lastSubmission: "Never",
+        status: "Live",
+    })));
 
     const toggleStatus = (id: string) => {
         const form = forms.find(f => f.id === id);
@@ -89,9 +77,18 @@ export default function FormsClient() {
         }));
     };
 
-    const deleteForm = (id: string) => {
-        setForms(prev => prev.filter(f => f.id !== id));
-        toast({ title: "Form Deleted", description: "The form has been permanently removed.", variant: "destructive" });
+    const deleteForm = async (id: string) => {
+        try {
+            // Optimistic update
+            setForms(prev => prev.filter(f => f.id !== id));
+
+            // Server Action
+            await deleteFormAction(id);
+
+            toast({ title: "Form Deleted", description: "The form has been permanently removed.", variant: "destructive" });
+        } catch (e) {
+            toast({ title: "Error", description: "Failed to delete form", variant: "destructive" });
+        }
     };
 
     const copyEmbed = (id: string) => {

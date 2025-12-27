@@ -57,6 +57,7 @@
     "gsap": "^3.12.5",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.475.0",
+    "mongodb": "^7.0.0",
     "mongoose": "^9.0.2",
     "motion": "^12.23.26",
     "next": "15.5.9",

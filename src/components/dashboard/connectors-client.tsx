@@ -40,6 +40,8 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { registerConnectorAction } from "@/app/actions/register";
+import { deleteConnectorAction } from "@/app/actions/dashboard";
 
 type Connector = {
     id: string;
@@ -51,20 +53,23 @@ type Connector = {
     lastUsed: string;
 };
 
-const INITIAL_CONNECTORS: Connector[] = [
-    {
-        id: "c1",
-        name: "Primary Prod",
-        connectorId: "conn_prod_8x92m",
-        secret: "sk_live_51Mx92...",
-        url: "https://my-connector.vercel.app/api",
-        status: "Verified",
-        lastUsed: "5 mins ago",
-    },
-];
 
-export default function ConnectorsClient() {
-    const [connectors, setConnectors] = useState<Connector[]>(INITIAL_CONNECTORS);
+interface ConnectorsClientProps {
+    initialConnectors: any[];
+}
+
+
+
+export default function ConnectorsClient({ initialConnectors = [] }: ConnectorsClientProps) {
+    const [connectors, setConnectors] = useState<Connector[]>(initialConnectors.map((c: any) => ({
+        id: c._id || c.id,
+        name: c.name,
+        connectorId: c.id, // The UUID from registerConnector
+        secret: c.secret,
+        url: c.url,
+        status: "Verified",
+        lastUsed: "Recently", // You can calculate this if createdAt exists
+    })));
     const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({});
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -82,9 +87,22 @@ export default function ConnectorsClient() {
         toast({ title: "Copied!", description: `${label} copied to clipboard.` });
     };
 
-    const deleteConnector = (id: string) => {
-        setConnectors(prev => prev.filter(c => c.id !== id));
-        toast({ title: "Connector Deleted", description: "The connector has been removed." });
+    const deleteConnector = async (id: string, connectorId: string) => {
+        try {
+            // Optimistic update
+            const prev = connectors;
+            setConnectors(prev => prev.filter(c => c.id !== id));
+
+            // Server Action
+            // Note: DB expects the string UUID (c.id from props), but our local state id might be _id
+            // Let's pass the connectorId (the UUID) if that's what deleteConnector expects
+            // Looking at server-db.ts, deleteConnector uses 'id' which is the UUID.
+            await deleteConnectorAction(connectorId);
+
+            toast({ title: "Connector Deleted", description: "The connector has been removed." });
+        } catch (e) {
+            toast({ title: "Error", description: "Failed to delete connector", variant: "destructive" });
+        }
     };
 
     const rotateSecret = (id: string) => {
@@ -95,29 +113,41 @@ export default function ConnectorsClient() {
         });
     };
 
-    const handleRegisterConnector = () => {
+    const handleRegisterConnector = async () => {
         if (!newName || !newUrl) return;
 
         setIsRegistering(true);
-        // Mock API Call
-        setTimeout(() => {
-            const newConnector: Connector = {
-                id: `c${Date.now()}`,
-                name: newName,
-                connectorId: `conn_${Date.now().toString(36)}`,
-                secret: `sk_live_${Math.random().toString(36).substring(7)}...`,
-                url: newUrl,
-                status: "Verified", // Assume verified for mock
-                lastUsed: "Never",
-            };
+        const formData = new FormData();
+        formData.append('name', newName);
+        formData.append('url', newUrl);
 
-            setConnectors(prev => [...prev, newConnector]);
-            setNewName("");
-            setNewUrl("");
+        try {
+            const res = await registerConnectorAction(formData);
+
+            if (res.error) {
+                toast({ title: "Registration Failed", description: res.error, variant: "destructive" });
+            } else {
+                const newConnector: Connector = {
+                    id: res.connectorId || '',
+                    name: newName,
+                    connectorId: res.connectorId || '',
+                    secret: res.connectorSecret || '',
+                    url: newUrl,
+                    status: "Verified",
+                    lastUsed: "Just now",
+                };
+
+                setConnectors(prev => [...prev, newConnector]);
+                setNewName("");
+                setNewUrl("");
+                setIsDialogOpen(false);
+                toast({ title: "Connector Registered", description: "You can now use this connector in your forms." });
+            }
+        } catch (error) {
+            toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
+        } finally {
             setIsRegistering(false);
-            setIsDialogOpen(false);
-            toast({ title: "Connector Registered", description: "You can now use this connector in your forms." });
-        }, 1500);
+        }
     };
 
     return (
@@ -268,7 +298,7 @@ export default function ConnectorsClient() {
                                     </DialogHeader>
                                     <DialogFooter>
                                         <Button variant="outline">Cancel</Button>
-                                        <Button variant="destructive" onClick={() => deleteConnector(connector.id)}>Delete Connector</Button>
+                                        <Button variant="destructive" onClick={() => deleteConnector(connector.id, connector.connectorId)}>Delete Connector</Button>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>

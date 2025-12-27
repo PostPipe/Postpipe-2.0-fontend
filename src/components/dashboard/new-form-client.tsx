@@ -18,6 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
+import { createFormAction, getConnectorsAction } from "@/app/actions/builder";
+import { useEffect } from "react";
 
 import {
     DndContext,
@@ -178,23 +180,45 @@ export default function NewFormClient({ onBack }: NewFormClientProps) {
         setFields(fields.map(f => f.id === id ? { ...f, [key]: value } : f));
     };
 
-    const handleSave = () => {
+    // Load connectors on mount
+    const [connectors, setConnectors] = useState<any[]>([]);
+    useEffect(() => {
+        getConnectorsAction().then(data => {
+            setConnectors(data);
+        });
+    }, []);
+
+    const handleSave = async () => {
         if (!formName || !connector) {
             toast({ title: "Validation Error", description: "Please provide a name and select a connector.", variant: "destructive" });
             return;
         }
 
-        // Mock Save
-        const mockId = `form_${Date.now().toString(36)}`;
-        setGeneratedId(mockId);
-        toast({ title: "Form Saved", description: "Your form is ready to embed." });
+        const formData = new FormData();
+        formData.append('name', formName);
+        formData.append('connectorId', connector);
+        // Map fields to match simple structure expected by server
+        const simplifiedFields = fields.map(f => ({ name: f.label, type: f.type, required: f.required }));
+        formData.append('fields', JSON.stringify(simplifiedFields));
+
+        try {
+            const res = await createFormAction(formData);
+            if (res.error) {
+                toast({ title: "Error", description: res.error, variant: "destructive" });
+            } else {
+                setGeneratedId(res.formId || '');
+                toast({ title: "Form Saved", description: "Your form is ready to embed." });
+            }
+        } catch (e) {
+            toast({ title: "Error", description: "Failed to create form.", variant: "destructive" });
+        }
     };
 
     const embedCodeHTML = generatedId ? `
-<form action="https://api.postpipe.dev/web/submit/${generatedId}" method="POST">
+<form action="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/api/public/submit/${generatedId}" method="POST">
 ${fields.map(f => `  <div>
     <label>${f.label}</label>
-    <input type="${f.type}" name="${f.label.toLowerCase().replace(/\s/g, '_')}" ${f.required ? 'required' : ''} />
+    <input type="${f.type}" name="${f.label}" ${f.required ? 'required' : ''} />
   </div>`).join('\n')}
   <button type="submit">Submit</button>
 </form>`.trim() : "";
@@ -202,10 +226,10 @@ ${fields.map(f => `  <div>
     const embedCodeReact = generatedId ? `
 const MyForm = () => {
   return (
-    <form action="https://api.postpipe.dev/web/submit/${generatedId}" method="POST">
+    <form action="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/api/public/submit/${generatedId}" method="POST">
 ${fields.map(f => `      <div>
         <label>${f.label}</label>
-        <input type="${f.type}" name="${f.label.toLowerCase().replace(/\s/g, '_')}" ${f.required ? 'required' : ''} />
+        <input type="${f.type}" name="${f.label}" ${f.required ? 'required' : ''} />
       </div>`).join('\n')}
       <button type="submit">Submit</button>
     </form>
@@ -255,8 +279,9 @@ ${fields.map(f => `      <div>
                                         <SelectValue placeholder="Choose where data goes..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="c1">Primary Prod (Verified)</SelectItem>
-                                        <SelectItem value="c2">Dev Local (Verified)</SelectItem>
+                                        {connectors.map((c: any) => (
+                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>

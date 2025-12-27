@@ -206,18 +206,28 @@ export default function StaticConnectorClient() {
 
                                             {!isGenerated && (
                                                 <div className="flex gap-4 mt-6">
-                                                    <Button variant="outline" size="sm" className="gap-2 text-muted-foreground" asChild>
-                                                        <Link href="https://vercel.com/docs/deployments/overview" target="_blank">
-                                                            Vercel Deploy
-                                                            <svg role="img" viewBox="0 0 24 24" className="h-3 w-3 fill-current" xmlns="http://www.w3.org/2000/svg"><title>Vercel</title><path d="M24 22.525H0l12-21.05 12 21.05z" /></svg>
-                                                        </Link>
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" className="gap-2 text-muted-foreground" asChild>
-                                                        <Link href="https://en.wikipedia.org/wiki/Microsoft_Azure" target="_blank">
-                                                            Azure Deploy
-                                                            <img src="/Microsoft_Azure.logo.png" alt="Azure Logo" className="h-3 w-3 object-contain" />
-                                                        </Link>
-                                                    </Button>
+                                                    <a
+                                                        href={`https://vercel.com/new/clone?repository-url=https://github.com/Sourodip-1/postpipe-connector-template&project-name=postpipe-connector&repository-name=postpipe-connector&env=POSTPIPE_CONNECTOR_ID,POSTPIPE_CONNECTOR_SECRET&envDescription=Enter_your_connector_credentials&envLink=${encodeURIComponent('https://postpipe.in/dashboard')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group flex items-center justify-center gap-2 bg-black border border-neutral-800 hover:border-neutral-600 rounded-md p-3 transition-all h-9 text-sm px-4"
+                                                    >
+                                                        <span className="text-neutral-300 font-medium group-hover:text-white">Vercel Deploy</span>
+                                                        <svg viewBox="0 0 76 65" fill="currentColor" className="h-3 w-3 text-neutral-300 group-hover:text-white">
+                                                            <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
+                                                        </svg>
+                                                    </a>
+                                                    <a
+                                                        href={`https://portal.azure.com/#create/Microsoft.Template/uri/${encodeURIComponent('https://raw.githubusercontent.com/Sourodip-1/postpipe-connector-template/main/azuredeploy.json')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group flex items-center justify-center gap-2 bg-black border border-neutral-800 hover:border-blue-900/50 rounded-md p-3 transition-all h-9 text-sm px-4"
+                                                    >
+                                                        <span className="text-neutral-300 font-medium group-hover:text-blue-400">Azure Deploy</span>
+                                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+                                                            <path d="M11.64 3.93h.03l7.98 16.5h-3.41l-1.57-3.43H6.05l5.59-13.07ZM9.3 14h5.66l-2.82-6.17L9.3 14Zm-4.95 6.43h-2.9L8.4.5h3.69l-7.74 19.86Z" fill="#0078D4" />
+                                                        </svg>
+                                                    </a>
                                                 </div>
                                             )}
                                         </div>

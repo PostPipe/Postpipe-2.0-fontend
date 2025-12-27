@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: 'Forms',
 };
 
-export default function FormsPage() {
-  return <FormsClient />;
+import { getDashboardData } from '@/app/actions/dashboard';
+
+export default async function FormsPage() {
+  const { forms } = await getDashboardData();
+  // @ts-ignore
+  return <FormsClient initialForms={forms} />;
 }

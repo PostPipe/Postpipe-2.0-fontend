@@ -5,6 +5,10 @@ export const metadata: Metadata = {
     title: 'Connectors',
 };
 
-export default function ConnectorsPage() {
-    return <ConnectorsClient />;
+import { getDashboardData } from '@/app/actions/dashboard';
+
+export default async function ConnectorsPage() {
+    const { connectors } = await getDashboardData();
+    // @ts-ignore
+    return <ConnectorsClient initialConnectors={connectors} />;
 }
