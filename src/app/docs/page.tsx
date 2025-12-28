@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import {
     Book,
     Terminal,
@@ -215,7 +216,7 @@ const pages: Record<string, PageContent> = {
         content: (
             <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="border-b border-slate-800 pb-6 mb-8">
-                    <h1 className="text-4xl font-bold text-white mb-4">Introduction to PostPipe 2.0 🧪</h1>
+                    <h1 className="text-4xl font-bold text-white mb-4">Introduction to PostPipe 🧪</h1>
                     <p className="text-xl text-slate-400">The Zero Trust bridge between your browser and your data.</p>
                 </div>
 
@@ -541,12 +542,7 @@ export default function PostPipeDocs() {
 
             {/* Mobile Navbar with sticky positioning adjusted for Global Nav */}
             <div className="lg:hidden sticky top-14 z-40 border-b border-slate-800 bg-[#09090b]/80 backdrop-blur-md px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 font-bold text-white text-lg">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white text-xl">P</span>
-                    </div>
-                    PostPipe 2.0
-                </div>
+                <div></div>
                 <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-400 hover:text-white">
                     {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
@@ -563,10 +559,9 @@ export default function PostPipeDocs() {
                     <div className="p-6 h-full flex flex-col">
                         {/* Desktop Logo - Hidden since we have global header, or keep as sub-branding */}
                         <div className="hidden lg:flex items-center gap-3 font-bold text-white text-xl mb-8">
-                            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                                <span className="text-white">P</span>
+                            <div className="relative h-8 w-40">
+                                <Image src="/PostPipe.svg" alt="PostPipe" fill className="object-contain object-left" />
                             </div>
-                            PostPipe 2.0
                         </div>
 
                         {/* Search */}
