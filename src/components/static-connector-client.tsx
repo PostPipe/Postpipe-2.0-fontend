@@ -179,7 +179,7 @@ export default function StaticConnectorClient() {
                                             <span className="text-xs font-mono text-muted-foreground">POSTPIPE_CONNECTOR_ID</span>
                                             <div className="flex items-center gap-2">
                                                 <code className="text-xs font-mono bg-muted px-2 py-1 rounded">{connectorData.id}</code>
-                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyToClipboard(connectorData.id, "ID")}><Copy className="h-3 w-3" /></Button>
+                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyToClipboard(`POSTPIPE_CONNECTOR_ID=${connectorData.id}`, "ID")}><Copy className="h-3 w-3" /></Button>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between">
@@ -191,7 +191,14 @@ export default function StaticConnectorClient() {
                                                 <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowSecret(!showSecret)}>
                                                     {showSecret ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                                                 </Button>
-                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyToClipboard(connectorData.secret, "Secret")}><Copy className="h-3 w-3" /></Button>
+                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyToClipboard(`POSTPIPE_CONNECTOR_SECRET=${connectorData.secret}`, "Secret")}><Copy className="h-3 w-3" /></Button>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs font-mono text-muted-foreground">DB_TYPE</span>
+                                            <div className="flex items-center gap-2">
+                                                <code className="text-xs font-mono bg-muted px-2 py-1 rounded">mongodb</code>
+                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyToClipboard(`DB_TYPE=mongodb`, "DB Type")}><Copy className="h-3 w-3" /></Button>
                                             </div>
                                         </div>
                                     </div>
