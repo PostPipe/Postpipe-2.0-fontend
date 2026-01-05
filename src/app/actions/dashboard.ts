@@ -20,18 +20,26 @@ import { getSession } from '../../lib/auth/actions';
 export async function getDashboardData() {
   const session = await getSession();
   if (!session || !session.userId) {
-    // Return empty data if not authenticated, or redirect (better handled by middleware/page)
+    // Return empty data if not authenticated
     return { forms: [], connectors: [], systems: [] };
   }
 
-  const forms = await getForms(session.userId);
+  // Fetch all data in parallel
+  const [forms, connectors, systems] = await Promise.all([
+    getForms(session.userId),
+    getConnectors(session.userId),
+    getSystems(session.userId)
+  ]);
 
-  // Enhance forms with proper tokens/urls
-  const formsWithSecrets = await Promise.all(forms.map(async f => {
-    const connector = await getConnector(f.connectorId);
+  // Create a map for fast O(1) connector lookup
+  const connectorMap = new Map(connectors.map(c => [c.id, c]));
+
+  // Enhance forms with data from the pre-fetched connectors
+  const formsWithSecrets = forms.map(f => {
+    const connector = connectorMap.get(f.connectorId);
     if (!connector) return null;
 
-    // Generate Read Token (Same logic as before, but dynamic secret)
+    // Generate Read Token
     const payload = {
       formId: f.id,
       exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 365) // 1 year
@@ -50,12 +58,10 @@ export async function getDashboardData() {
       ...f,
       connectorUrl: connector.url,
       readToken: token,
-      // The public ingest endpoint the user can use for testing
       publicSubmitUrl: `http://localhost:3000/api/public/submit/${f.id}`,
-      // The direct connector getter endpoint
       connectorGetterUrl: `${connector.url}/api/postpipe/forms/${f.id}/submissions`
     };
-  }));
+  });
 
   const validForms = formsWithSecrets.filter(Boolean);
 
@@ -67,7 +73,6 @@ export async function getDashboardData() {
     connectorId: f.connectorId?.toString(),
   }));
 
-  const connectors = await getConnectors(session.userId); // Fetch connectors directly from DB util
   // Serialize connectors
   const serializedConnectors = connectors.map((c: any) => ({
     ...c,
@@ -75,7 +80,6 @@ export async function getDashboardData() {
     id: c.id?.toString(),
   }));
 
-  const systems = await getSystems(session.userId);
   const serializedSystems = systems.map((s: any) => ({
     ...s,
     _id: s._id?.toString(),
