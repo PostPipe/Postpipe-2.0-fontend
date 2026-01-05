@@ -145,7 +145,23 @@ export async function deleteConnectorAction(id: string) {
   const connector = await getConnector(id);
   if (!connector) return { success: false, error: "Connector not found" };
 
+
+
   // We pass session.userId to ensure we only delete if it belongs to the user
   await deleteConnector(id, session.userId);
   return { success: true };
+}
+
+export async function getConnectorsAction() {
+  const session = await getSession();
+  if (!session || !session.userId) {
+    throw new Error("Unauthorized");
+  }
+
+  const connectors = await getConnectors(session.userId);
+  return connectors.map((c: any) => ({
+    ...c,
+    _id: c._id?.toString(),
+    id: c.id?.toString(),
+  }));
 }
