@@ -128,10 +128,7 @@ export function ExplorePageContent({ templates = [] }: ExplorePageContentProps) 
                 <section>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold">Newest</h3>
-                        {/* Removed View all button as we have pagination now, or we can keep it */}
-                        <RainbowButton className="hidden sm:flex h-8 px-4 text-xs rounded-none after:rounded-none">
-                            View all <ChevronRight className="ml-1 h-3 w-3" />
-                        </RainbowButton>
+
                     </div>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {paginatedItems.map((item) => (
