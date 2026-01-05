@@ -3,6 +3,7 @@
 import { ExploreCard } from "./ExploreCard"
 import { ExploreModal } from "./ExploreModal"
 import { RainbowButton } from "@/components/ui/rainbow-button"
+import SlidingPagination from "@/components/ui/sliding-pagination"
 import { ChevronRight } from "lucide-react"
 import * as React from "react"
 import {
@@ -52,6 +53,15 @@ export function ExplorePageContent({ templates = [] }: ExplorePageContentProps) 
             !t.tags?.some(tag => ['master', 'Master', 'MASTER', 'Master Template'].includes(tag))
         );
     }, [templates]);
+
+    const ITEMS_PER_PAGE = 8;
+    const totalPages = Math.ceil(otherTemplates.length / ITEMS_PER_PAGE);
+    const [currentPage, setCurrentPage] = React.useState(1);
+
+    const paginatedItems = React.useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return otherTemplates.slice(start, start + ITEMS_PER_PAGE);
+    }, [otherTemplates, currentPage]);
 
     // Map template to ExploreCard props
     // We now pass the full template or an extended object to the modal via selectedItem
@@ -118,12 +128,10 @@ export function ExplorePageContent({ templates = [] }: ExplorePageContentProps) 
                 <section>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold">Newest</h3>
-                        <RainbowButton className="hidden sm:flex h-8 px-4 text-xs rounded-none after:rounded-none">
-                            View all <ChevronRight className="ml-1 h-3 w-3" />
-                        </RainbowButton>
+
                     </div>
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {otherTemplates.map((item) => (
+                        {paginatedItems.map((item) => (
                             <ExploreCard
                                 key={item._id}
                                 {...mapToCardProps(item)}
@@ -131,6 +139,16 @@ export function ExplorePageContent({ templates = [] }: ExplorePageContentProps) 
                             />
                         ))}
                     </div>
+
+                    {totalPages > 1 && (
+                        <div className="mt-8 flex justify-center">
+                            <SlidingPagination
+                                totalPages={totalPages}
+                                currentPage={currentPage}
+                                onPageChange={setCurrentPage}
+                            />
+                        </div>
+                    )}
                 </section>
             )}
 

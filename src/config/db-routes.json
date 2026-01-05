@@ -1,0 +1,10 @@
+{
+  "databases": {
+    "default": {
+      "uri": "env:MONGODB_URI",
+      "dbName": "postpipe"
+    }
+  },
+  "rules": [],
+  "defaultTarget": "default"
+}
