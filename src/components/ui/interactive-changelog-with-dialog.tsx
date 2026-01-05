@@ -20,6 +20,29 @@ import {
 
 const releases = [
     {
+        title: "v2.0.1: Maintenance Update",
+        date: "January 05, 2026",
+        image: "https://res.cloudinary.com/dbaw86kzf/image/upload/v1767630171/ab8d63ac-b9aa-47f6-907e-b5ec392cb596.png",
+        excerpt:
+            "Added Lazy-Loading and Skeleton Loading For Pages Fetching Database Informations.",
+        contributors: [
+            "https://github.com/yo-soyam",
+        ],
+        content: (
+            <div className="prose dark:prose-invert max-w-none">
+                <h3>Lazy-Loading and Skeleton</h3>
+                <p>
+                    This release focuses on speed improvements on overall websites.
+                </p>
+                <ul>
+                    <li>Resolved Loading Speed Problems </li>
+                    <li>Added Lazy-Loading</li>
+                    <li>Added Skeletal-Loading</li>
+                </ul>
+            </div>
+        ),
+    },
+    {
         title: "v2.0.0: Per-Connector Database Routing",
         date: "January 04, 2026",
         image: "https://res.cloudinary.com/dbaw86kzf/image/upload/v1767534741/967e77cc-ef30-4ec9-b086-97fbbf903710.png",
