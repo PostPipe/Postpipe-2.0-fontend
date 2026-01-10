@@ -11,10 +11,20 @@ import { Logo } from '../icons/logo';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from '@/components/ui/sheet';
+import { Menu } from 'lucide-react';
+
 export function Header2() {
 	const scrolled = useScroll(10);
 	const pathname = usePathname();
 	const isExplore = pathname?.startsWith("/explore");
+	const [isOpen, setIsOpen] = React.useState(false);
 
 	const links = [
 		{ href: "/explore", label: "Dynamic" },
@@ -50,6 +60,41 @@ export function Header2() {
 					))}
 					<AuthButton />
 					<ThemeToggle />
+				</div>
+
+				{/* Mobile Menu */}
+				<div className="flex items-center gap-2 md:hidden">
+					<ThemeToggle />
+					<Sheet open={isOpen} onOpenChange={setIsOpen}>
+						<SheetTrigger asChild>
+							<Button variant="ghost" size="icon" className="shrink-0">
+								<Menu className="h-5 w-5" />
+								<span className="sr-only">Toggle menu</span>
+							</Button>
+						</SheetTrigger>
+						<SheetContent side="right">
+							<SheetHeader>
+								<SheetTitle className="text-left">Menu</SheetTitle>
+							</SheetHeader>
+							<div className="flex flex-col gap-4 mt-8">
+								{links.map((link, i) => (
+									<Link
+										key={i}
+										href={link.href}
+										className="text-lg font-medium hover:text-primary transition-colors"
+										onClick={() => setIsOpen(false)}
+									>
+										{link.label}
+									</Link>
+								))}
+								<div className="pt-4 mt-4 border-t">
+									<div className="flex justify-start">
+										<AuthButton />
+									</div>
+								</div>
+							</div>
+						</SheetContent>
+					</Sheet>
 				</div>
 			</div>
 		</header>
