@@ -82,7 +82,7 @@ export function ExplorePageContent({ templates = [] }: ExplorePageContentProps) 
     });
 
     return (
-        <div className="flex-1 space-y-8 p-8 pt-6">
+        <div className="flex-1 space-y-8 p-4 pt-6 md:p-8">
             <div className="flex items-center justify-between space-y-2">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Components</h2>
@@ -97,7 +97,7 @@ export function ExplorePageContent({ templates = [] }: ExplorePageContentProps) 
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-primary">Master Templates</h3>
                     </div>
-                    <div className="relative px-12">
+                    <div className="relative px-4 md:px-12">
                         <Carousel
                             opts={{
                                 align: "start",
