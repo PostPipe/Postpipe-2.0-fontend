@@ -59,9 +59,14 @@ export const metadata: Metadata = {
     images: ['/og-image.png'],
   },
   icons: {
-    icon: '/PostPipe.ico',
-    shortcut: '/PostPipe.ico',
-    apple: '/PostPipe.ico',
+    icon: [
+      { url: '/PostPipe-Black.svg', media: '(prefers-color-scheme: light)' },
+      { url: '/PostPipe.svg', media: '(prefers-color-scheme: dark)' },
+    ],
+    shortcut: ['/PostPipe-Black.png'],
+    apple: [
+      { url: '/PostPipe-Black.png' },
+    ],
   },
   robots: {
     index: true,
