@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // However, the main thing is to refresh the user state.
     document.cookie = `${AUTH_COOKIE_NAME}=${encodeURIComponent(email)}; path=/; max-age=86400`;
     fetchUser(); // Refresh user data immediately
-    router.push("/dashboard/workflows");
+    router.push("/dashboard");
   };
 
   const logout = async () => {
