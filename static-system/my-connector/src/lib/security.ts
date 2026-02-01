@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { PostPipeIngestPayload } from './types';
+import { PostPipeIngestPayload } from '../types';
 
 /**
  * Security Utilities for PostPipe Connector

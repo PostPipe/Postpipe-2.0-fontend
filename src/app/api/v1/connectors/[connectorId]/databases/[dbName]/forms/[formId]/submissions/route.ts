@@ -50,26 +50,19 @@ export async function GET(
         // We will assume for this MVP that the token claim is trusted since we issued it.
 
         // 5. Proxy Request
-        // Resolve Database Config from MongoDB if available
-        let databaseConfig: any = { uri: dbName }; // Default fallback: assume dbName IS the env var
+        // Resolve Database Config from Connector's internal databases if available
+        let databaseConfig: any = { uri: dbName }; // Default fallback
 
-        try {
-            const { getUserConfigByConnectorId } = await import('@/lib/server-db');
-            const userConfig = await getUserConfigByConnectorId(connectorId);
-
-            if (userConfig && userConfig.databases && userConfig.databases[dbName]) {
-                const route = userConfig.databases[dbName];
-                // Update config with the ACTUAL environment variable name
-                databaseConfig = {
-                    uri: route.uri,
-                    dbName: route.dbName
-                };
-                console.log(`[API] Resolved alias '${dbName}' -> URI: '${route.uri}'`);
-            } else {
-                console.log(`[API] No alias found for '${dbName}', using as direct URI key.`);
-            }
-        } catch (e) {
-            console.warn("[API] Config resolution failed:", e);
+        if (connector.databases && connector.databases[dbName]) {
+            const route = connector.databases[dbName];
+            databaseConfig = {
+                uri: route.uri,
+                dbName: route.dbName,
+                type: route.type || 'mongodb'
+            };
+            console.log(`[API] Resolved alias '${dbName}' -> URI: '${route.uri}', Type: ${databaseConfig.type}`);
+        } else {
+            console.log(`[API] No alias found for '${dbName}' in connector, using as direct URI key.`);
         }
 
         const connectorUrl = connector.url.replace(/\/$/, "");

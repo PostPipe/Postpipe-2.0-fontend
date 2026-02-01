@@ -10,15 +10,22 @@ import nodeCrypto from 'crypto';
 dotenv.config();
 
 console.log("[Server] Environment Variables Loaded.");
-console.log("[Server] MONGODB Keys detected:", Object.keys(process.env).filter(k => k.startsWith('MONGODB')));
+
+// Check for MongoDB keys
+const mongoKeys = Object.keys(process.env).filter(k => k.startsWith('MONGODB_URI'));
+console.log(`[Server] Detected MongoDB URIs: ${mongoKeys.length > 0 ? mongoKeys.join(', ') : 'NONE'}`);
+
+// Check for Postgres keys
+const pgKeys = Object.keys(process.env).filter(k => k.startsWith('POSTGRES_URL') || k.startsWith('DATABASE_URL'));
+console.log(`[Server] Detected Postgres URLs: ${pgKeys.length > 0 ? pgKeys.join(', ') : 'NONE'}`);
+
 console.log(`[Server] CONNECTOR_ID: ${process.env.POSTPIPE_CONNECTOR_ID ? 'SET' : 'MISSING'}`);
 console.log(`[Server] CONNECTOR_SECRET: ${process.env.POSTPIPE_CONNECTOR_SECRET ? 'SET' : 'MISSING'}`);
-console.log(`[Server] MONGODB_URI: ${process.env.MONGODB_URI ? 'SET' : 'MISSING'}`);
-if (process.env.MONGODB_URI) {
-    console.log(`[Server] MONGODB_URI Target: ${process.env.MONGODB_URI.split('@').pop()}`); // Log the host part only
-} else {
-    console.warn(`[Server] WARNING: MONGODB_URI is not set. Defaulting to localhost?`);
+
+if (mongoKeys.length === 0 && pgKeys.length === 0 && (process.env.DB_TYPE === 'mongodb' || process.env.DB_TYPE === 'postgres')) {
+    console.warn(`[Server] WARNING: DB_TYPE is set to '${process.env.DB_TYPE}' but no corresponding connection strings were found.`);
 }
+
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -141,10 +148,29 @@ app.post('/postpipe/ingest', async (req: Request, res: Response) => {
         }
 
         // 4. Persistence
-        console.log("[Server] Getting adapter...");
-        const adapter = getAdapter(); // getAdapter() might be async in some impls but usually synchronous factory
-        console.log("[Server] Connecting to DB...");
-        await adapter.connect();
+        // SMART ADAPTER SELECTION
+        const payloadType = (payload as any).databaseConfig?.type;
+        const targetName = (payload as any).targetDatabase || payload.targetDb;
+        
+        let resolvedType = payloadType;
+        if (!resolvedType && targetName) {
+            const targetLower = String(targetName).toLowerCase();
+            if (targetLower.includes('postgres') || targetLower.includes('pg') || targetLower.includes('neon')) {
+                resolvedType = 'postgres';
+                console.log(`[Server] Smart Routing: Ingest target '${targetName}' suggests Postgres.`);
+            }
+        }
+
+        const adapter = getAdapter(resolvedType);
+        
+        if (resolvedType) {
+            console.log(`[Server] Using adapter: ${resolvedType}`);
+        } else {
+            console.log(`[Server] Using default adapter: ${process.env.DB_TYPE || 'InMemory'}`);
+        }
+
+        console.log("[Server] Connecting to database...");
+        await adapter.connect(payload);
         console.log("[Server] Inserting payload...");
         await adapter.insert(payload);
 
@@ -183,9 +209,23 @@ app.get('/postpipe/data', authenticateConnector, async (req: Request, res: Respo
             return res.status(400).json({ error: "Invalid targetDatabase name" });
         }
 
-        const adapter = getAdapter();
+        // SMART ADAPTER SELECTION
+        // Extract from query or config
+        const queryType = req.query.dbType as string;
+        const configType = dbConfigParsed?.type;
+        
+        let resolvedType = queryType || configType;
+        if (!resolvedType && dbNameStr) {
+            const targetLower = dbNameStr.toLowerCase();
+            if (targetLower.includes('postgres') || targetLower.includes('pg') || targetLower.includes('neon')) {
+                resolvedType = 'postgres';
+                console.log(`[Server] Smart Routing: Data target '${dbNameStr}' suggests Postgres.`);
+            }
+        }
+
+        const adapter = getAdapter(resolvedType as string);
         // Ensure connection
-        await adapter.connect();
+        await adapter.connect({ databaseConfig: dbConfigParsed, targetDatabase: dbNameStr });
 
         const data = await adapter.query(String(formId), {
             limit: Number(limit) || 50,
@@ -205,14 +245,25 @@ app.get('/api/postpipe/forms/:formId/submissions', async (req: Request, res: Res
     try {
         const { formId } = req.params;
         const limit = parseInt(req.query.limit as string) || 50;
+        const { dbType, databaseConfig } = req.query;
 
         console.log(`[Server] Querying submissions for form: ${formId}`);
 
-        const adapter = getAdapter();
-        // Ensure strictly connected/reconnected if needed
-        await adapter.connect();
+        // Parse databaseConfig if passed as JSON string
+        let dbConfigParsed = null;
+        if (typeof databaseConfig === 'string') {
+            try {
+                dbConfigParsed = JSON.parse(databaseConfig);
+            } catch (e) {
+                console.warn("Invalid databaseConfig JSON");
+            }
+        }
 
-        const data = await adapter.query(formId, limit);
+        const adapter = getAdapter(dbType as string);
+        // Ensure strictly connected/reconnected if needed
+        await adapter.connect({ databaseConfig: dbConfigParsed });
+
+        const data = await adapter.query(formId, { limit, databaseConfig: dbConfigParsed });
         return res.json({ status: 'ok', data });
     } catch (e) {
         console.error("Query Error:", e);

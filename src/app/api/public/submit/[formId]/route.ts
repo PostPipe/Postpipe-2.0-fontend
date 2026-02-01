@@ -45,22 +45,19 @@ export async function POST(
     const submissionId = `sub_${Math.random().toString(36).substr(2, 9)}`;
 
     let databaseConfig = null;
-    try {
-      // Resolve from MongoDB (User Database Config)
-      if (form.userId) {
-        const userConfig = await getUserDatabaseConfig(form.userId);
-        if (userConfig && userConfig.databases) {
-          const target = form.targetDatabase || userConfig.defaultTarget || "default";
-          if (userConfig.databases[target]) {
-            databaseConfig = userConfig.databases[target];
-            console.log(`[Proxy] Resolved DB Config for '${target}' via MongoDB.`);
-          } else {
-            console.warn(`[Proxy] Target '${target}' not found in user config.`);
-          }
-        }
+    if (connector.databases) {
+      const target = form.targetDatabase || "default";
+      if (connector.databases[target]) {
+        const config = connector.databases[target];
+        databaseConfig = {
+          uri: config.uri,
+          dbName: config.dbName,
+          type: config.type || 'mongodb'
+        };
+        console.log(`[Proxy] Resolved DB Config for '${target}' via Connector: ${config.uri}, Type: ${databaseConfig.type}`);
+      } else {
+        console.warn(`[Proxy] Target '${target}' not found in connector databases.`);
       }
-    } catch (e) {
-      console.error("Failed to resolve db config", e);
     }
 
     // Fallback? File system one is deprecated.

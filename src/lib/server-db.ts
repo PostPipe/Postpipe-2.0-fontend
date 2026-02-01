@@ -15,6 +15,7 @@ export interface Connector {
   databases?: Record<string, {
     uri: string;
     dbName: string;
+    type?: 'mongodb' | 'postgres';
   }>;
 }
 

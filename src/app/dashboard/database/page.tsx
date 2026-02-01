@@ -8,6 +8,8 @@ import { Loader2, Plus, Trash, Database, Server, XCircle, Save } from "lucide-re
 import { getConnectorsAction } from "@/app/actions/dashboard";
 import { addDatabaseAction, removeDatabaseAction } from "@/app/actions/connector-databases";
 import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 type Connector = {
     id: string;
@@ -16,6 +18,7 @@ type Connector = {
     databases?: Record<string, {
         uri: string;
         dbName: string;
+        type?: 'mongodb' | 'postgres';
     }>;
 };
 
@@ -23,8 +26,8 @@ export default function DatabasePage() {
     const [connectors, setConnectors] = useState<Connector[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Temp state for new database inputs: { [connectorId]: { uri: "", dbName: "" } }
-    const [newDbInputs, setNewDbInputs] = useState<Record<string, { uri: string, dbName: string }>>({});
+    // Temp state for new database inputs: { [connectorId]: { uri: "", dbName: "", type: "mongodb" } }
+    const [newDbInputs, setNewDbInputs] = useState<Record<string, { uri: string, dbName: string, type: 'mongodb' | 'postgres' }>>({});
 
     useEffect(() => {
         fetchConnectors();
@@ -44,11 +47,11 @@ export default function DatabasePage() {
         }
     };
 
-    const handleInputChange = (connectorId: string, field: 'uri' | 'dbName', value: string) => {
+    const handleInputChange = (connectorId: string, field: 'uri' | 'dbName' | 'type', value: string) => {
         setNewDbInputs(prev => ({
             ...prev,
             [connectorId]: {
-                ...(prev[connectorId] || { uri: "", dbName: "" }),
+                ...(prev[connectorId] || { uri: "", dbName: "", type: "mongodb" }),
                 [field]: value
             }
         }));
@@ -66,14 +69,14 @@ export default function DatabasePage() {
         const alias = input.uri.toLowerCase().replace(/^mongodb_uri_/i, '').replace(/_/g, '-') || input.uri.toLowerCase();
 
         try {
-            const res = await addDatabaseAction(connectorId, alias, input.uri, input.dbName);
+            const res = await addDatabaseAction(connectorId, alias, input.uri, input.dbName, input.type);
             if (res.success) {
-                toast({ title: "Database Added", description: `Alias '${alias}' configured.` });
+                toast({ title: "Database Added", description: `Alias '${alias}' configured as ${input.type}.` });
 
                 // Clear inputs
                 setNewDbInputs(prev => ({
                     ...prev,
-                    [connectorId]: { uri: "", dbName: "" }
+                    [connectorId]: { uri: "", dbName: "", type: "mongodb" }
                 }));
 
                 // Refresh list
@@ -162,8 +165,13 @@ export default function DatabasePage() {
                                                                 <span className="text-xs text-muted-foreground">→</span>
                                                                 <span className="text-xs font-mono text-muted-foreground">{config.dbName}</span>
                                                             </div>
-                                                            <div className="text-[10px] text-muted-foreground font-mono truncate max-w-[400px] opacity-70">
-                                                                URI: {config.uri}
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <Badge variant="secondary" className="text-[10px] h-4 px-1.5 uppercase font-bold">
+                                                                    {config.type || 'mongodb'}
+                                                                </Badge>
+                                                                <div className="text-[10px] text-muted-foreground font-mono truncate max-w-[400px] opacity-70">
+                                                                    URI: {config.uri}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                         <Button
@@ -192,6 +200,21 @@ export default function DatabasePage() {
                                                     value={newDbInputs[connector.id]?.uri || ""}
                                                     onChange={e => handleInputChange(connector.id, 'uri', e.target.value)}
                                                 />
+                                            </div>
+                                            <div className="grid gap-1.5 flex-1 w-full">
+                                                <label className="text-xs font-medium text-muted-foreground">Type</label>
+                                                <Select
+                                                    value={newDbInputs[connector.id]?.type || "mongodb"}
+                                                    onValueChange={val => handleInputChange(connector.id, 'type', val)}
+                                                >
+                                                    <SelectTrigger className="h-9 text-xs">
+                                                        <SelectValue placeholder="Select Type" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="mongodb">MongoDB</SelectItem>
+                                                        <SelectItem value="postgres">PostgreSQL</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                             <div className="grid gap-1.5 flex-1 w-full">
                                                 <label className="text-xs font-medium text-muted-foreground">Database Name</label>
