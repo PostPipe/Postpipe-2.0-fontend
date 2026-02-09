@@ -1,38 +1,42 @@
-# Introduction to PostPipe 2.0 🧪
+---
+title: INTRODUCTION
+description: PostPipe have two parts Dynamic and Static.
+---
 
-Welcome to **PostPipe 2.0**, a cutting-edge platform designed to bridge the gap between your browser and your data, securely and efficiently.
+## 🚀 Quick Start Checklist
 
-## Core Philosophy
+Before you dive in, follow this sequence for the fastest setup:
 
-PostPipe is built on the principle of **Zero Trust**. In a world where data security is paramount, we believe that your database credentials should never leave your infrastructure.
+1.  [ ] **Create an Account**: Sign up at [PostPipe.in](https://postpipe.in).
+2.  [ ] **Choose Your Path**: Decide between **Static (Connector)** or **Dynamic (CLI)**.
+3.  [ ] **Connect Your DB**: Follow the guide for your chosen path below.
+4.  [ ] **Create a Form**: Use the Dashboard to map your frontend to your DB.
 
-Traditional secure tunnels or cloud proxies often require some level of trust in the intermediary. PostPipe flips this on its head by utilizing a **Zero Trust Connector** model.
+---
 
-## How It Works
+## 🏗️ Choose Your Integration Path
 
-The PostPipe architecture consists of three main components:
+### 1. Static (The Connector) — _Connect to what exists_
 
-1.  **PostPipe SaaS (The Lab)**: The central dashboard and interface where you manage your forms, connectors, and view your data. It acts as the orchestration layer but _never_ sees your database credentials.
-2.  **The Connector**: A self-hosted, lightweight Node.js secure agent that lives next to your database (on your laptop, server, or cloud VPC). It connects outbound to PostPipe SaaS.
-3.  **The Browser**: The client-side interface that initiates requests.
+Use this if you simply want to connect an **existing** database (MongoDB or PostgreSQL) to the PostPipe SaaS.
 
-### The Flow
+- **Goal**: Securely Post Data Payloads to your configured Database.
+- **Tool**: The **PostPipe Connector** (Express-based bridge).
+- **Key Features**: Smart Adapter Resolution, Multi-DB Routing.
+- **Guide**: [Setup Static Connector](/docs/guides/static-connector)
 
-1.  **Request Initiation**: When a user submits a form or requests data, the request goes to PostPipe SaaS.
-2.  **Secure Handoff**: PostPipe SaaS identifies the correct active connector for that resource.
-3.  **Local Execution**: The Connector receives the instruction, executes the database query locally using your credentials (which are stored ONLY in the connector's `.env` file), and securely sends the result back.
-4.  **Result Delivery**: PostPipe SaaS relays the result to the browser.
+### 2. Dynamic (CLI Components) — _Build what's next_
 
-This ensures that **PostPipe never holds the keys to your kingdom**.
+Use this if you want to build **new** NextJS Backends from scratch using our pre-built modules and CLI system.
 
-## Key Features
+- **Goal**: Scaffold Authentication, E-commerce, or Shop systems.
+- **Tool**: The **PostPipe CLI Ecosystem**.
+- **Guide**: [Use CLI Components](/docs/guides/cli-components)
 
-- **Zero Trust Connectors**: Secure interactions without exposing DB credentials.
-- **Universal Database Support**: Connect to MongoDB, PostgreSQL, DocumentDB, and more.
-- **CLI Ecosystem**: A powerful suite of CLI tools to scaffold everything from Authentication to E-commerce backends in seconds.
-- **Dynamic Lab**: A sophisticated testing environment for your integrations.
-- **Monorepo Architecture**: specific, modular, and scalable codebase.
+---
 
-## Ready to Dive In?
+## 🧭 Navigation
 
-Check out the [Getting Started](./getting-started.md) guide to spin up your first connector in minutes.
+- **[How It Works](/docs/how-it-works)**: Deep dive into the hybrid architecture.
+- **[System Architecture](/docs/architecture)**: Detailed monorepo and data flow breakdown.
+- **[Security](/docs/security)**: Learn about our Zero-Trust signature verification.

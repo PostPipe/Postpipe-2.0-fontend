@@ -27,21 +27,21 @@ export function HeroParticles() {
   return (
     <div className="relative flex h-[100vh] min-h-[500px] w-full flex-col items-center justify-center overflow-hidden">
       <div className="z-10 flex flex-col items-center text-center gap-6 px-4">
-        <MagneticText text="PostPipe" hoverText="Pro!" className="font-body text-8xl md:text-9xl lg:text-[10rem] font-black" />
-        <div className="flex text-lg text-muted-foreground max-w-3xl items-center justify-center">
+        <MagneticText text="PostPipe" hoverText="Pro!" className="font-body text-6xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black" />
+        <div className="flex flex-col sm:flex-row text-lg text-muted-foreground max-w-3xl items-center justify-center gap-1 sm:gap-2">
           <span>The largest Next.js backend component</span>
           <WordRotate
             words={["library", "Scaffold", "CLIs", "loader", "boilerplate"]}
-            className="text-lg text-foreground dark:text-white ml-2"
+            className="text-lg text-foreground dark:text-white"
           />
         </div>
-        <div className="flex gap-4 items-center mt-4">
-          <div onClick={() => router.push(isAuthenticated ? "/dashboard/workflows" : "/login")} className="cursor-pointer">
-            <AnimatedButton>Get Started</AnimatedButton>
+        <div className="flex flex-col sm:flex-row gap-4 items-center mt-4 w-full sm:w-auto">
+          <div onClick={() => router.push(isAuthenticated ? "/dashboard" : "/login")} className="cursor-pointer w-full sm:w-auto">
+            <AnimatedButton className="w-full sm:w-auto">Get Started</AnimatedButton>
           </div>
-          <Link href="#features">
-            <button className="btn-31 h-[56px] px-8 flex items-center justify-center bg-zinc-950 border border-zinc-800 text-white font-black uppercase tracking-wider gap-2 cursor-pointer shadow-lg relative overflow-hidden transition-all duration-300">
-              <span className="text-wrapper">Learn More</span>
+          <Link href="https://github.com/Sourodip-1/Postpipe-2.0-fontend" target="_blank" className="w-full sm:w-auto">
+            <button className="btn-31 h-[56px] w-full sm:w-auto px-8 flex items-center justify-center bg-zinc-950 border border-zinc-800 text-white font-black uppercase tracking-wider gap-2 cursor-pointer shadow-lg relative overflow-hidden transition-all duration-300">
+              <span className="text-wrapper">Star This repo</span>
             </button>
           </Link>
         </div>

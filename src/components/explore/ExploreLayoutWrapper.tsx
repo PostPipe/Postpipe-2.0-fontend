@@ -15,7 +15,7 @@ export function ExploreLayoutWrapper({ children }: ExploreLayoutWrapperProps) {
     return (
         <div className={cn(
             "rounded-md flex flex-col md:flex-row bg-gray-50 dark:bg-neutral-950 w-full flex-1 border border-neutral-200 dark:border-neutral-700 overflow-hidden",
-            "h-screen"
+            "h-[100dvh]"
         )}>
             <ExploreSidebar open={open} setOpen={setOpen} />
             <div className="flex flex-1 flex-col overflow-y-auto">

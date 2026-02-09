@@ -17,7 +17,7 @@ export interface ConnectorResponse {
 export interface DatabaseAdapter {
   connect(): Promise<void>;
   insert(submission: PostPipeIngestPayload): Promise<void>;
-  query(formId: string, limit?: number): Promise<PostPipeIngestPayload[]>;
+  query(formId: string, options?: any): Promise<PostPipeIngestPayload[]>;
   disconnect?(): Promise<void>;
 }
 

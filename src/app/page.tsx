@@ -58,6 +58,30 @@ export default function Home() {
         id="hero"
         className="relative"
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'SoftwareApplication',
+              name: 'PostPipe',
+              applicationCategory: 'WrapperApplication',
+              operatingSystem: 'Any',
+              offers: {
+                '@type': 'Offer',
+                price: '0',
+                priceCurrency: 'USD',
+              },
+              description:
+                'The largest Next.js backend component library and static ingest system.',
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: '4.8',
+                ratingCount: '125',
+              },
+            }),
+          }}
+        />
         <HeroParticles />
       </section>
 
