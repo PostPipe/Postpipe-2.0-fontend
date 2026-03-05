@@ -39,11 +39,25 @@ export interface FormField {
   required: boolean;
 }
 
+export interface RoutingConfig {
+  broadcast: string[]; // List of databases to receive the full payload
+  splits: {
+    target: string;
+    fields: string[];
+    excludeFromMain?: boolean;
+  }[]; // Mappings for partial data routing
+  transformations?: {
+    mask: string[]; // Fields to mask (****-1234)
+    hash: string[]; // Fields to hash (SHA-256)
+  };
+}
+
 export interface Form {
   id: string; // Slug/ID e.g. "contact-us"
   name: string;
   connectorId: string;
   targetDatabase?: string; // e.g. "main", "backup"
+  routing?: RoutingConfig;
   fields: FormField[];
   createdAt: string;
   userId?: string; // The user who owns this form
@@ -69,6 +83,27 @@ export interface System {
 export interface UserSystemsDocument {
   userId: string;
   systems: System[];
+}
+
+export interface AuthPreset {
+  id: string;
+  name: string;
+  connectorId: string;
+  targetDatabase?: string;
+  projectId?: string;
+  redirectUrl?: string;
+  apiUrl?: string;
+  providers: {
+    email: boolean;
+    google: boolean;
+    github: boolean;
+  };
+  createdAt: string;
+}
+
+export interface UserAuthPresetsDocument {
+  userId: string;
+  presets: AuthPreset[];
 }
 
 // --- Persistence ---
@@ -195,7 +230,7 @@ export async function getConnectors(userId?: string): Promise<Connector[]> {
 
 
 // --- Forms ---
-export async function createForm(connectorId: string, name: string, fields: FormField[], userId?: string, targetDatabase?: string): Promise<Form> {
+export async function createForm(connectorId: string, name: string, fields: FormField[], userId?: string, targetDatabase?: string, routing?: RoutingConfig): Promise<Form> {
   const db = await getDB();
 
   if (!userId) {
@@ -216,6 +251,7 @@ export async function createForm(connectorId: string, name: string, fields: Form
     name,
     connectorId,
     targetDatabase,
+    routing,
     fields,
     createdAt: new Date().toISOString(),
     status: 'Live',
@@ -242,6 +278,66 @@ export async function duplicateForm(originalFormId: string, userId: string): Pro
   return newForm;
 }
 
+export async function loadForms(userId: string) {
+  const db = await getDB();
+  const doc = await db.collection<UserFormsDocument>('user_forms').findOne({ userId });
+  return doc ? doc.forms : [];
+}
+
+// === AUTH PRESETS METHODS ===
+async function getAuthPresetsCollection() {
+  const client = await getClientPromise();
+  return client.db(dbName!).collection<UserAuthPresetsDocument>('user_auth_presets');
+}
+
+export async function createAuthPreset(userId: string, presetData: Omit<AuthPreset, 'id' | 'createdAt'>) {
+  const collection = await getAuthPresetsCollection();
+  const newPreset: AuthPreset = {
+    ...presetData,
+    id: Math.random().toString(36).substr(2, 9),
+    createdAt: new Date().toISOString()
+  };
+
+  await collection.updateOne(
+    { userId },
+    { $push: { presets: newPreset } },
+    { upsert: true }
+  );
+  return newPreset;
+}
+
+export async function updateAuthPreset(userId: string, presetId: string, updates: Partial<Omit<AuthPreset, 'id' | 'createdAt'>>) {
+  const collection = await getAuthPresetsCollection();
+  
+  const setOps: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) {
+      setOps[`presets.$.${key}`] = value;
+    }
+  }
+
+  await collection.updateOne(
+    { userId, "presets.id": presetId },
+    { $set: setOps }
+  );
+  return { success: true };
+}
+
+export async function getAuthPresets(userId: string) {
+  const collection = await getAuthPresetsCollection();
+  const doc = await collection.findOne({ userId });
+  return doc ? doc.presets : [];
+}
+
+export async function deleteAuthPreset(userId: string, presetId: string) {
+  const collection = await getAuthPresetsCollection();
+  await collection.updateOne(
+    { userId },
+    { $pull: { presets: { id: presetId } } }
+  );
+}
+
+// --- Systems (User Backend Systems) ---
 export async function getForms(userId?: string): Promise<Form[]> {
   const db = await getDB();
   if (!userId) return [];

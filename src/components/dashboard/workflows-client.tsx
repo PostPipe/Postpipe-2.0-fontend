@@ -108,14 +108,6 @@ const DynamicContent = (width: number) => {
 export default function WorkflowsClient() {
     return (
         <div className="flex flex-col gap-6 h-[calc(100vh-8rem)]">
-            <div>
-                <h1 className="text-3xl font-bold font-headline tracking-tight">
-                    Workflows
-                </h1>
-                <p className="mt-1 text-muted-foreground">
-                    Compare and manage your static and dynamic automation strategies.
-                </p>
-            </div>
 
             <div className="flex-1 min-h-[500px] w-full">
                 <FeatureComparison

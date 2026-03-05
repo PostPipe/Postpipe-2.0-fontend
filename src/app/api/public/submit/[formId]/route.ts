@@ -5,6 +5,18 @@ import path from 'path';
 import { getForm, getConnector, incrementSubmissionCount, getUserDatabaseConfig } from '../../../../../lib/server-db';
 import { ensureFullUrl } from '../../../../../lib/utils';
 
+// ---- CORS helper ----
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+// Handle browser CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ formId: string }> }
@@ -14,16 +26,16 @@ export async function POST(
     const form = await getForm(formId);
 
     if (!form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Form not found' }, { status: 404, headers: corsHeaders });
     }
 
     if (form.status === 'Paused') {
-      return NextResponse.json({ error: 'Form is paused and not accepting submissions.' }, { status: 423 });
+      return NextResponse.json({ error: 'Form is paused and not accepting submissions.' }, { status: 423, headers: corsHeaders });
     }
 
     const connector = await getConnector(form.connectorId);
     if (!connector) {
-      return NextResponse.json({ error: 'Connector not provisioned' }, { status: 503 });
+      return NextResponse.json({ error: 'Connector not provisioned' }, { status: 503, headers: corsHeaders });
     }
 
     // 1. Extract Data
@@ -46,9 +58,23 @@ export async function POST(
     const submissionId = `sub_${Math.random().toString(36).substr(2, 9)}`;
 
     let databaseConfig = null;
-    if (connector.databases) {
-      const target = form.targetDatabase || "default";
-      if (connector.databases[target]) {
+    const target = form.targetDatabase || "default";
+
+    try {
+      if (form.userId) {
+        const userConfig = await getUserDatabaseConfig(form.userId);
+        if (userConfig && userConfig.databases && userConfig.databases[target]) {
+          const config = userConfig.databases[target];
+          databaseConfig = {
+            uri: config.uri,
+            dbName: config.dbName,
+            type: config.type || 'mongodb'
+          };
+          console.log(`[Proxy] Resolved DB Config for '${target}' via User Config: ${config.uri}, Type: ${databaseConfig.type}`);
+        }
+      }
+
+      if (!databaseConfig && connector.databases && connector.databases[target]) {
         const config = connector.databases[target];
         databaseConfig = {
           uri: config.uri,
@@ -56,14 +82,13 @@ export async function POST(
           type: config.type || 'mongodb'
         };
         console.log(`[Proxy] Resolved DB Config for '${target}' via Connector: ${config.uri}, Type: ${databaseConfig.type}`);
-      } else {
-        console.warn(`[Proxy] Target '${target}' not found in connector databases.`);
       }
-    }
 
-    // Fallback? File system one is deprecated.
-    if (!databaseConfig) {
-      console.warn("[Proxy] No databaseConfig resolved. Connector might fail if running in dynamic mode.");
+      if (!databaseConfig) {
+        console.warn(`[Proxy] Target '${target}' not found in regular databases.`);
+      }
+    } catch (e) {
+      console.error("[Proxy] Error resolving user database config:", e);
     }
 
     const payload = {
@@ -73,6 +98,7 @@ export async function POST(
       data,
       targetDatabase: form.targetDatabase || "default",
       databaseConfig,
+      routing: form.routing, // Pass the routing config
       signature: "legacy_proxied"
     };
 
@@ -134,10 +160,10 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ success: true, submissionId });
+    return NextResponse.json({ success: true, submissionId }, { headers: corsHeaders });
 
   } catch (error: any) {
     console.error("[Proxy] Error:", error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500, headers: corsHeaders });
   }
 }

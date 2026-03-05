@@ -113,10 +113,10 @@ export class MongoAdapter implements DatabaseAdapter {
 
     // 4. Fallback: Scan process.env for ANY MONGODB_URI_* (Last Resort)
     console.log(`[MongoAdapter] -> Searching fallback keys...`);
-    const fallbackKeys = Object.keys(process.env).filter(k => 
+    const fallbackKeys = Object.keys(process.env).filter(k =>
       k.startsWith('MONGODB_URI_') && process.env[k]
     );
-    
+
     if (fallbackKeys.length > 0) {
       const fallbackKey = fallbackKeys[0];
       console.log(`[MongoAdapter] -> Fallback match: ${fallbackKey}`);
@@ -126,19 +126,53 @@ export class MongoAdapter implements DatabaseAdapter {
     return undefined;
   }
 
+  private extractDbNameFromUri(uri: string): string | undefined {
+    try {
+      // mongodb://user:pass@host/dbname?options or mongodb+srv://...
+      const match = uri.match(/^mongodb(?:\+srv)?:\/\/[^/]+\/([^?#]+)/);
+      if (match && match[1] && match[1].trim() !== '') return match[1];
+    } catch (e) {}
+    return undefined;
+  }
+
   private getTargetConfig(payload?: PostPipeIngestPayload): { uri: string, dbName: string } {
     const { targetDatabase, databaseConfig } = (payload || {}) as any;
-    const targetName = targetDatabase || (payload as any)?.targetDb;
+    // CRITICAL: targetDb is usually the routed target (split/broadcast), prioritize it!
+    const targetName = (payload as any)?.targetDb || targetDatabase;
 
-    console.log(`[MongoAdapter] Resolving config for target: '${targetName}'`);
+    console.log(`[MongoAdapter] Resolving config for target: '${targetName || 'default'}'`);
     const uri = this.resolveUri(targetName, databaseConfig) || "";
-    
-    // Default dbName resolution
+
+    // Optimized: Resolve DB Name with correct priority
     let dbName = this.defaultDbName;
+    
+    // Logic to determine if targetName is a real DB name or a technical alias/routing key
+    const thermalKeys = ['url', 'uri', 'mongodb', 'atlas', 'database'];
+    
+    const isRoutingKey = targetName && (
+      process.env[`MONGODB_URI_${targetName.toUpperCase()}`] ||
+      process.env[`DATABASE_URL_${targetName.toUpperCase()}`] ||
+      process.env[`POSTGRES_URL_${targetName.toUpperCase()}`]
+    );
+
+    const isInternalAlias = targetName && (
+      process.env[targetName] || 
+      thermalKeys.some(key => targetName.toLowerCase().includes(key)) ||
+      targetName === 'default'
+    );
+
+    const isTechnicalAlias = !!(isInternalAlias || isRoutingKey);
+
     if (databaseConfig?.dbName) {
       dbName = databaseConfig.dbName;
-    } else if (targetName) {
-      dbName = `postpipe_${targetName}`;
+    } else if (targetName && !isTechnicalAlias) {
+      dbName = targetName;
+    } else {
+      const extracted = uri ? this.extractDbNameFromUri(uri) : undefined;
+      // Many MongoDB cloud URIs end with /?retryWrites=true which makes extracted ""
+      if (extracted && extracted.trim() !== '') {
+        dbName = extracted;
+      }
     }
 
     console.log(`[MongoAdapter] Resolved: DB=[${dbName}] URI=[${uri ? 'SET' : 'MISSING'}]`);
@@ -150,10 +184,13 @@ export class MongoAdapter implements DatabaseAdapter {
       return connectionPool.get(uri)!;
     }
 
-    console.log(`[MongoAdapter] Establishing connection to host: ${uri.split('@').pop() || 'localhost'}`); 
+    console.log(`[MongoAdapter] Establishing connection to host: ${uri.split('@').pop() || 'localhost'}`);
 
     // Create promise and store it immediately
-    const clientPromise = new MongoClient(uri).connect().then(client => {
+    const clientPromise = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+    }).connect().then(client => {
       console.log(`[MongoAdapter] Connection established successfully.`);
       return client;
     });
@@ -181,30 +218,43 @@ export class MongoAdapter implements DatabaseAdapter {
       throw new Error(`[MongoAdapter] No MongoDB URI resolved. Available relevant keys: ${Object.keys(process.env).filter(k => k.includes('MONGO'))}`);
     }
 
-    // 2. Get connection (cached)
+    // 1. Get connection (cached)
     const client = await this.getClient(uri);
     const db = client.db(dbName);
 
-    // 3. Determine Collection (Dynamic logic from previous task via payload)
+    // 2. Determine Collection (Dynamic logic via formName/formId)
     const targetCollection = payload.formName || payload.formId || this.collectionName;
 
-    // 4. Insert
+    // 3. ARCHITECT LEVEL OPTIMIZATION: Payload Sanitization
+    // Strip ALL internal routing and configuration metadata
+    const { 
+      databaseConfig, 
+      routing, 
+      signature,
+      ...cleanData 
+    } = payload as any;
+
+    // Remove legacy/routing fields
+    delete cleanData.targetDatabase;
+    delete cleanData.targetDb;
+
+    // 4. Insert Sanitized Data
     await db.collection(targetCollection).insertOne({
-      ...payload,
+      ...cleanData,
       _receivedAt: new Date()
     });
 
-    console.log(`[MongoAdapter] Saved to DB [${dbName}] -> Collection [${targetCollection}]`);
+    console.log(`[MongoAdapter] Successfully routed to DB: [${dbName}] -> Collection: [${targetCollection}]`);
   }
 
   async query(formId: string, options?: any): Promise<PostPipeIngestPayload[]> {
-    const { uri: targetUri, dbName: targetDbName } = this.getTargetConfig({ 
-      targetDatabase: options?.targetDatabase, 
-      databaseConfig: options?.databaseConfig 
+    const { uri: targetUri, dbName: targetDbName } = this.getTargetConfig({
+      targetDatabase: options?.targetDatabase,
+      databaseConfig: options?.databaseConfig
     } as any);
 
     if (!targetUri) {
-      console.error("[MongoAdapter] CRITICAL: No MongoDB URI resolved. Available relevant keys:", 
+      console.error("[MongoAdapter] CRITICAL: No MongoDB URI resolved. Available relevant keys:",
         Object.keys(process.env).filter(k => k.includes('MONGO'))
       );
       throw new Error(`No MongoDB URI resolved for query. Target: ${options?.targetDatabase}`);
@@ -225,8 +275,64 @@ export class MongoAdapter implements DatabaseAdapter {
       .limit(options?.limit || 50)
       .toArray();
 
-    console.log(`[MongoAdapter] Query finished. Found ${results.length} documents.`);
-    return results as unknown as PostPipeIngestPayload[];
+    const taggedResults = results.map(doc => ({
+      ...doc,
+      _dbType: 'mongodb',
+      _sourceDb: targetDbName
+    }));
+
+    console.log(`[MongoAdapter] Query finished. Found ${taggedResults.length} documents.`);
+    return taggedResults as unknown as PostPipeIngestPayload[];
+  }
+
+  // --- AUTH METHODS ---
+  async findUserByEmail(email: string, context?: any) {
+    const uri = this.resolveConnectionString(context);
+    if (!uri) throw new Error("[MongoAdapter] Cannot query: No MongoDB URI provided.");
+    const targetDbName = context?.targetDatabase || process.env.MONGODB_DB_NAME || 'postpipe';
+    
+    // We reuse getClient. But the original file uses `getClient` which is private.
+    const client = await this.getClient(uri);
+    const db = client.db(targetDbName);
+    const collection = db.collection('postpipe_users');
+    return collection.findOne({ email });
+  }
+
+  async insertUser(user: any, context?: any) {
+    const uri = this.resolveConnectionString(context);
+    if (!uri) throw new Error("[MongoAdapter] Cannot query: No MongoDB URI provided.");
+    const targetDbName = context?.targetDatabase || process.env.MONGODB_DB_NAME || 'postpipe';
+    
+    const client = await this.getClient(uri);
+    const db = client.db(targetDbName);
+    const collection = db.collection('postpipe_users');
+    
+    // Ensure unique index on email
+    await collection.createIndex({ email: 1 }, { unique: true });
+    
+    try {
+      await collection.insertOne(user);
+      console.log(`[MongoAdapter] Inserted Auth User: ${user.email}`);
+    } catch (error: any) {
+      if (error.code !== 11000) { // Ignore duplicate key errors if they happen
+        throw error;
+      }
+    }
+  }
+
+  async updateUserLastLogin(userId: string, context?: any) {
+    const uri = this.resolveConnectionString(context);
+    if (!uri) return;
+    const targetDbName = context?.targetDatabase || process.env.MONGODB_DB_NAME || 'postpipe';
+    
+    const client = await this.getClient(uri);
+    const db = client.db(targetDbName);
+    const collection = db.collection('postpipe_users');
+    await collection.updateOne({ id: userId }, { $set: { last_login: new Date().toISOString() } });
+  }
+
+  private resolveConnectionString(context?: any): string | undefined {
+    return this.getTargetConfig({ targetDatabase: context?.targetDatabase, databaseConfig: context?.databaseConfig } as any).uri;
   }
 
   async disconnect(): Promise<void> {

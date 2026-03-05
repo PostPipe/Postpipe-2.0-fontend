@@ -1,26 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-    Server,
-    FileText,
-    Key,
-    Activity,
-    Terminal,
-    Zap
+    Server, FileText, Key, Activity, Terminal, Zap,
+    ArrowRight, Plus, Database, Globe, GitBranch, Clock,
+    TrendingUp, ChevronRight, ExternalLink
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { Form, Connector } from "@/lib/server-db";
+import { cn } from "@/lib/utils";
+import { ParticleDashboardHeader } from "@/components/ui/particle-dashboard-header";
 
 interface OverviewClientProps {
-    forms: any[]; // Using any to match serialized data from action, ideally should match Form with extra fields
+    forms: any[];
     connectors: any[];
     systems: any[];
 }
@@ -34,154 +26,259 @@ export default function OverviewClient({ forms, connectors, systems = [] }: Over
         });
     };
 
-    // Sort forms by creation date (newest first)
-    const recentForms = [...forms].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
+    const recentForms = [...forms]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+
+    const stats = [
+        {
+            label: "Backend Systems",
+            value: systems.length,
+            sub: "Active systems",
+            icon: Server,
+            color: "text-violet-500 dark:text-violet-400",
+            bg: "bg-violet-500/10 dark:bg-violet-500/10",
+            border: "border-violet-200 dark:border-violet-500/20",
+            glow: "shadow-violet-500/10",
+            href: "/dashboard/systems",
+            trend: "+2 this week",
+        },
+        {
+            label: "Static Forms",
+            value: forms.length,
+            sub: "Live endpoints",
+            icon: FileText,
+            color: "text-blue-500 dark:text-blue-400",
+            bg: "bg-blue-500/10",
+            border: "border-blue-200 dark:border-blue-500/20",
+            glow: "shadow-blue-500/10",
+            href: "/dashboard/forms",
+            trend: `${forms.filter((f: any) => f.status === "Live").length} live`,
+        },
+        {
+            label: "Connectors",
+            value: connectors.length,
+            sub: "Connected apps",
+            icon: Database,
+            color: "text-emerald-500 dark:text-emerald-400",
+            bg: "bg-emerald-500/10",
+            border: "border-emerald-200 dark:border-emerald-500/20",
+            glow: "shadow-emerald-500/10",
+            href: "/dashboard/connectors",
+            trend: "All healthy",
+        },
+        {
+            label: "Requests",
+            value: 0,
+            sub: "Analytics soon",
+            icon: Activity,
+            color: "text-amber-500 dark:text-amber-400",
+            bg: "bg-amber-500/10",
+            border: "border-amber-200 dark:border-amber-500/20",
+            glow: "shadow-amber-500/10",
+            href: "#",
+            trend: "Coming soon",
+        },
+    ];
+
+    const actions = [
+        {
+            label: "New Backend System",
+            desc: "Launch from a production-ready template",
+            icon: Server,
+            iconBg: "bg-violet-500/10 dark:bg-violet-500/10",
+            iconColor: "text-violet-500",
+            hoverBorder: "hover:border-violet-300 dark:hover:border-violet-500/30",
+            hoverBg: "hover:bg-violet-50/50 dark:hover:bg-violet-500/5",
+            href: "/explore",
+        },
+        {
+            label: "Create Static Form",
+            desc: "Collect data without a backend",
+            icon: FileText,
+            iconBg: "bg-blue-500/10",
+            iconColor: "text-blue-500",
+            hoverBorder: "hover:border-blue-300 dark:hover:border-blue-500/30",
+            hoverBg: "hover:bg-blue-50/50 dark:hover:bg-blue-500/5",
+            href: "/dashboard/forms/new",
+        },
+        {
+            label: "Generate Connector",
+            desc: "Plug in any external data source",
+            icon: Zap,
+            iconBg: "bg-amber-500/10",
+            iconColor: "text-amber-500",
+            hoverBorder: "hover:border-amber-300 dark:hover:border-amber-500/30",
+            hoverBg: "hover:bg-amber-50/50 dark:hover:bg-amber-500/5",
+            href: "/dashboard/connectors",
+        },
+        {
+            label: "Copy CLI Command",
+            desc: "Bootstrap from your terminal",
+            icon: Terminal,
+            iconBg: "bg-neutral-500/10",
+            iconColor: "text-neutral-500",
+            hoverBorder: "hover:border-neutral-300 dark:hover:border-neutral-500/30",
+            hoverBg: "hover:bg-neutral-50/50 dark:hover:bg-neutral-500/5",
+            onClick: copyCliCommand,
+            href: undefined,
+        },
+    ];
 
     return (
-        <div className="flex flex-col gap-8">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
-                <p className="text-muted-foreground">
-                    Welcome back! Here's what's happening with your infrastructure.
-                </p>
-            </div>
+        <div className="flex flex-col gap-10">
+            <ParticleDashboardHeader
+                title="Overview"
+                subtitle="Welcome back! Here's what's happening with your infrastructure."
+            />
 
-            {/* Metrics Section */}
+            {/* ── Stat Cards ── */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Backend Systems</CardTitle>
-                        <Server className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{systems.length}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Total active systems
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Static Forms</CardTitle>
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{forms.length}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Total active forms
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Connectors</CardTitle>
-                        <Key className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{connectors.length}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Connected apps
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Requests</CardTitle>
-                        <Activity className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">0</div>
-                        <p className="text-xs text-muted-foreground">
-                            Analytics coming soon
-                        </p>
-                    </CardContent>
-                </Card>
+                {stats.map((s) => (
+                    <Link key={s.label} href={s.href} className="group">
+                        <div className={cn(
+                            "relative rounded-xl border p-5 flex flex-col gap-4",
+                            "bg-card transition-all duration-200",
+                            "hover:shadow-lg hover:-translate-y-0.5",
+                            s.border, s.glow
+                        )}>
+                            {/* Icon + trend */}
+                            <div className="flex items-start justify-between">
+                                <div className={cn("rounded-lg p-2.5", s.bg)}>
+                                    <s.icon className={cn("h-5 w-5", s.color)} />
+                                </div>
+                                <span className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                                    {s.trend}
+                                </span>
+                            </div>
+
+                            {/* Value */}
+                            <div>
+                                <div className={cn("text-4xl font-black tabular-nums tracking-tighter", s.color)}>
+                                    {s.value}
+                                </div>
+                                <div className="mt-1 text-sm font-semibold text-foreground">{s.label}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">{s.sub}</div>
+                            </div>
+
+                            {/* Bottom link arrow */}
+                            <div className={cn(
+                                "flex items-center gap-1 text-[11px] font-medium transition-colors",
+                                s.color,
+                                "opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            )}>
+                                View all <ChevronRight className="h-3 w-3" />
+                            </div>
+                        </div>
+                    </Link>
+                ))}
             </div>
 
-            {/* Quick Actions */}
+            {/* ── Quick Actions ── */}
             <div>
-                <h2 className="mb-4 text-lg font-semibold">Quick Actions</h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Button asChild variant="outline" className="h-auto flex-col items-start gap-2 p-4">
-                        <Link href="/explore">
-                            <div className="rounded-full bg-primary/10 p-2 text-primary">
-                                <Server className="h-5 w-5" />
+                <div className="flex items-center gap-2 mb-5">
+                    <div className="h-5 w-1 rounded-full bg-primary/50" />
+                    <h2 className="text-base font-bold tracking-tight">Quick Actions</h2>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    {actions.map((a) => {
+                        const inner = (
+                            <div className={cn(
+                                "group relative rounded-xl border border-border p-5 flex flex-col gap-4",
+                                "bg-card transition-all duration-200 cursor-pointer",
+                                "hover:shadow-md hover:-translate-y-0.5",
+                                a.hoverBorder, a.hoverBg
+                            )}>
+                                <div className={cn("w-fit rounded-lg p-2.5", a.iconBg)}>
+                                    <a.icon className={cn("h-5 w-5", a.iconColor)} />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="font-semibold text-sm text-foreground">{a.label}</div>
+                                    <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{a.desc}</div>
+                                </div>
+                                <div className={cn(
+                                    "flex items-center gap-1 text-xs font-medium",
+                                    a.iconColor,
+                                    "opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                )}>
+                                    {a.onClick ? "Copy command" : "Get started"} <ArrowRight className="h-3 w-3" />
+                                </div>
                             </div>
-                            <div className="text-left">
-                                <div className="font-semibold">Create Backend System</div>
-                                <div className="text-xs text-muted-foreground">Launch a new dynamic backend</div>
-                            </div>
-                        </Link>
-                    </Button>
+                        );
 
-                    <Button asChild variant="outline" className="h-auto flex-col items-start gap-2 p-4">
-                        <Link href="/dashboard/forms/new">
-                            <div className="rounded-full bg-blue-500/10 p-2 text-blue-500">
-                                <FileText className="h-5 w-5" />
-                            </div>
-                            <div className="text-left">
-                                <div className="font-semibold">Create Static Form</div>
-                                <div className="text-xs text-muted-foreground">Setup a backendless form</div>
-                            </div>
-                        </Link>
-                    </Button>
-
-                    <Button asChild variant="outline" className="h-auto flex-col items-start gap-2 p-4">
-                        <Link href="/dashboard/connectors">
-                            <div className="rounded-full bg-amber-500/10 p-2 text-amber-500">
-                                <Zap className="h-5 w-5" />
-                            </div>
-                            <div className="text-left">
-                                <div className="font-semibold">Generate Connector</div>
-                                <div className="text-xs text-muted-foreground">Connect external apps</div>
-                            </div>
-                        </Link>
-                    </Button>
-
-                    <Button asChild variant="outline" className="h-auto flex-col items-start gap-2 p-4">
-                        <Link href="/docs">
-                            <div className="rounded-full bg-zinc-500/10 p-2 text-zinc-500">
-                                <Terminal className="h-5 w-5" />
-                            </div>
-                            <div className="text-left">
-                                <div className="font-semibold">Copy CLI Command</div>
-                                <div className="text-xs text-muted-foreground">Start from your terminal</div>
-                            </div>
-                        </Link>
-                    </Button>
+                        return a.onClick ? (
+                            <div key={a.label} onClick={a.onClick}>{inner}</div>
+                        ) : (
+                            <Link key={a.label} href={a.href!}>{inner}</Link>
+                        );
+                    })}
                 </div>
             </div>
 
-            {/* Recent Activity Mock */}
+            {/* ── Recent Forms ── */}
             <div>
-                <h2 className="mb-4 text-lg font-semibold">Recent Forms</h2>
-                <Card>
-                    <CardContent className="p-0">
-                        <div className="divide-y">
-                            {recentForms.length > 0 ? recentForms.map((form, i) => (
-                                <div key={i} className="flex items-center justify-between p-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="rounded-full bg-blue-500/10 p-2">
-                                            <FileText className="h-4 w-4 text-blue-500" />
+                <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-2">
+                        <div className="h-5 w-1 rounded-full bg-primary/50" />
+                        <h2 className="text-base font-bold tracking-tight">Recent Forms</h2>
+                    </div>
+                    <Link href="/dashboard/forms">
+                        <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground gap-1">
+                            View all <ExternalLink className="h-3 w-3" />
+                        </Button>
+                    </Link>
+                </div>
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                    {recentForms.length > 0 ? (
+                        <div className="divide-y divide-border">
+                            {recentForms.map((form, i) => (
+                                <Link key={i} href={`/dashboard/forms`}>
+                                    <div className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/40 transition-colors group">
+                                        <div className="flex items-center gap-3.5 min-w-0">
+                                            <div className="rounded-lg bg-blue-500/10 p-2 flex-shrink-0">
+                                                <FileText className="h-3.5 w-3.5 text-blue-500" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-foreground truncate">{form.name}</p>
+                                                <p className="text-xs text-muted-foreground truncate">ID: {form.id}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-medium">{form.name}</p>
-                                            <p className="text-xs text-muted-foreground">ID: {form.id}</p>
+                                        <div className="flex items-center gap-4 shrink-0 ml-4">
+                                            <span className={cn(
+                                                "hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest border",
+                                                form.status === "Live"
+                                                    ? "text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/20 bg-emerald-100 dark:bg-emerald-500/10"
+                                                    : "text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-500/20 bg-amber-100 dark:bg-amber-500/10"
+                                            )}>
+                                                {form.status || "Live"}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground tabular-nums">
+                                                {new Date(form.createdAt).toLocaleDateString()}
+                                            </span>
+                                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </div>
                                     </div>
-                                    <div className="text-xs text-muted-foreground">{new Date(form.createdAt).toLocaleDateString()}</div>
-                                </div>
-                            )) : (
-                                <div className="p-4 text-center text-sm text-muted-foreground">
-                                    No forms created yet.
-                                </div>
-                            )}
+                                </Link>
+                            ))}
                         </div>
-                    </CardContent>
-                </Card>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted border border-border">
+                                <FileText className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-foreground">No forms yet</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Create your first static form endpoint</p>
+                            </div>
+                            <Link href="/dashboard/forms/new">
+                                <Button size="sm" className="gap-2 mt-1">
+                                    <Plus className="h-3.5 w-3.5" /> New Form
+                                </Button>
+                            </Link>
+                        </div>
+                    )}
+                </div>
             </div>
-
         </div>
     );
 }
-
