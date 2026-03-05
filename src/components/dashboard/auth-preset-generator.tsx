@@ -268,9 +268,30 @@ export default function AuthPresetGenerator({ onSuccess, initialPreset }: { onSu
                         <p className="font-semibold mb-1">Before deploying to production:</p>
                         <ul className="list-disc pl-5 space-y-1">
                             <li>Make sure your remote Postpipe Connector is running and updated to support Auth routes (<code>/api/auth/*</code>).</li>
-                            {(providers.google || providers.github) && (
-                                <li><strong>OAuth requires backend configuration:</strong> You must configure <code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code> or their GitHub equivalents inside your Connector's <code>.env</code> file.</li>
-                            )}
+                            <li className="mt-2">
+                                <strong>Backend Configuration Required:</strong> Add these environment variables to your deployment environment (e.g., Connector's <code>.env</code> file):
+                                <div className="mt-2 bg-orange-100/50 dark:bg-orange-950/50 p-3 rounded-md text-xs font-mono space-y-1 border border-orange-200/50 dark:border-orange-900/50 overflow-x-auto selection:bg-orange-200 dark:selection:bg-orange-900 text-orange-900 dark:text-orange-200">
+                                    <div className="text-orange-900/50 dark:text-orange-200/50"># Core Auth Settings</div>
+                                    <div>JWT_SECRET="<span className="opacity-50">your-super-secret-jwt-key</span>"</div>
+                                    <div>NEXTAUTH_URL="<span className="opacity-50">{redirectUrl || 'https://your-deployment-url.com'}</span>"</div>
+
+                                    {providers.google && (
+                                        <>
+                                            <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># Google OAuth</div>
+                                            <div>GOOGLE_CLIENT_ID="<span className="opacity-50">your-google-client-id</span>"</div>
+                                            <div>GOOGLE_CLIENT_SECRET="<span className="opacity-50">your-google-client-secret</span>"</div>
+                                        </>
+                                    )}
+
+                                    {providers.github && (
+                                        <>
+                                            <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># GitHub OAuth</div>
+                                            <div>GITHUB_CLIENT_ID="<span className="opacity-50">your-github-client-id</span>"</div>
+                                            <div>GITHUB_CLIENT_SECRET="<span className="opacity-50">your-github-client-secret</span>"</div>
+                                        </>
+                                    )}
+                                </div>
+                            </li>
                         </ul>
                     </div>
                 </div>
