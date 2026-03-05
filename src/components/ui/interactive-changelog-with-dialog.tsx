@@ -20,6 +20,32 @@ import {
 
 const releases = [
     {
+        title: "v2.2.1: Static Connector Page — New UI",
+        date: "March 05, 2026",
+        image: "https://res.cloudinary.com/dbaw86kzf/image/upload/v1772691336/bc797958-6363-4f3a-9e29-fe8dbe027384.png",
+        excerpt:
+            "Complete visual overhaul of the /static connector setup page by Souvik — featuring a live WebGL shader background, glassmorphism step wizard, and smooth edge vignette dissolve.",
+        contributors: [
+            "https://github.com/souvikvos",
+        ],
+        content: (
+            <div className="prose dark:prose-invert max-w-none">
+                <h3>Static Connector Page — New UI</h3>
+                <p>
+                    Contribution by <strong>Souvik</strong>. The <code>/static</code> onboarding page has been rebuilt from the ground up
+                    to deliver a premium first-impression for new users setting up their connector.
+                </p>
+                <ul>
+                    <li><strong>WebGL Shader Background</strong>: A live Three.js fractal ring animation fills the full page, giving an immersive depth to the setup flow.</li>
+                    <li><strong>Glassmorphism Step Wizard</strong>: The setup card uses <code>backdrop-blur-2xl</code> with a frosted dark overlay and violet accent progress indicator across three clear steps: Generate → Deploy → Connect.</li>
+                    <li><strong>Vignette Edge Dissolve</strong>: Multi-layer radial + linear gradients fade the shader seamlessly into the page background on all sides — no hard cutoff edges.</li>
+                    <li><strong>Refined Env Var Display</strong>: Sensitive connector secrets use a hover-reveal interaction so they aren&apos;t exposed at a glance.</li>
+                    <li><strong>Deployment Target Cards</strong>: Vercel and Azure deployment options are now visually distinct selectable cards.</li>
+                </ul>
+            </div>
+        ),
+    },
+    {
         title: "v2.2.0: Static Dashboard & UX Overhaul",
         date: "March 05, 2026",
         image: "https://res.cloudinary.com/dbaw86kzf/image/upload/v1772690437/edbdae56-1562-4160-a071-3c9ea33e2c51.png",

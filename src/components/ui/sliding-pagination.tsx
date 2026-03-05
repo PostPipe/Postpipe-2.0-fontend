@@ -22,23 +22,37 @@ export default function SlidingPagination({
     maxVisiblePages = 7,
 }: PaginationProps) {
     const buttonRefs = React.useRef<(HTMLButtonElement | null)[]>([])
+    const containerRef = React.useRef<HTMLDivElement>(null)
     const [underlineStyle, setUnderlineStyle] = React.useState<{ left: number; width: number }>({
         left: 0,
         width: 0,
     })
+    const [ready, setReady] = React.useState(false)
 
-    // Update underline position whenever current page changes
-    React.useEffect(() => {
+    // Use offsetLeft/offsetWidth — relative to parent, unaffected by scroll or viewport reflows
+    const measurePill = React.useCallback(() => {
         const currentBtn = buttonRefs.current[currentPage - 1]
         if (currentBtn) {
-            const rect = currentBtn.getBoundingClientRect()
-            const parentRect = currentBtn.parentElement!.getBoundingClientRect()
             setUnderlineStyle({
-                left: rect.left - parentRect.left,
-                width: rect.width,
+                left: currentBtn.offsetLeft,
+                width: currentBtn.offsetWidth,
             })
+            setReady(true)
         }
-    }, [currentPage, totalPages])
+    }, [currentPage])
+
+    // Re-measure on page change or total change
+    React.useEffect(() => {
+        measurePill()
+    }, [measurePill, currentPage, totalPages])
+
+    // Re-measure on container resize (handles small-screen reflows without spring jumps)
+    React.useEffect(() => {
+        if (!containerRef.current) return
+        const ro = new ResizeObserver(() => measurePill())
+        ro.observe(containerRef.current)
+        return () => ro.disconnect()
+    }, [measurePill])
 
     // Generate pages array with ellipsis if needed
     const generatePages = () => {
@@ -86,7 +100,7 @@ export default function SlidingPagination({
                 <span className="sr-only">Previous Page</span>
             </Button>
 
-            <div className="relative inline-flex items-center p-1 rounded-full bg-neutral-100/80 dark:bg-neutral-900/50 border border-neutral-200 dark:border-white/5 hover:border-primary/20 transition-colors backdrop-blur-sm">
+            <div ref={containerRef} className="relative inline-flex items-center p-1 rounded-full bg-neutral-100/80 dark:bg-neutral-900/50 border border-neutral-200 dark:border-white/5 hover:border-primary/20 transition-colors backdrop-blur-sm">
                 {/* Sliding Pill Background - Purple Brand Color */}
                 <motion.div
                     layout
@@ -94,8 +108,9 @@ export default function SlidingPagination({
                     animate={{
                         left: underlineStyle.left,
                         width: underlineStyle.width,
+                        opacity: ready ? 1 : 0,
                     }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 35, mass: 0.8 }}
                     className="absolute top-1 bottom-1 bg-primary rounded-full shadow-lg shadow-primary/25 z-0"
                 />
 

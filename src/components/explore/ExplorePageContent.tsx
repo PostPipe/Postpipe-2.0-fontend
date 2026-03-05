@@ -212,7 +212,7 @@ export function ExplorePageContent({ templates = [] }: ExplorePageContentProps) 
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold">Newest</h3>
                     </div>
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 grid-rows-2 content-start min-h-[560px]">
                         {paginatedItems.map((item) => (
                             <ExploreCard
                                 key={item._id}

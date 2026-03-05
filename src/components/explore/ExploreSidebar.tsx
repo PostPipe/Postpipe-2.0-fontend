@@ -161,7 +161,11 @@ export function ExploreSidebar({ open, setOpen }: ExploreSidebarProps) {
                             <div className={cn("flex flex-col transition-all duration-300", open ? "mt-6 gap-3" : "mt-4 gap-0")}>
                                 {/* Main Menu */}
                                 <div className={cn("flex flex-col w-full transition-all duration-300", !open ? "mx-auto w-8 gap-0" : "gap-1")}>
-                                    <h4 className={cn("text-[10px] font-bold text-neutral-500 dark:text-muted-foreground/40 mb-2 px-3 uppercase tracking-widest transition-all duration-300 overflow-hidden whitespace-nowrap", !open && "opacity-0 h-0 m-0 p-0")}>Menu</h4>
+                                    <motion.h4
+                                        animate={{ opacity: open ? 1 : 0, height: open ? "auto" : 0 }}
+                                        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                        className="text-[10px] font-bold text-neutral-500 dark:text-muted-foreground/40 mb-2 px-3 uppercase tracking-widest overflow-hidden whitespace-nowrap"
+                                    >Menu</motion.h4>
                                     {links.filter(l => l.group === 'main').map((link, idx) => (
                                         <RenderLink key={idx} link={link} />
                                     ))}
@@ -170,12 +174,24 @@ export function ExploreSidebar({ open, setOpen }: ExploreSidebarProps) {
                                 {/* Categories */}
                                 {links.filter(l => l.group === 'category').length > 0 && (
                                     <>
-                                        <div className={cn("border-t border-neutral-200 dark:border-white/10 mx-auto w-6 my-2 transition-opacity duration-300", open ? "opacity-0 h-0 my-0 border-0" : "opacity-100")} />
+                                        <motion.div
+                                            animate={{ opacity: open ? 0 : 1, height: open ? 0 : "auto" }}
+                                            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="border-t border-neutral-200 dark:border-white/10 mx-auto w-6 my-2" />
+                                        </motion.div>
                                         <div className={cn("flex flex-col gap-1 w-full")}>
-                                            <div className={cn("flex items-center gap-2 px-3 mb-1 mt-4 border-t border-neutral-200 dark:border-white/10 pt-4 text-primary font-bold overflow-hidden transition-all duration-300 whitespace-nowrap", !open && "opacity-0 h-0 overflow-hidden m-0 p-0 border-0")}>
-                                                <Layers className="h-4 w-4 flex-shrink-0" />
-                                                <h4 className="text-[11px] uppercase tracking-widest m-0 flex-shrink-0 whitespace-nowrap">Categories</h4>
-                                            </div>
+                                            <motion.div
+                                                animate={{ opacity: open ? 1 : 0, height: open ? "auto" : 0 }}
+                                                transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="flex items-center gap-2 px-3 mb-1 mt-4 border-t border-neutral-200 dark:border-white/10 pt-4 text-primary font-bold whitespace-nowrap">
+                                                    <Layers className="h-4 w-4 flex-shrink-0" />
+                                                    <h4 className="text-[11px] uppercase tracking-widest m-0 flex-shrink-0 whitespace-nowrap">Categories</h4>
+                                                </div>
+                                            </motion.div>
                                             {!open && (
                                                 <div className="flex justify-center text-neutral-500 dark:text-muted-foreground transition-colors group-hover:text-primary relative group cursor-pointer" title="Categories">
                                                     <Layers className="h-5 w-5 flex-shrink-0" />
@@ -193,12 +209,24 @@ export function ExploreSidebar({ open, setOpen }: ExploreSidebarProps) {
                                 {/* Tags */}
                                 {links.filter(l => l.group === 'tag').length > 0 && (
                                     <>
-                                        <div className={cn("border-t border-neutral-200 dark:border-white/10 mx-auto w-6 my-2 transition-opacity duration-300", open ? "opacity-0 h-0 my-0 border-0" : "opacity-100")} />
+                                        <motion.div
+                                            animate={{ opacity: open ? 0 : 1, height: open ? 0 : "auto" }}
+                                            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="border-t border-neutral-200 dark:border-white/10 mx-auto w-6 my-2" />
+                                        </motion.div>
                                         <div className={cn("flex flex-col gap-1 w-full")}>
-                                            <div className={cn("flex items-center gap-2 px-3 mb-1 mt-4 border-t border-neutral-200 dark:border-white/10 pt-4 text-primary font-bold overflow-hidden transition-all duration-300 whitespace-nowrap", !open && "opacity-0 h-0 overflow-hidden m-0 p-0 border-0")}>
-                                                <Tag className="h-4 w-4 flex-shrink-0" />
-                                                <h4 className="text-[11px] uppercase tracking-widest m-0 flex-shrink-0 whitespace-nowrap">Tags</h4>
-                                            </div>
+                                            <motion.div
+                                                animate={{ opacity: open ? 1 : 0, height: open ? "auto" : 0 }}
+                                                transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="flex items-center gap-2 px-3 mb-1 mt-4 border-t border-neutral-200 dark:border-white/10 pt-4 text-primary font-bold whitespace-nowrap">
+                                                    <Tag className="h-4 w-4 flex-shrink-0" />
+                                                    <h4 className="text-[11px] uppercase tracking-widest m-0 flex-shrink-0 whitespace-nowrap">Tags</h4>
+                                                </div>
+                                            </motion.div>
                                             {!open && (
                                                 <div className="flex justify-center text-neutral-500 dark:text-muted-foreground transition-colors group-hover:text-primary relative group cursor-pointer" title="Tags">
                                                     <Tag className="h-5 w-5 flex-shrink-0" />

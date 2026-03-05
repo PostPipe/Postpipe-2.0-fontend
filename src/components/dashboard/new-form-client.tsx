@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, Code, Save, GripVertical, Clipboard, Check, AlertCircle, Wrench, Settings, Layers, Send, Link as LinkIcon, Lock, Sparkles, Database, Shield, RotateCcw } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Code, Save, GripVertical, Clipboard, Check, AlertCircle, Settings, Layers, Send, Lock, Sparkles, Database, Shield, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,8 +81,8 @@ function SortableField({ field, updateField, removeField, isNew }: { field: Form
     return (
         <div id={`field-card-${field.id}`} ref={setNodeRef} style={style} className="relative mt-2">
             <div className={`relative group rounded-xl border bg-black/40 backdrop-blur-md shadow-sm transition-all duration-300 ${isDragging ? "opacity-50 scale-[0.98] ring-2 ring-primary/50" :
-                    isNew ? "border-emerald-500/50 ring-2 ring-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.2)]" :
-                        "hover:border-primary/30 border-white/5"
+                isNew ? "border-emerald-500/50 ring-2 ring-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.2)]" :
+                    "hover:border-primary/30 border-white/5"
                 }`}>
                 <div className="p-4 flex gap-3 items-start relative z-10">
                     <div className="mt-2 text-neutral-500 cursor-grab active:cursor-grabbing hover:text-white transition-colors" {...attributes} {...listeners}>

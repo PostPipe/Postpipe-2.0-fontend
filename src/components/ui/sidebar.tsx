@@ -98,8 +98,8 @@ export const DesktopSidebar = ({
         paddingRight: animate ? (open ? "16px" : "12px") : "16px",
       }}
       transition={{
-        duration: 0.3,
-        ease: "easeInOut",
+        duration: 0.45,
+        ease: [0.25, 0.46, 0.45, 0.94],
       }}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
@@ -184,6 +184,11 @@ export const SidebarLink = ({
         animate={{
           opacity: animate ? (open ? 1 : 0) : 1,
           width: animate ? (open ? "auto" : 0) : "auto",
+        }}
+        transition={{
+          duration: 0.35,
+          ease: [0.25, 0.46, 0.45, 0.94],
+          opacity: { duration: open ? 0.25 : 0.15, delay: open ? 0.15 : 0 },
         }}
         className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition-transform duration-150 whitespace-nowrap overflow-hidden !p-0 !m-0"
       >
