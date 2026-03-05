@@ -288,17 +288,18 @@ export default function NewFormClient({ onBack, initialData }: NewFormClientProp
 
     const embedUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/api/public/submit/${generatedId || 'YOUR_FORM_ID'}`;
 
-    const hasImageFields = fields.some(f => f.type === 'image');
+    const hasImageFields = fields.some(f => f.type === 'image' || f.type === 'image_array');
     const connectorUrl = connectors.find((c: any) => c.id === connector)?.url || 'http://localhost:3002';
 
     const renderEmbedField = (f: FormField) => {
         const conf = FIELD_TYPES[f.type] || FIELD_TYPES.text;
 
-        if (conf.category === 'Media' && f.type === 'image') {
+        if (conf.category === 'Media' && (f.type === 'image' || f.type === 'image_array')) {
+            const isMultiple = f.type === 'image_array';
             return `  <div class="field-group">
     <label>${f.label}${f.required ? ' *' : ''}</label>
-    <input type="file" name="${f.label}" accept="image/*" ${f.required ? 'required' : ''} />
-    <img id="preview-${f.label}" style="display:none;max-width:200px;margin-top:8px;border-radius:6px;" alt="preview" />
+    <input type="file" name="${f.label}" accept="image/*" ${isMultiple ? 'multiple ' : ''}${f.required ? 'required' : ''} />
+    <${isMultiple ? 'div' : 'img'} id="preview-${f.label}" style="display:${isMultiple ? 'flex' : 'none'};${isMultiple ? 'gap:8px;flex-wrap:wrap;' : 'max-width:200px;'}margin-top:8px;${isMultiple ? '' : 'border-radius:6px;'}"${isMultiple ? '' : ' alt="preview"'}></${isMultiple ? 'div' : 'img'}>
   </div>`;
         }
         if (conf.category === 'Boolean') {
@@ -345,40 +346,48 @@ ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
     var data = {}; var errors = [];
     var uploads = Array.from(this.querySelectorAll('input,textarea,select')).map(async function(input) {
       if (!input.name) return;
-      if (input.type === 'file' && input.files && input.files[0]) {
+      if (input.type === 'file' && input.files && input.files.length > 0) {
         try {
-          var fileInfo = input.files[0];
-          var compressed = fileInfo;
-          if (fileInfo.type.startsWith('image/')) {
-            compressed = await new Promise(function(resolve) {
-              var reader = new FileReader();
-              reader.onload = function(e) {
-                var img = new Image();
-                img.onload = function() {
-                  var canvas = document.createElement('canvas');
-                  var w = img.width, h = img.height, max = 1000;
-                  if (w > max) { h = Math.round((h * max) / w); w = max; }
-                  canvas.width = w; canvas.height = h;
-                  var ctx = canvas.getContext('2d');
-                  if (!ctx) return resolve(fileInfo);
-                  ctx.drawImage(img, 0, 0, w, h);
-                  canvas.toBlob(function(b) {
-                    if (b) resolve(new File([b], fileInfo.name, {type: 'image/jpeg'}));
-                    else resolve(fileInfo);
-                  }, 'image/jpeg', 0.8);
+          var uploadedUrls = [];
+          for (var i = 0; i < input.files.length; i++) {
+            var fileInfo = input.files[i];
+            var compressed = fileInfo;
+            if (fileInfo.type.startsWith('image/')) {
+              compressed = await new Promise(function(resolve) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                  var img = new Image();
+                  img.onload = function() {
+                    var canvas = document.createElement('canvas');
+                    var w = img.width, h = img.height, max = 1000;
+                    if (w > max) { h = Math.round((h * max) / w); w = max; }
+                    canvas.width = w; canvas.height = h;
+                    var ctx = canvas.getContext('2d');
+                    if (!ctx) return resolve(fileInfo);
+                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.toBlob(function(b) {
+                      if (b) resolve(new File([b], fileInfo.name, {type: 'image/jpeg'}));
+                      else resolve(fileInfo);
+                    }, 'image/jpeg', 0.8);
+                  };
+                  img.onerror = function() { resolve(fileInfo); };
+                  img.src = e.target.result;
                 };
-                img.onerror = function() { resolve(fileInfo); };
-                img.src = e.target.result;
-              };
-              reader.onerror = function() { resolve(fileInfo); };
-              reader.readAsDataURL(fileInfo);
-            });
+                reader.onerror = function() { resolve(fileInfo); };
+                reader.readAsDataURL(fileInfo);
+              });
+            }
+            var fd = new FormData(); fd.append('file', compressed);
+            var r = await fetch('${connectorUrl}/postpipe/upload', { method: 'POST', body: fd });
+            var d = await r.json();
+            if (!r.ok || !d.url) throw new Error(d.error || 'Upload failed');
+            uploadedUrls.push(d.url);
           }
-          var fd = new FormData(); fd.append('file', compressed);
-          var r = await fetch('${connectorUrl}/postpipe/upload', { method: 'POST', body: fd });
-          var d = await r.json();
-          if (!r.ok || !d.url) throw new Error(d.error || 'Upload failed');
-          data[input.name] = d.url;
+          if (input.multiple) {
+            data[input.name] = uploadedUrls;
+          } else {
+            data[input.name] = uploadedUrls[0];
+          }
         } catch(e) { errors.push(input.name + ': ' + e.message); }
       } else if (input.type !== 'submit') { data[input.name] = input.value; }
     });
@@ -387,14 +396,27 @@ ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
     btn.textContent = 'Submitting...';
     try {
       var res = await fetch('${embedUrl}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
-      if (res.ok) { btn.textContent='✓ Submitted!'; document.getElementById('pp-form').reset(); document.querySelectorAll('[id^="preview-"]').forEach(function(el){el.src='';el.style.display='none';}); }
+      if (res.ok) { btn.textContent='✓ Submitted!'; document.getElementById('pp-form').reset(); document.querySelectorAll('[id^="preview-"]').forEach(function(el){if(el.tagName.toLowerCase()==='img'){el.src='';el.style.display='none';}else{el.innerHTML='';}}); }
       else { var err=await res.json(); alert('Submission failed: '+(err.error||res.statusText)); btn.disabled=false; btn.textContent='Submit Form'; }
     } catch(e) { alert('Network error: '+e.message); btn.disabled=false; btn.textContent='Submit Form'; }
   });
   document.querySelectorAll('input[type="file"]').forEach(function(input) {
     input.addEventListener('change', function() {
       var p = document.getElementById('preview-'+input.name);
-      if (p && input.files && input.files[0]) { p.src=URL.createObjectURL(input.files[0]); p.style.display='block'; }
+      if (p && input.files && input.files.length > 0) {
+        if (p.tagName.toLowerCase() === 'img') {
+          p.src = URL.createObjectURL(input.files[0]); p.style.display = 'block';
+        } else {
+          p.innerHTML = '';
+          for (var i = 0; i < input.files.length; i++) {
+            var img = document.createElement('img');
+            img.src = URL.createObjectURL(input.files[i]);
+            img.style.maxWidth = '100px';
+            img.style.borderRadius = '6px';
+            p.appendChild(img);
+          }
+        }
+      }
     });
   });
 </script>` : '';
