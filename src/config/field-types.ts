@@ -58,6 +58,12 @@ export const FIELD_TYPES: Record<string, FieldTypeConfig> = {
     category: "Media",
     component: "ImageUploader"
   },
+  image_array: {
+    value: "image_array",
+    label: "Array of Images",
+    category: "Media",
+    component: "ImageUploader"
+  },
   list: {
     value: "list",
     label: "List",
