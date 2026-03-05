@@ -7,10 +7,31 @@ import { getAdapter } from './lib/db';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import nodeCrypto from 'crypto';
+import authRouter from './routes/auth';
+import cdnRouter from './routes/cdn';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
 
 dotenv.config();
 
-console.log("[Server] Environment Variables Loaded.");
+// Explicitly configure Cloudinary after dotenv has loaded the env vars.
+// The SDK does NOT auto-read CLOUDINARY_URL at import time.
+if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+        secure: true,
+    });
+    console.log(`[Server] Cloudinary configured for cloud: ${process.env.CLOUDINARY_CLOUD_NAME}`);
+} else if (process.env.CLOUDINARY_URL) {
+    // Fallback: parse the CLOUDINARY_URL manually
+    cloudinary.config({ cloudinary_url: process.env.CLOUDINARY_URL });
+    console.log(`[Server] Cloudinary configured via CLOUDINARY_URL`);
+} else {
+    console.warn('[Server] Cloudinary not configured. Image upload fields will not work. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET to connector .env');
+}
+
 
 // Check for MongoDB keys
 const mongoKeys = Object.keys(process.env).filter(k => k.startsWith('MONGODB_URI'));
@@ -22,6 +43,16 @@ console.log(`[Server] Detected Postgres URLs: ${pgKeys.length > 0 ? pgKeys.join(
 
 console.log(`[Server] CONNECTOR_ID: ${process.env.POSTPIPE_CONNECTOR_ID ? 'SET' : 'MISSING'}`);
 console.log(`[Server] CONNECTOR_SECRET: ${process.env.POSTPIPE_CONNECTOR_SECRET ? 'SET' : 'MISSING'}`);
+
+if (!process.env.DB_TYPE) {
+    if (pgKeys.length > 0) {
+        process.env.DB_TYPE = 'postgres';
+        console.log(`[Server] Smart Detect: DB_TYPE auto-set to 'postgres' based on ENV variables.`);
+    } else if (mongoKeys.length > 0) {
+        process.env.DB_TYPE = 'mongodb';
+        console.log(`[Server] Smart Detect: DB_TYPE auto-set to 'mongodb' based on ENV variables.`);
+    }
+}
 
 if (mongoKeys.length === 0 && pgKeys.length === 0 && (process.env.DB_TYPE === 'mongodb' || process.env.DB_TYPE === 'postgres')) {
     console.warn(`[Server] WARNING: DB_TYPE is set to '${process.env.DB_TYPE}' but no corresponding connection strings were found.`);
@@ -80,7 +111,7 @@ function rateLimit(req: Request, res: Response, next: express.NextFunction) {
     next();
 }
 
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(cookieParser());
 
 // --- Body Parsing Middleware ---
@@ -94,6 +125,12 @@ app.use(express.json({
 }));
 
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+
+// --- Public Auth Route (CORS open) ---
+app.use('/api/auth', authRouter);
+app.use('/api/public/cdn', cdnRouter);
+
+
 
 app.use(rateLimit);
 
@@ -110,6 +147,46 @@ app.get('/', (req, res) => {
             pgDetected: Object.keys(process.env).some(k => k.startsWith('POSTGRES_URL') || k.startsWith('DATABASE_URL'))
         }
     });
+});
+// ----------------------------------------
+
+// --- Cloudinary Image Upload ---
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB max
+
+// @ts-ignore
+app.post('/postpipe/upload', upload.single('file'), async (req: Request, res: Response) => {
+    const cloudinaryUrl = process.env.CLOUDINARY_URL;
+
+    if (!cloudinaryUrl) {
+        console.error('[Upload] CLOUDINARY_URL is not set in connector .env');
+        return res.status(503).json({
+            error: 'Image upload is not configured. Add CLOUDINARY_URL to the connector .env file.',
+            hint: 'Example: CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME'
+        });
+    }
+
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file provided. Send a multipart/form-data request with a "file" field.' });
+    }
+
+    try {
+        // cloudinary auto-reads CLOUDINARY_URL from env
+        const result = await new Promise<any>((resolve, reject) => {
+            cloudinary.uploader.upload_stream(
+                { folder: 'postpipe_uploads', resource_type: 'auto' },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            ).end(req.file!.buffer);
+        });
+
+        console.log(`[Upload] Success: ${result.secure_url}`);
+        return res.status(200).json({ success: true, url: result.secure_url, public_id: result.public_id });
+    } catch (err: any) {
+        console.error('[Upload] Cloudinary error:', err.message);
+        return res.status(500).json({ error: 'Upload to Cloudinary failed', details: err.message });
+    }
 });
 // ----------------------------------------
 

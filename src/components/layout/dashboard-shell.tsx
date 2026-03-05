@@ -65,16 +65,6 @@ export default function DashboardShell({
             icon: <Key className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
         },
         {
-            label: "CLI & Integrations",
-            href: "/dashboard/cli",
-            icon: <Terminal className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-        },
-        {
-            label: "Usage",
-            href: "/dashboard/usage",
-            icon: <Activity className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-        },
-        {
             label: "Databases",
             href: "/dashboard/database",
             icon: <Database className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />

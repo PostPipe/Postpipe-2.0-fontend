@@ -12,6 +12,7 @@ import {
   updateForm,
   getSystems,
   createSystem,
+  deleteAuthPreset,
   System
 } from '../../lib/server-db';
 import { ensureFullUrl } from '../../lib/utils';
@@ -165,4 +166,11 @@ export async function getConnectorsAction() {
     _id: c._id?.toString(),
     id: c.id?.toString(),
   }));
+}
+
+export async function deleteAuthPresetAction(id: string) {
+  const session = await getSession();
+  if (!session || !session.userId) throw new Error("Unauthorized");
+  await deleteAuthPreset(session.userId, id);
+  return { success: true };
 }

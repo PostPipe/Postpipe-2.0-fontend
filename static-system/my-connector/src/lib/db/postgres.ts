@@ -130,6 +130,26 @@ export class PostgresAdapter implements DatabaseAdapter {
             `;
             await pool.query(createIndexQuery);
             initializedTables.add(tableName);
+
+            // Also ensure Auth Table exists on this database
+            const authTableName = this.getTableName(alias, dbName).replace(/[^.]+$/, 'postpipe_users');
+            if (!initializedTables.has(authTableName)) {
+                await pool.query(`
+                    CREATE TABLE IF NOT EXISTS ${authTableName} (
+                        id TEXT PRIMARY KEY,
+                        email TEXT UNIQUE NOT NULL,
+                        name TEXT,
+                        password_hash TEXT,
+                        provider TEXT,
+                        provider_id TEXT,
+                        avatar TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        last_login TIMESTAMPTZ DEFAULT NOW()
+                    );
+                `);
+                initializedTables.add(authTableName);
+            }
+
             console.log("[PostgresAdapter] Table verification complete.");
         } catch (error) {
             console.error(`[PostgresAdapter] FAILED to verify/create table ${tableName}:`, error);
@@ -178,7 +198,7 @@ export class PostgresAdapter implements DatabaseAdapter {
         await pool.query(query, [
             cleanData.formId,
             cleanData.submissionId,
-            JSON.stringify(cleanData.data),
+            typeof cleanData.data === 'string' ? cleanData.data : JSON.stringify(cleanData.data),
             cleanData.timestamp
         ]);
         
@@ -205,10 +225,58 @@ export class PostgresAdapter implements DatabaseAdapter {
         
         const res = await pool.query(query, [formId, limit]);
         
-        return res.rows.map(row => ({
-            ...row,
-            signature: ''
-        }));
+        return res.rows.map(row => {
+            // Safely parse `data` if it was stored as a JSON string (TEXT column or old rows)
+            let parsedData = row.data;
+            if (typeof parsedData === 'string') {
+                try { parsedData = JSON.parse(parsedData); } catch { /* leave as string */ }
+            }
+            return {
+                ...row,
+                data: parsedData,
+                signature: '',
+                _dbType: 'postgres',
+                _sourceDb: alias || 'default'
+            };
+        });
+    }
+
+    // --- AUTH METHODS ---
+    async findUserByEmail(email: string, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) throw new Error("[PostgresAdapter] Cannot query: No connection string.");
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const authTableName = this.getTableName(context?.targetDatabase).replace(/[^.]+$/, 'postpipe_users');
+        const res = await pool.query(`SELECT * FROM ${authTableName} WHERE email = $1 LIMIT 1`, [email]);
+        return res.rows[0] || null;
+    }
+
+    async insertUser(user: any, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) throw new Error("[PostgresAdapter] Cannot query: No connection string.");
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const authTableName = this.getTableName(context?.targetDatabase).replace(/[^.]+$/, 'postpipe_users');
+        await pool.query(`
+            INSERT INTO ${authTableName} (id, email, name, password_hash, provider, provider_id, avatar, created_at, last_login)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (email) DO NOTHING;
+        `, [
+            user.id, user.email, user.name, user.password_hash, 
+            user.provider, user.provider_id, user.avatar, 
+            user.created_at, user.last_login
+        ]);
+        console.log(`[PostgresAdapter] Inserted Auth User: ${user.email}`);
+    }
+
+    async updateUserLastLogin(userId: string, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) return;
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const authTableName = this.getTableName(context?.targetDatabase).replace(/[^.]+$/, 'postpipe_users');
+        await pool.query(`UPDATE ${authTableName} SET last_login = NOW() WHERE id = $1`, [userId]);
     }
 
     async disconnect() {

@@ -52,16 +52,6 @@ export function DashboardSidebar({ className }: SidebarProps) {
             icon: Key,
         },
         {
-            title: "CLI & Integrations",
-            href: "/dashboard/cli",
-            icon: Terminal,
-        },
-        {
-            title: "Usage",
-            href: "/dashboard/usage",
-            icon: Activity,
-        },
-        {
             title: "Settings",
             href: "/dashboard/settings",
             icon: Settings,

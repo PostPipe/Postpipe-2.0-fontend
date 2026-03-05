@@ -1,0 +1,14 @@
+﻿.next/types/app/auth/verify-email/page.ts(34,29): error TS2344: Type '{ searchParams: { [key: string]: string | string[] | undefined; }; }' does not satisfy the constraint 'PageProps'.
+  Types of property 'searchParams' are incompatible.
+    Type '{ [key: string]: string | string[] | undefined; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/dashboard/forms/[id]/edit/page.ts(34,29): error TS2344: Type '{ params: { id: string; }; }' does not satisfy the constraint 'PageProps'.
+  Types of property 'params' are incompatible.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/dashboard/forms/[id]/submissions/page.ts(34,29): error TS2344: Type '{ params: { id: string; }; }' does not satisfy the constraint 'PageProps'.
+  Types of property 'params' are incompatible.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/explore/page.ts(34,29): error TS2344: Type 'Props' does not satisfy the constraint 'PageProps'.
+  Types of property 'searchParams' are incompatible.
+    Type '{ [key: string]: string | string[] | undefined; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+src/components/dashboard/forms/form-builder.tsx(67,43): error TS2345: Argument of type 'string' is not assignable to parameter of type '"text" | "checkbox" | "textarea" | "email"'.
+src/components/theme-provider.tsx(5,41): error TS2307: Cannot find module 'next-themes/dist/types' or its corresponding type declarations.
