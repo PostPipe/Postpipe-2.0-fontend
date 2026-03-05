@@ -17,6 +17,8 @@ import {
     Activity,
     UserCog,
     Database,
+    ArrowLeftToLine,
+    ArrowRightFromLine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
@@ -61,16 +63,6 @@ export default function DashboardShell({
             label: "Connectors",
             href: "/dashboard/connectors",
             icon: <Key className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-        },
-        {
-            label: "CLI & Integrations",
-            href: "/dashboard/cli",
-            icon: <Terminal className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-        },
-        {
-            label: "Usage",
-            href: "/dashboard/usage",
-            icon: <Activity className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
         },
         {
             label: "Databases",
@@ -125,13 +117,28 @@ export default function DashboardShell({
                                 }}
                             />
                         </div>
+
+                        {/* Collapse Toggle */}
+                        <div onClick={() => setOpen(!open)} className="cursor-pointer mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
+                            <SidebarLink
+                                link={{
+                                    label: open ? "Collapse Sidebar" : "Expand Sidebar",
+                                    href: "#",
+                                    icon: open ? (
+                                        <ArrowLeftToLine className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+                                    ) : (
+                                        <ArrowRightFromLine className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+                                    )
+                                }}
+                            />
+                        </div>
                     </div>
                 </SidebarBody>
             </Sidebar>
 
             {/* Main Content Area */}
-            <div className="flex flex-1">
-                <div className="p-2 md:p-10 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex flex-col gap-2 flex-1 w-full h-full overflow-y-auto">
+            <div className="flex flex-1 overflow-hidden">
+                <div className="p-2 pt-20 md:p-10 md:pt-10 md:rounded-tl-2xl md:border border-neutral-200 dark:border-neutral-700 md:bg-white md:dark:bg-neutral-900 flex flex-col gap-2 flex-1 w-full h-full overflow-y-auto overflow-x-hidden">
                     {children}
                 </div>
             </div>

@@ -22,23 +22,37 @@ export default function SlidingPagination({
     maxVisiblePages = 7,
 }: PaginationProps) {
     const buttonRefs = React.useRef<(HTMLButtonElement | null)[]>([])
+    const containerRef = React.useRef<HTMLDivElement>(null)
     const [underlineStyle, setUnderlineStyle] = React.useState<{ left: number; width: number }>({
         left: 0,
         width: 0,
     })
+    const [ready, setReady] = React.useState(false)
 
-    // Update underline position whenever current page changes
-    React.useEffect(() => {
+    // Use offsetLeft/offsetWidth — relative to parent, unaffected by scroll or viewport reflows
+    const measurePill = React.useCallback(() => {
         const currentBtn = buttonRefs.current[currentPage - 1]
         if (currentBtn) {
-            const rect = currentBtn.getBoundingClientRect()
-            const parentRect = currentBtn.parentElement!.getBoundingClientRect()
             setUnderlineStyle({
-                left: rect.left - parentRect.left,
-                width: rect.width,
+                left: currentBtn.offsetLeft,
+                width: currentBtn.offsetWidth,
             })
+            setReady(true)
         }
-    }, [currentPage, totalPages])
+    }, [currentPage])
+
+    // Re-measure on page change or total change
+    React.useEffect(() => {
+        measurePill()
+    }, [measurePill, currentPage, totalPages])
+
+    // Re-measure on container resize (handles small-screen reflows without spring jumps)
+    React.useEffect(() => {
+        if (!containerRef.current) return
+        const ro = new ResizeObserver(() => measurePill())
+        ro.observe(containerRef.current)
+        return () => ro.disconnect()
+    }, [measurePill])
 
     // Generate pages array with ellipsis if needed
     const generatePages = () => {
@@ -74,11 +88,11 @@ export default function SlidingPagination({
     const pagesToShow = generatePages()
 
     return (
-        <div className={cn("flex items-center gap-2", className)}>
+        <div className={cn("flex items-center gap-4", className)}>
             <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-9 w-9 rounded-full border-neutral-200 dark:border-white/10 bg-white dark:bg-neutral-900 disabled:opacity-30 transition-all hover:bg-neutral-100 dark:hover:bg-white/10 shadow-sm hover:border-primary/20 hover:text-primary"
                 onClick={() => onPageChange(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
             >
@@ -86,10 +100,23 @@ export default function SlidingPagination({
                 <span className="sr-only">Previous Page</span>
             </Button>
 
-            <div className="relative inline-flex items-center gap-1">
+            <div ref={containerRef} className="relative inline-flex items-center p-1 rounded-full bg-neutral-100/80 dark:bg-neutral-900/50 border border-neutral-200 dark:border-white/5 hover:border-primary/20 transition-colors backdrop-blur-sm">
+                {/* Sliding Pill Background - Purple Brand Color */}
+                <motion.div
+                    layout
+                    initial={false}
+                    animate={{
+                        left: underlineStyle.left,
+                        width: underlineStyle.width,
+                        opacity: ready ? 1 : 0,
+                    }}
+                    transition={{ type: "spring", stiffness: 400, damping: 35, mass: 0.8 }}
+                    className="absolute top-1 bottom-1 bg-primary rounded-full shadow-lg shadow-primary/25 z-0"
+                />
+
                 {pagesToShow.map((pageNum, i) =>
                     pageNum === -1 ? (
-                        <span key={`dots-${i}`} className="px-2 text-gray-400">…</span>
+                        <span key={`dots-${i}`} className="px-3 text-muted-foreground text-xs select-none">...</span>
                     ) : (
                         <Button
                             key={pageNum}
@@ -97,32 +124,22 @@ export default function SlidingPagination({
                             ref={(el) => { buttonRefs.current[pageNum - 1] = el; }}
                             onClick={() => onPageChange(pageNum)}
                             className={cn(
-                                "relative px-4 py-2 text-sm z-10 hover:bg-transparent",
-                                pageNum === currentPage ? "font-semibold text-primary" : "text-muted-foreground"
+                                "relative h-8 min-w-[32px] px-3 rounded-full text-sm font-medium z-10 transition-colors hover:bg-transparent",
+                                pageNum === currentPage
+                                    ? "text-primary-foreground font-semibold"
+                                    : "text-muted-foreground hover:text-primary"
                             )}
                         >
                             {pageNum}
                         </Button>
                     )
                 )}
-
-                {/* Sliding underline */}
-                <motion.div
-                    layout
-                    initial={false}
-                    animate={{
-                        left: underlineStyle.left,
-                        width: underlineStyle.width,
-                    }}
-                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                    className="absolute bottom-0 h-0.5 bg-primary rounded z-0"
-                />
             </div>
 
             <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-9 w-9 rounded-full border-neutral-200 dark:border-white/10 bg-white dark:bg-neutral-900 disabled:opacity-30 transition-all hover:bg-neutral-100 dark:hover:bg-white/10 shadow-sm hover:border-primary/20 hover:text-primary"
                 onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
             >

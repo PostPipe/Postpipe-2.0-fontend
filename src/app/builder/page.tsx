@@ -76,14 +76,107 @@ export default function BuilderPage() {
 
     // Success View - Show HTML Code
     if (result?.success) {
-        const endpoint = `http://localhost:3000/api/public/submit/${result.formId}`;
-        const htmlCode = `<form action="${endpoint}" method="POST">
-${fields.map(f => `  <div class="form-group">
-    <label>${f.name}</label>
+        const connector = connectors.find(c => c.id === connectorId);
+        const connectorUrl = connector?.url || 'http://localhost:3002';
+        const endpoint = `http://localhost:9002/api/public/submit/${result.formId}`;
+        const hasImageFields = fields.some(f => f.type === 'image');
+
+        const imageScript = hasImageFields ? `
+  <script>
+    document.getElementById('pp-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var btn = document.getElementById('pp-submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Uploading...';
+
+      var formData = {};
+      var inputs = this.querySelectorAll('input, textarea, select');
+      var uploadErrors = [];
+
+      var uploads = Array.from(inputs).map(async function(input) {
+        if (!input.name) return;
+        if (input.type === 'file' && input.files && input.files[0]) {
+          var fd = new FormData();
+          fd.append('file', input.files[0]);
+          try {
+            var res = await fetch('${connectorUrl}/postpipe/upload', { method: 'POST', body: fd });
+            var data = await res.json();
+            if (!res.ok || !data.url) throw new Error(data.error || 'Upload failed');
+            formData[input.name] = data.url;
+          } catch(err) {
+            uploadErrors.push(input.name + ': ' + err.message);
+          }
+        } else if (input.type !== 'submit') {
+          formData[input.name] = input.value;
+        }
+      });
+
+      await Promise.all(uploads);
+
+      if (uploadErrors.length > 0) {
+        alert('Upload failed:\\n' + uploadErrors.join('\\n'));
+        btn.disabled = false;
+        btn.textContent = 'Submit';
+        return;
+      }
+
+      btn.textContent = 'Submitting...';
+      try {
+        var res = await fetch('${endpoint}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        if (res.ok) {
+          btn.textContent = 'Submitted!';
+          document.getElementById('pp-form').reset();
+          document.querySelectorAll('.pp-img-preview').forEach(function(el) { el.src = ''; el.style.display = 'none'; });
+        } else {
+          var err = await res.json();
+          alert('Submission failed: ' + (err.error || res.statusText));
+          btn.disabled = false;
+          btn.textContent = 'Submit';
+        }
+      } catch(err) {
+        alert('Network error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Submit';
+      }
+    });
+
+    document.querySelectorAll('input[type="file"]').forEach(function(input) {
+      input.addEventListener('change', function() {
+        var preview = document.getElementById('preview-' + input.name);
+        if (preview && input.files && input.files[0]) {
+          preview.src = URL.createObjectURL(input.files[0]);
+          preview.style.display = 'block';
+        }
+      });
+    });
+  </script>` : '';
+
+        const renderField = (f: FormField) => {
+            if (f.type === 'image') {
+                return `  <div class="form-group">
+    <label>${f.name}${f.required ? ' *' : ''}</label>
+    <input type="file" name="${f.name}" accept="image/*" ${f.required ? 'required' : ''} />
+    <img id="preview-${f.name}" class="pp-img-preview" style="display:none;max-width:200px;margin-top:8px;border-radius:6px;" alt="preview" />
+  </div>`;
+            }
+            return `  <div class="form-group">
+    <label>${f.name}${f.required ? ' *' : ''}</label>
     <input type="${f.type}" name="${f.name}" ${f.required ? 'required' : ''} />
-  </div>`).join('\n')}
-  <button type="submit">Submit</button>
-</form>`;
+  </div>`;
+        };
+
+        const formTag = hasImageFields
+            ? `<form id="pp-form">`
+            : `<form id="pp-form" action="${endpoint}" method="POST">`;
+
+        const htmlCode = `${formTag}
+${fields.map(renderField).join('\n')}
+  <button type="submit" id="pp-submit-btn">Submit</button>
+</form>${imageScript}`;
 
         return (
             <div className="min-h-screen bg-neutral-950 text-neutral-200 p-8 font-sans flex items-center justify-center">
@@ -94,7 +187,14 @@ ${fields.map(f => `  <div class="form-group">
                     </div>
 
                     <div className="space-y-4">
-                        <p className="text-sm text-neutral-400">Copy this HTML snippet and paste it into any website (or a local <code>index.html</code> file).</p>
+                        <p className="text-sm text-neutral-400">
+                            Copy this HTML snippet and paste it into any website (or a local <code>index.html</code> file).
+                            {hasImageFields && (
+                                <span className="ml-1 text-amber-400">
+                                    {' '}⚠️ Image fields require your connector to have <code className="bg-neutral-800 px-1 rounded">CLOUDINARY_URL</code> set.
+                                </span>
+                            )}
+                        </p>
 
                         <div className="relative group">
                             <div className="absolute top-2 right-2 text-xs bg-black/50 px-2 py-1 rounded text-neutral-500">HTML</div>
@@ -175,13 +275,14 @@ ${fields.map(f => `  <div class="form-group">
                                     <select
                                         value={field.type}
                                         onChange={(e) => updateField(i, 'type', e.target.value)}
-                                        className="w-32 bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-neutral-300 focus:border-emerald-500 outline-none"
+                                        className="w-36 bg-neutral-950 border border-neutral-800 rounded p-2 text-sm text-neutral-300 focus:border-emerald-500 outline-none"
                                     >
                                         <option value="text">Text</option>
                                         <option value="email">Email</option>
                                         <option value="number">Number</option>
                                         <option value="date">Date</option>
                                         <option value="tel">Phone</option>
+                                        <option value="image">📷 Image</option>
                                     </select>
                                     <label className="flex items-center gap-2 text-sm text-neutral-400 cursor-pointer select-none">
                                         <input
@@ -198,6 +299,14 @@ ${fields.map(f => `  <div class="form-group">
                                 </div>
                             ))}
                         </div>
+
+                        {fields.some(f => f.type === 'image') && (
+                            <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
+                                📷 <strong>Image fields</strong> require your connector to be running with{' '}
+                                <code className="bg-black/30 px-1 rounded">CLOUDINARY_URL</code> set in its{' '}
+                                <code className="bg-black/30 px-1 rounded">.env</code> file.
+                            </div>
+                        )}
                     </div>
 
                     <div className="pt-4 border-t border-neutral-800 flex justify-end">

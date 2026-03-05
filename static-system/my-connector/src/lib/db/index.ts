@@ -5,7 +5,16 @@ import { PostgresAdapter } from './postgres';
 const adapterCache: Record<string, DatabaseAdapter> = {};
 
 export function getAdapter(forcedType?: string): DatabaseAdapter {
-  const type = (forcedType || process.env.DB_TYPE || "").toLowerCase();
+  let type = (forcedType || process.env.DB_TYPE || "").toLowerCase();
+
+  // Smart fallback if type is empty
+  if (!type) {
+    if (process.env.POSTGRES_URL || process.env.DATABASE_URL) {
+      type = 'postgres';
+    } else if (process.env.MONGODB_URI) {
+      type = 'mongodb';
+    }
+  }
 
   if (adapterCache[type]) {
     return adapterCache[type];
@@ -47,5 +56,21 @@ class MemoryAdapter implements DatabaseAdapter {
 
     const limit = options?.limit || 50;
     return results.slice(0, limit);
+  }
+
+  // Auth methods
+  private users: any[] = [];
+  async findUserByEmail(email: string) {
+    return this.users.find(u => u.email === email) || null;
+  }
+  async insertUser(user: any) {
+    this.users.push(user);
+    console.log('[MemoryAdapter] Inserted User:', user.email);
+  }
+  async updateUserLastLogin(userId: string) {
+    const user = this.users.find(u => u.id === userId);
+    if (user) {
+      user.last_login = new Date().toISOString();
+    }
   }
 }
