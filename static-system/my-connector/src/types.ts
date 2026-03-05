@@ -34,6 +34,11 @@ export interface DatabaseAdapter {
   insert(submission: PostPipeIngestPayload): Promise<void>;
   query(formId: string, options?: any): Promise<PostPipeIngestPayload[]>;
   disconnect?(): Promise<void>;
+  
+  // Auth methods
+  findUserByEmail(email: string, context?: any): Promise<any>;
+  insertUser(user: any, context?: any): Promise<void>;
+  updateUserLastLogin(userId: string, context?: any): Promise<void>;
 }
 
 export interface ConnectorConfig {

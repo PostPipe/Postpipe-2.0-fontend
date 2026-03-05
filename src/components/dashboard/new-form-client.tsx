@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, Code, Save, GripVertical, Clipboard, Check } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Code, Save, GripVertical, Clipboard, Check, AlertCircle, Wrench, Settings, Layers, Send, Link as LinkIcon, Lock, Sparkles, Database, Shield, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,16 +10,19 @@ import { Switch } from "@/components/ui/switch";
 import {
     Select,
     SelectContent,
+    SelectGroup,
     SelectItem,
+    SelectLabel,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { FIELD_TYPES, getGroupedFieldTypes } from "@/config/field-types";
 import { RainbowButton } from "@/components/ui/rainbow-button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BorderBeam } from "@/components/ui/border-beam";
+import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
 import { toast } from "@/hooks/use-toast";
 import { createFormAction, getConnectorsAction, updateFormAction } from "@/app/actions/builder";
-import { useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import {
     DndContext,
@@ -42,8 +45,9 @@ import { CSS } from "@dnd-kit/utilities";
 type FormField = {
     id: string;
     label: string;
-    type: "text" | "email" | "textarea" | "number";
+    type: string; // keyof typeof FIELD_TYPES
     required: boolean;
+    options?: string;
 };
 
 type NewFormClientProps = {
@@ -52,23 +56,9 @@ type NewFormClientProps = {
 };
 
 // Sortable Item Component
-function SortableField({
-    field,
-    updateField,
-    removeField
-}: {
-    field: FormField;
-    updateField: (id: string, key: keyof FormField, value: any) => void;
-    removeField: (id: string) => void;
-}) {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging
-    } = useSortable({ id: field.id });
+function SortableField({ field, updateField, removeField, isNew }: { field: FormField; updateField: (id: string, key: keyof FormField, value: any) => void; removeField: (id: string) => void; isNew?: boolean; }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id });
+    const [typeSearch, setTypeSearch] = useState("");
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -77,117 +67,129 @@ function SortableField({
         position: isDragging ? "relative" as const : "static" as const,
     };
 
+    const filteredGroups = useMemo(() => {
+        const q = typeSearch.toLowerCase();
+        if (!q) return getGroupedFieldTypes();
+        const result: Record<string, { value: string; label: string }[]> = {};
+        Object.entries(getGroupedFieldTypes()).forEach(([cat, items]) => {
+            const matched = items.filter(f => f.label.toLowerCase().includes(q) || f.value.toLowerCase().includes(q));
+            if (matched.length) result[cat] = matched;
+        });
+        return result;
+    }, [typeSearch]);
+
     return (
-        <div ref={setNodeRef} style={style}>
-            <Card className={`relative group ${isDragging ? "opacity-50" : ""}`}>
-                <CardContent className="p-4 flex gap-4 items-start">
-                    {/* Drag Handle */}
-                    <div
-                        className="mt-3 text-muted-foreground cursor-grab active:cursor-grabbing hover:text-foreground transition-colors"
-                        {...attributes}
-                        {...listeners}
-                    >
+        <div id={`field-card-${field.id}`} ref={setNodeRef} style={style} className="relative mt-2">
+            <div className={`relative group rounded-xl border bg-black/40 backdrop-blur-md shadow-sm transition-all duration-300 ${isDragging ? "opacity-50 scale-[0.98] ring-2 ring-primary/50" :
+                    isNew ? "border-emerald-500/50 ring-2 ring-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.2)]" :
+                        "hover:border-primary/30 border-white/5"
+                }`}>
+                <div className="p-4 flex gap-3 items-start relative z-10">
+                    <div className="mt-2 text-neutral-500 cursor-grab active:cursor-grabbing hover:text-white transition-colors" {...attributes} {...listeners}>
                         <GripVertical className="h-4 w-4" />
                     </div>
 
-                    <div className="grid gap-4 flex-1 md:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label>Label</Label>
-                            <Input
-                                value={field.label}
-                                onChange={e => updateField(field.id, "label", e.target.value)}
-                            />
+                    <div className="grid gap-3 flex-1">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <Label className="text-[10px] text-neutral-400 uppercase tracking-wider">Label</Label>
+                                <Input value={field.label} onChange={e => updateField(field.id, "label", e.target.value)} className="h-8 text-xs bg-white/5 border-white/10 text-white" />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-[10px] text-neutral-400 uppercase tracking-wider">Type</Label>
+                                <Select value={field.type} onValueChange={val => { updateField(field.id, "type", val); setTypeSearch(""); }}>
+                                    <SelectTrigger className="h-8 text-xs bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+                                    <SelectContent className="max-h-[340px] p-0">
+                                        {/* Search input */}
+                                        <div className="sticky top-0 z-20 bg-[#09090D] border-b border-white/5 px-2 py-1.5">
+                                            <input
+                                                autoFocus
+                                                placeholder="Search types…"
+                                                value={typeSearch}
+                                                onChange={e => setTypeSearch(e.target.value)}
+                                                onKeyDown={e => e.stopPropagation()}
+                                                className="w-full bg-white/5 border border-white/10 rounded-md px-2 py-1 text-xs text-white placeholder:text-neutral-500 outline-none focus:border-indigo-500/50"
+                                            />
+                                        </div>
+                                        <div className="overflow-y-auto max-h-[260px]">
+                                            {Object.keys(filteredGroups).length === 0 ? (
+                                                <p className="py-4 text-center text-xs text-neutral-500">No types found</p>
+                                            ) : (
+                                                Object.entries(filteredGroups).map(([category, ftypes]) => (
+                                                    <SelectGroup key={category}>
+                                                        <SelectLabel className="text-xs font-semibold text-indigo-300 bg-black/40 px-2 py-1 uppercase tracking-wider sticky top-0 z-10">{category}</SelectLabel>
+                                                        {ftypes.map(f => (
+                                                            <SelectItem key={f.value} value={f.value} className="pl-6 text-xs hover:bg-white/5 cursor-pointer">
+                                                                {f.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectGroup>
+                                                ))
+                                            )}
+                                        </div>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Type</Label>
-                            <Select
-                                value={field.type}
-                                onValueChange={val => updateField(field.id, "type", val)}
-                            >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="text">Text Input</SelectItem>
-                                    <SelectItem value="email">Email</SelectItem>
-                                    <SelectItem value="textarea">Text Area</SelectItem>
-                                    <SelectItem value="number">Number</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Switch
-                                id={`req-${field.id}`}
-                                checked={field.required}
-                                onCheckedChange={checked => updateField(field.id, "required", checked)}
-                            />
-                            <Label htmlFor={`req-${field.id}`}>Required</Label>
+                        {field.type === 'enum' && (
+                            <div className="pt-2">
+                                <Label className="text-[10px] text-neutral-400 uppercase tracking-wider">Options (Comma-separated)</Label>
+                                <Input value={field.options || ""} onChange={e => updateField(field.id, "options", e.target.value)} placeholder="e.g. user, admin, guest" className="h-8 text-xs bg-white/5 border-white/10 text-white mt-1" />
+                            </div>
+                        )}
+                        <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1">
+                            <div className="flex items-center space-x-2">
+                                <Switch id={`req-${field.id}`} checked={field.required} onCheckedChange={checked => updateField(field.id, "required", checked)} className="scale-75 origin-left" />
+                                <Label htmlFor={`req-${field.id}`} className="text-xs text-neutral-300 font-normal">Required field</Label>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100" onClick={() => removeField(field.id)}>
+                                <Trash2 className="h-3 w-3" />
+                            </Button>
                         </div>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => removeField(field.id)}
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }
 
 function CopyButton({ text }: { text: string }) {
     const [copied, setCopied] = useState(false);
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
+    const handleCopy = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
     return (
-        <Button size="icon" variant="secondary" className="absolute top-2 right-2 h-6 w-6" onClick={handleCopy}>
-            {copied ? <Check className="h-3 w-3 text-green-500" /> : <Clipboard className="h-3 w-3" />}
+        <Button size="icon" variant="ghost" className="absolute top-2 right-2 h-8 w-8 hover:bg-white/10 text-neutral-400" onClick={handleCopy}>
+            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Clipboard className="h-4 w-4" />}
         </Button>
     );
 }
 
 export default function NewFormClient({ onBack, initialData }: NewFormClientProps) {
     const [formName, setFormName] = useState(initialData?.name || "");
+    const [tempName, setTempName] = useState("");
     const [connector, setConnector] = useState(initialData?.connectorId || "");
     const [targetDb, setTargetDb] = useState(initialData?.targetDatabase || "default");
+    const [activeTab, setActiveTab] = useState("build");
+    const [addPulse, setAddPulse] = useState(false);
+    const [newFieldId, setNewFieldId] = useState<string | null>(null);
 
-    // Convert fields from DB format ({name, type, required}) to Client format ({id, label, type, required})
     const initialFields = initialData?.fields
-        ? initialData.fields.map((f: any, i: number) => ({
-            id: i.toString(),
-            label: f.name,
-            type: f.type,
-            required: f.required
-        }))
+        ? initialData.fields.map((f: any, i: number) => ({ id: i.toString(), label: f.name, type: f.type, required: f.required }))
         : [
             { id: "1", label: "Full Name", type: "text", required: true },
             { id: "2", label: "Email Address", type: "email", required: true },
-            { id: "3", label: "Message", type: "textarea", required: true },
+            { id: "3", label: "Message", type: "textarea", required: false },
         ];
 
     const [fields, setFields] = useState<FormField[]>(initialFields);
     const [generatedId, setGeneratedId] = useState<string | null>(initialData?.id || null);
 
     const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 5, // Require drag movement of 5px before activation
-            },
-        }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
-
         if (active.id !== over?.id) {
             setFields((items) => {
                 const oldIndex = items.findIndex((item) => item.id === active.id);
@@ -198,59 +200,46 @@ export default function NewFormClient({ onBack, initialData }: NewFormClientProp
     };
 
     const addField = () => {
-        setFields([...fields, { id: Date.now().toString(), label: "New Field", type: "text", required: false }]);
+        const id = Date.now().toString();
+        setFields(prev => [...prev, { id, label: "New Field", type: "text", required: false }]);
+        setNewFieldId(id);
+        setAddPulse(true);
+        setTimeout(() => setAddPulse(false), 600);
+        setTimeout(() => setNewFieldId(null), 1000);
+        // Scroll to bottom of the field list after render
+        requestAnimationFrame(() => {
+            const el = document.getElementById(`field-card-${id}`);
+            el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        });
     };
+    const removeField = (id: string) => setFields(fields.filter(f => f.id !== id));
+    const updateField = (id: string, key: keyof FormField, value: any) => setFields(fields.map(f => f.id === id ? { ...f, [key]: value } : f));
 
-    const removeField = (id: string) => {
-        setFields(fields.filter(f => f.id !== id));
-    };
-
-    const updateField = (id: string, key: keyof FormField, value: any) => {
-        setFields(fields.map(f => f.id === id ? { ...f, [key]: value } : f));
-    };
-
-    // Routing State
     const [broadcastTargets, setBroadcastTargets] = useState<string[]>(initialData?.routing?.broadcast || []);
     const [splits, setSplits] = useState<{ target: string; fields: string[]; excludeFromMain?: boolean }[]>(initialData?.routing?.splits || []);
     const [maskedFields, setMaskedFields] = useState<string[]>(initialData?.routing?.transformations?.mask || []);
     const [hashedFields, setHashedFields] = useState<string[]>(initialData?.routing?.transformations?.hash || []);
-    const [showRouting, setShowRouting] = useState(false);
 
-    // Load connectors on mount
     const [connectors, setConnectors] = useState<any[]>([]);
-    useEffect(() => {
-        getConnectorsAction().then(data => {
-            setConnectors(data);
-        });
-    }, []);
+    useEffect(() => { getConnectorsAction().then(data => setConnectors(data)); }, []);
 
     const selectedConnectorData = connectors.find((c: any) => c.id === connector);
     const availableDatabases = selectedConnectorData?.databases ? Object.keys(selectedConnectorData.databases) : [];
 
-    const toggleBroadcast = (dbName: string) => {
-        setBroadcastTargets(prev =>
-            prev.includes(dbName) ? prev.filter(t => t !== dbName) : [...prev, dbName]
-        );
-    };
-
-    const addSplit = () => {
-        setSplits([...splits, { target: "", fields: [] }]);
-    };
-
-    const updateSplit = (index: number, key: "target" | "fields" | "excludeFromMain", value: any) => {
+    const toggleBroadcast = (dbName: string) => setBroadcastTargets(prev => prev.includes(dbName) ? prev.filter(t => t !== dbName) : [...prev, dbName]);
+    const addSplit = () => setSplits([...splits, { target: "", fields: [] }]);
+    const updateSplit = (index: number, key: keyof typeof splits[0], value: any) => {
         const newSplits = [...splits];
         // @ts-ignore
         newSplits[index][key] = value;
         setSplits(newSplits);
     };
-
-    const removeSplit = (index: number) => {
-        setSplits(splits.filter((_, i) => i !== index));
-    };
+    const removeSplit = (index: number) => setSplits(splits.filter((_, i) => i !== index));
 
     const handleSave = async () => {
         if (!formName || !connector) {
-            toast({ title: "Validation Error", description: "Please provide a name and select a connector.", variant: "destructive" });
+            toast({ title: "Validation Error", description: "Please provide a form name and select a connector.", variant: "destructive" });
+            setActiveTab("settings");
             return;
         }
 
@@ -258,382 +247,630 @@ export default function NewFormClient({ onBack, initialData }: NewFormClientProp
         formData.append('name', formName);
         formData.append('connectorId', connector);
         if (targetDb) formData.append('targetDatabase', targetDb);
-        // Map fields to match simple structure expected by server
-        const simplifiedFields = fields.map(f => ({ name: f.label, type: f.type, required: f.required }));
+        const simplifiedFields = fields.map(f => ({ name: f.label, type: f.type, required: f.required, options: f.options }));
         formData.append('fields', JSON.stringify(simplifiedFields));
-
-        // Append Routing Config
-        const routing = {
-            broadcast: broadcastTargets,
-            splits: splits.filter(s => s.target && s.fields.length > 0),
-            transformations: {
-                mask: maskedFields,
-                hash: hashedFields
-            }
-        };
-        formData.append('routing', JSON.stringify(routing));
+        formData.append('routing', JSON.stringify({ broadcast: broadcastTargets, splits: splits.filter(s => s.target && s.fields.length > 0), transformations: { mask: maskedFields, hash: hashedFields } }));
 
         try {
             let res;
             if (initialData?.id) {
-                // Update existing
                 res = await updateFormAction(initialData.id, formData);
-                if (res.error) {
-                    toast({ title: "Error", description: res.error, variant: "destructive" });
-                } else {
-                    toast({ title: "Form Updated", description: "Your changes have been saved." });
-                }
+                if (res.error) toast({ title: "Error", description: res.error, variant: "destructive" });
+                else toast({ title: "Form Updated", description: "Your changes have been deployed." });
             } else {
-                // Create new
                 res = await createFormAction(formData);
-                if (res.error) {
-                    toast({ title: "Error", description: res.error, variant: "destructive" });
-                } else {
+                if (res.error) toast({ title: "Error", description: res.error, variant: "destructive" });
+                else {
                     setGeneratedId(res.formId || '');
-                    toast({ title: "Form Saved", description: "Your form is ready to embed." });
+                    toast({ title: "Form Deployed", description: "Matrix connection established. Proceeding to Embed." });
+                    setActiveTab("embed");
                 }
             }
         } catch (e) {
-            toast({ title: "Error", description: "Failed to save form.", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to deploy form.", variant: "destructive" });
         }
     };
 
-    const embedCodeHTML = generatedId ? `
-<form action="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/api/public/submit/${generatedId}" method="POST">
-${fields.map(f => `  <div>
-    <label>${f.label}</label>
-    <input type="${f.type}" name="${f.label}" ${f.required ? 'required' : ''} />
-  </div>`).join('\n')}
-  <button type="submit">Submit</button>
-</form>`.trim() : "";
+    const handleReset = () => {
+        setFormName("");
+        setTempName("");
+        setFields([{ id: Date.now().toString(), label: "New Field", type: "text", required: false }]);
+        setConnector("");
+        setTargetDb("");
+        setBroadcastTargets([]);
+        setSplits([]);
+        setMaskedFields([]);
+        setHashedFields([]);
+        setGeneratedId(null);
+        setActiveTab("build");
+        toast({ description: "Form workspace has been reset." });
+    };
 
-    const embedCodeReact = generatedId ? `
-const MyForm = () => {
+    const embedUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/api/public/submit/${generatedId || 'YOUR_FORM_ID'}`;
+
+    const hasImageFields = fields.some(f => f.type === 'image');
+    const connectorUrl = connectors.find((c: any) => c.id === connector)?.url || 'http://localhost:3002';
+
+    const renderEmbedField = (f: FormField) => {
+        const conf = FIELD_TYPES[f.type] || FIELD_TYPES.text;
+
+        if (conf.category === 'Media' && f.type === 'image') {
+            return `  <div class="field-group">
+    <label>${f.label}${f.required ? ' *' : ''}</label>
+    <input type="file" name="${f.label}" accept="image/*" ${f.required ? 'required' : ''} />
+    <img id="preview-${f.label}" style="display:none;max-width:200px;margin-top:8px;border-radius:6px;" alt="preview" />
+  </div>`;
+        }
+        if (conf.category === 'Boolean') {
+            return `  <div class="field-group" style="display:flex;align-items:center;gap:8px;">
+    <input type="checkbox" name="${f.label}" id="${f.label}" ${f.required ? 'required' : ''} />
+    <label for="${f.label}">${f.label}${f.required ? ' *' : ''}</label>
+  </div>`;
+        }
+        if (conf.category === 'Selection' && f.type === 'enum') {
+            const options = (f.options || "").split(',').map(o => o.trim()).filter(Boolean);
+            return `  <div class="field-group">
+    <label>${f.label}${f.required ? ' *' : ''}</label>
+    <select name="${f.label}" ${f.required ? 'required' : ''}>
+      <option value="">Select an option</option>
+${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
+    </select>
+  </div>`;
+        }
+
+        const isTextarea = conf.component === 'TextareaInput' || conf.component === 'JsonEditor';
+        let inputType = 'text';
+        if (f.type === 'email') inputType = 'email';
+        else if (conf.category === 'Numeric') inputType = 'number';
+        else if (conf.category === 'Temporal') inputType = 'datetime-local';
+
+        let step = '';
+        if (f.type === 'number') step = ' step="1"';
+        if (f.type === 'decimal') step = ' step="any"';
+
+        const placeholder = f.type === 'uuid' ? ' placeholder="UUID"' : (f.type === 'foreign_key' || f.type === 'fk' ? ' placeholder="Reference ID"' : '');
+
+        return `  <div class="field-group">
+    <label>${f.label}${f.required ? ' *' : ''}${f.type === 'list' || f.type === 'array' ? ' (comma-separated)' : ''}</label>
+    <${isTextarea ? 'textarea' : `input type="${inputType}"${step}${placeholder}`} name="${f.label}" ${f.required ? 'required' : ''}></${isTextarea ? 'textarea' : 'input'}>
+  </div>`;
+    };
+
+    const imageUploadScript = hasImageFields ? `
+<script>
+  document.getElementById('pp-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var btn = document.getElementById('pp-submit-btn');
+    btn.disabled = true; btn.textContent = 'Uploading...';
+    var data = {}; var errors = [];
+    var uploads = Array.from(this.querySelectorAll('input,textarea,select')).map(async function(input) {
+      if (!input.name) return;
+      if (input.type === 'file' && input.files && input.files[0]) {
+        var fd = new FormData(); fd.append('file', input.files[0]);
+        try {
+          var r = await fetch('${connectorUrl}/postpipe/upload', { method: 'POST', body: fd });
+          var d = await r.json();
+          if (!r.ok || !d.url) throw new Error(d.error || 'Upload failed');
+          data[input.name] = d.url;
+        } catch(e) { errors.push(input.name + ': ' + e.message); }
+      } else if (input.type !== 'submit') { data[input.name] = input.value; }
+    });
+    await Promise.all(uploads);
+    if (errors.length) { alert('Upload failed:\\n' + errors.join('\\n')); btn.disabled=false; btn.textContent='Submit Form'; return; }
+    btn.textContent = 'Submitting...';
+    try {
+      var res = await fetch('${embedUrl}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      if (res.ok) { btn.textContent='✓ Submitted!'; document.getElementById('pp-form').reset(); document.querySelectorAll('[id^="preview-"]').forEach(function(el){el.src='';el.style.display='none';}); }
+      else { var err=await res.json(); alert('Submission failed: '+(err.error||res.statusText)); btn.disabled=false; btn.textContent='Submit Form'; }
+    } catch(e) { alert('Network error: '+e.message); btn.disabled=false; btn.textContent='Submit Form'; }
+  });
+  document.querySelectorAll('input[type="file"]').forEach(function(input) {
+    input.addEventListener('change', function() {
+      var p = document.getElementById('preview-'+input.name);
+      if (p && input.files && input.files[0]) { p.src=URL.createObjectURL(input.files[0]); p.style.display='block'; }
+    });
+  });
+</script>` : '';
+
+    const embedCodeHTML = `<!-- Postpipe Cosmic Embed -->
+<form ${hasImageFields ? 'id="pp-form"' : `action="${embedUrl}" method="POST"`} class="postpipe-form"${hasImageFields ? ` id="pp-form"` : ''}>
+${fields.map(renderEmbedField).join('\n')}
+  <button type="submit" ${hasImageFields ? 'id="pp-submit-btn" ' : ''}class="submit-btn">Submit Form</button>
+</form>${imageUploadScript}`;
+
+    const embedCodeReact = `import { useState } from 'react';
+
+export default function MyPostpipeForm() {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const formData = new FormData(e.target);
+    
+    try {
+      await fetch('${embedUrl}', {
+        method: 'POST',
+        body: formData
+      });
+      alert('Success!');
+    } catch(err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <form action="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/api/public/submit/${generatedId}" method="POST">
-${fields.map(f => `      <div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+${fields.map(f => {
+        const conf = FIELD_TYPES[f.type] || FIELD_TYPES.text;
+        if (conf.category === 'Boolean') {
+            return `      <div className="flex items-center gap-2">
+        <input type="checkbox" name="${f.label}" id="${f.label}" ${f.required ? 'required' : ''} />
+        <label htmlFor="${f.label}">${f.label}</label>
+      </div>`;
+        }
+        if (conf.category === 'Selection' && f.type === 'enum') {
+            const opts = (f.options || "").split(',').map(o => o.trim()).filter(Boolean);
+            return `      <div>
         <label>${f.label}</label>
-        <input type="${f.type}" name="${f.label}" ${f.required ? 'required' : ''} />
-      </div>`).join('\n')}
-      <button type="submit">Submit</button>
+        <select name="${f.label}" ${f.required ? 'required' : ''} className="border p-2 w-full rounded">
+          <option value="">Select...</option>
+${opts.map(o => `          <option value="${o}">${o}</option>`).join('\n')}
+        </select>
+      </div>`;
+        }
+        const isTa = conf.component === 'TextareaInput' || conf.component === 'JsonEditor';
+        let inputType = 'text';
+        if (f.type === 'email') inputType = 'email';
+        else if (conf.category === 'Numeric') inputType = 'number';
+        else if (conf.category === 'Temporal') inputType = 'datetime-local';
+
+        let stepAttr = '';
+        if (f.type === 'number') stepAttr = ' step="1"';
+        if (f.type === 'decimal') stepAttr = ' step="any"';
+
+        const placeholderAttr = f.type === 'uuid' ? ' placeholder="UUID"' : (f.type === 'foreign_key' || f.type === 'fk' ? ' placeholder="Reference ID"' : '');
+
+        return `      <div>
+        <label>${f.label}</label>
+        <${isTa ? 'textarea' : 'input type="' + inputType + '"' + stepAttr + placeholderAttr} name="${f.label}" ${f.required ? 'required' : ''} className="border p-2 w-full rounded" />
+      </div>`;
+    }).join('\n')}
+      <button type="submit" disabled={loading} className="bg-blue-600 text-white p-2 rounded">
+        {loading ? 'Submitting...' : 'Submit'}
+      </button>
     </form>
   );
-}`.trim() : "";
+}`;
 
-    return (
-        <div className="flex flex-col gap-8 max-w-5xl mx-auto pb-20">
-            <div className="flex items-center gap-4">
-                {onBack ? (
-                    <Button variant="ghost" size="icon" onClick={onBack}>
-                        <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                ) : (
-                    <Link href="/dashboard/forms">
-                        <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
-                    </Link>
-                )}
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">{initialData ? "Edit Form" : "Create New Form"}</h1>
-                    <p className="text-muted-foreground text-sm">Design your form and connect it to a database.</p>
-                </div>
-                <div className="ml-auto flex gap-2">
-                    <Button variant="outline" onClick={() => setFields([])}>Reset</Button>
-                    <RainbowButton className="h-9 px-6" onClick={handleSave}>
-                        <Save className="mr-2 h-4 w-4" /> {initialData ? "Update Form" : "Save Form"}
-                    </RainbowButton>
-                </div>
+    // Professional Form Preview Render
+    const renderLivePreview = () => (
+        <div className="relative w-full max-w-sm mx-auto rounded-[2rem] border border-white/5 bg-[#09090D] shadow-2xl overflow-hidden flex flex-col group/preview animate-in zoom-in-95 duration-1000">
+            {/* The animated beam on the preview card itself looks ultra-premium */}
+            <div className="absolute inset-0 opacity-0 group-hover/preview:opacity-100 transition-opacity duration-1000 pointer-events-none">
+                <BorderBeam size={250} duration={8} delay={0} colorFrom="#8b5cf6" colorTo="#3b82f6" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                {/* Left Column: Builder */}
-                <div className="lg:col-span-3 space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Form Details</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-2">
-                                <Label>Form Name</Label>
-                                <Input placeholder="e.g. Contact Us" value={formName} onChange={e => setFormName(e.target.value)} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Select Connector</Label>
-                                <Select value={connector} onValueChange={setConnector}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Choose where data goes..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {connectors.map((c: any) => (
-                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Main Target Database</Label>
-                                <Select value={targetDb} onValueChange={setTargetDb}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select target database..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="default">Default (default)</SelectItem>
-                                        {availableDatabases.map((key: string) => (
-                                            <SelectItem key={key} value={key}>{key}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-xs text-muted-foreground">Select where submissions should be routed.</p>
-                            </div>
+            <div className="p-8 flex-1 flex flex-col relative z-10 w-full">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center mb-6">
+                    <Sparkles className="w-6 h-6 text-indigo-400" />
+                </div>
 
-                            {/* Routing Configuration */}
-                            {connector && availableDatabases.length > 0 && (
-                                <div className="pt-4 border-t">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <Label className="text-base">Advanced Data Routing</Label>
-                                        <Switch checked={showRouting} onCheckedChange={setShowRouting} />
+                <h3 className="text-2xl font-semibold text-white tracking-tight mb-1">{formName || "Untitled Form"}</h3>
+                <p className="text-sm text-neutral-400 mb-8">Please fill out this form to continue.</p>
+
+                <div className="space-y-4 flex-1 w-full">
+                    {fields.map((f, i) => {
+                        const conf = FIELD_TYPES[f.type] || FIELD_TYPES.text;
+                        return (
+                            <div key={`preview-${f.id}`} className="space-y-1.5 animate-in slide-in-from-bottom-2 fade-in fill-mode-both" style={{ animationDelay: `${i * 50}ms` }}>
+                                <label className="text-[11px] font-medium text-neutral-300 ml-1 tracking-wide uppercase">{f.label} {f.required && <span className="text-red-400">*</span>}</label>
+                                {conf.component === 'TextareaInput' || conf.component === 'JsonEditor' ? (
+                                    <textarea className="w-full bg-[#12121A] border border-white/5 rounded-xl px-4 py-3 text-sm text-white placeholder:text-neutral-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all outline-none resize-none h-24 shadow-inner" placeholder={conf.component === "JsonEditor" ? "{ ... }" : `Enter ${f.label.toLowerCase()}...`} disabled />
+                                ) : conf.category === "Media" ? (
+                                    <div className="flex items-center gap-3 bg-[#12121A] border border-white/5 rounded-xl px-4 py-3">
+                                        <span className="text-lg">📷</span>
+                                        <span className="text-sm text-neutral-500">Image upload field</span>
                                     </div>
+                                ) : conf.category === "Boolean" ? (
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <input type="checkbox" disabled className="w-4 h-4 rounded border-white/10 bg-[#12121A]" />
+                                        <span className="text-sm text-neutral-400">Checkbox</span>
+                                    </div>
+                                ) : conf.category === "Selection" ? (
+                                    <select className="w-full bg-[#12121A] border border-white/5 rounded-xl px-4 py-3 text-sm text-white outline-none shadow-inner" disabled>
+                                        <option>Select {(f.options || "").split(',')[0] || "option"}...</option>
+                                    </select>
+                                ) : (
+                                    <input type={conf.category === "Numeric" ? "number" : f.type === "email" ? "email" : conf.category === "Temporal" ? "datetime-local" : "text"} step={f.type === "decimal" ? "any" : f.type === "number" ? "1" : undefined} className="w-full bg-[#12121A] border border-white/5 rounded-xl px-4 py-3 text-sm text-white placeholder:text-neutral-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all outline-none shadow-inner" placeholder={conf.category === "Structured" ? "item1, item2, item3" : f.type === "uuid" ? "UUID" : conf.category === "Relational" ? "Reference ID" : `Enter ${f.label.toLowerCase()}...`} disabled />
+                                )}
+                            </div>
+                        )
+                    })}
+                    {fields.length === 0 && (
+                        <div className="text-center py-10 opacity-50 text-neutral-500 text-sm border border-dashed border-white/10 rounded-xl bg-white/5 w-full">
+                            Canvas is empty
+                        </div>
+                    )}
+                </div>
 
-                                    {showRouting && (
-                                        <div className="space-y-6 animate-in slide-in-from-top-2">
-                                            {/* Broadcast Section */}
-                                            <div className="space-y-3">
-                                                <Label className="text-sm font-semibold">Broadcast (Duplicate Data)</Label>
-                                                <p className="text-xs text-muted-foreground">Send exact copies of every submission to these additional databases.</p>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {availableDatabases.map((db) => (
-                                                        <div key={db} className="flex items-center space-x-2 border p-2 rounded-md hover:bg-muted/50">
-                                                            <Switch
-                                                                id={`broadcast-${db}`}
-                                                                checked={broadcastTargets.includes(db)}
-                                                                onCheckedChange={() => toggleBroadcast(db)}
-                                                                disabled={db === targetDb}
-                                                            />
-                                                            <Label htmlFor={`broadcast-${db}`} className={db === targetDb ? "opacity-50" : ""}>
-                                                                {db} {db === targetDb && "(Main)"}
-                                                            </Label>
-                                                        </div>
-                                                    ))}
+                <div className="pt-8 mt-auto w-full flex flex-col items-center">
+                    <button disabled className="w-full relative group overflow-hidden bg-white text-black font-semibold py-3.5 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]">
+                        <span className="relative z-10">Submit Interrogation</span>
+                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-200 to-purple-200 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                    <div className="text-center mt-4 flex flex-col items-center justify-center">
+                        <span className="text-[10px] text-neutral-500 flex items-center justify-center gap-1"><Lock className="w-3 h-3" /> Secured by Postpipe</span>
+                        <span className="text-[9px] text-neutral-600 mt-1 uppercase tracking-widest font-medium">Powered by CDDRS</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 pt-[65px] z-[40] bg-[#05050A]">
+            {/* The App Layout */}
+            <div className="flex flex-col w-full h-full relative overflow-hidden">
+                {/* Subtle cosmic background */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-[#05050A] to-[#05050A] pointer-events-none" />
+                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/5 blur-[150px] rounded-full pointer-events-none" />
+
+                {/* Top App Bar */}
+                <header className="h-16 border-b border-white/5 bg-black/40 backdrop-blur-xl flex items-center justify-between px-4 lg:px-8 relative z-20">
+                    <div className="flex items-center gap-4 flex-1">
+                        {onBack ? (
+                            <Button variant="ghost" size="icon" onClick={onBack} className="text-neutral-400 hover:text-white rounded-full bg-white/5"><ArrowLeft className="h-5 w-5" /></Button>
+                        ) : (
+                            <Link href="/dashboard/forms">
+                                <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-white rounded-full bg-white/5"><ArrowLeft className="h-5 w-5" /></Button>
+                            </Link>
+                        )}
+                        <div className="h-6 w-px bg-white/10" />
+                        <Input
+                            value={formName}
+                            onChange={e => setFormName(e.target.value)}
+                            className="bg-transparent border-transparent hover:border-white/10 focus:border-white/20 focus-visible:ring-indigo-500/50 focus-visible:ring-1 text-lg font-semibold text-white px-3 w-full max-w-[300px] transition-all"
+                            placeholder="Untitled Form"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        {generatedId && (
+                            <div className="hidden md:flex items-center gap-2 text-xs font-medium text-green-400 bg-green-400/10 px-3 py-1.5 rounded-full border border-green-400/20 mr-2">
+                                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" /> Live
+                            </div>
+                        )}
+                        <Button variant="ghost" className="text-neutral-400 hover:text-white xl:hidden border border-white/10 bg-black/50" onClick={() => setActiveTab(activeTab === "preview" ? "build" : "preview")}>
+                            {activeTab === "preview" ? "Close Preview" : "Preview"}
+                        </Button>
+                        <Button variant="ghost" className="h-9 px-4 text-sm text-neutral-400 hover:text-white hover:bg-white/5 border border-white/5 rounded-xl transition-all mr-2" onClick={handleReset}>
+                            <RotateCcw className="w-4 h-4 mr-2" /> Reset
+                        </Button>
+                        <RainbowButton onClick={handleSave} className="h-9 px-6 text-sm shadow-[0_0_15px_rgba(139,92,246,0.3)]">
+                            <Save className="w-4 h-4 mr-2" /> {initialData ? "Update Form" : "Deploy Form"}
+                        </RainbowButton>
+                    </div>
+                </header>
+
+                {/* Workspace area */}
+                <div className="flex-1 flex overflow-hidden relative z-10 w-full max-w-[1600px] mx-auto">
+                    {!formName && (
+                        <div className="absolute inset-0 z-50 bg-[#05050A]/70 backdrop-blur-md flex flex-col items-center pt-[15vh] pb-4 px-4 overflow-y-auto">
+                            <div className="bg-[#09090D] p-8 rounded-3xl border border-white/10 shadow-2xl flex flex-col items-center max-w-sm w-full animate-in zoom-in-y-95 duration-500">
+                                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6">
+                                    <Lock className="w-8 h-8 text-neutral-400" />
+                                </div>
+                                <h2 className="text-xl font-semibold mb-2 text-white text-center">Name Your Form</h2>
+                                <p className="text-sm text-neutral-400 text-center mb-6 leading-relaxed">
+                                    Please provide a name to unlock the Builder workspace and start configuring fields.
+                                </p>
+                                <div className="w-full space-y-4">
+                                    <Input
+                                        value={tempName}
+                                        onChange={(e) => setTempName(e.target.value)}
+                                        placeholder="e.g. Customer Feedback Form"
+                                        className="bg-black/50 border-white/10 text-white placeholder:text-neutral-600 h-11 focus-visible:ring-indigo-500/50"
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" && tempName.trim()) {
+                                                setFormName(tempName.trim());
+                                            }
+                                        }}
+                                        autoFocus
+                                    />
+                                    <Button
+                                        className="w-full bg-primary hover:bg-primary/90 text-white h-11 rounded-xl transition-all"
+                                        onClick={() => {
+                                            if (tempName.trim()) setFormName(tempName.trim());
+                                        }}
+                                        disabled={!tempName.trim()}
+                                    >
+                                        Start Building <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Left Panel: Controls */}
+                    <div className={`w-full xl:w-[60%] 2xl:w-[65%] shrink-0 border-r border-white/5 bg-[#09090D]/80 backdrop-blur-md flex flex-col transition-transform duration-300 ${activeTab === 'preview' ? '-translate-x-full xl:translate-x-0 absolute xl:relative h-full z-10' : ''}`}>
+                        {/* Tab Headers */}
+                        <div className="flex p-3 gap-2 bg-black/20 border-b border-white/5">
+                            <button onClick={() => setActiveTab("build")} className={`flex-1 py-2.5 text-xs font-medium rounded-xl flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 'build' ? 'bg-[#181824] text-white shadow-sm border border-white/5' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}>
+                                <Layers className="w-4 h-4" /> Fields
+                            </button>
+                            <button onClick={() => setActiveTab("settings")} className={`flex-1 py-2.5 text-xs font-medium rounded-xl flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 'settings' ? 'bg-[#181824] text-white shadow-sm border border-white/5' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}>
+                                <Settings className="w-4 h-4" /> Config
+                            </button>
+                            <button onClick={() => setActiveTab("embed")} className={`flex-1 py-2.5 text-xs font-medium rounded-xl flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 'embed' ? 'bg-[#181824] text-white shadow-sm border border-white/5' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}>
+                                <Code className="w-4 h-4" /> Embed
+                            </button>
+                        </div>
+
+                        {/* Control Content */}
+                        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+                            <div className="p-6 pb-20">
+
+                                {/* BUILD TAB */}
+                                {activeTab === 'build' && (
+                                    <div className="space-y-6 animate-in fade-in slide-in-from-left-2 duration-500">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div>
+                                                <h2 className="text-sm font-semibold text-white">Schema Definition</h2>
+                                                <p className="text-xs text-neutral-400 mt-1">Configure the structure of your data payload.</p>
+                                            </div>
+                                            <Button
+                                                size="icon"
+                                                variant="outline"
+                                                onClick={addField}
+                                                className={`h-8 w-8 rounded-lg border-white/10 bg-white/5 hover:bg-white/10 text-white shadow-sm transition-all duration-300 ${addPulse
+                                                    ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 scale-95"
+                                                    : ""
+                                                    }`}
+                                            >
+                                                {addPulse ? <Check className="h-4 w-4 text-emerald-400" /> : <Plus className="h-4 w-4" />}
+                                            </Button>
+                                        </div>
+
+                                        {/* Cloudinary notice — shown when any image field exists */}
+                                        {hasImageFields && (
+                                            <div className="flex gap-3 items-start rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3 animate-in fade-in slide-in-from-top-2">
+                                                <AlertCircle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                                                <div className="space-y-1">
+                                                    <p className="text-xs font-semibold text-amber-300">Image Upload requires Cloudinary</p>
+                                                    <p className="text-[11px] text-amber-300/70 leading-relaxed">
+                                                        Your connector must have these env vars set for image uploads to work:
+                                                    </p>
+                                                    <pre className="mt-1.5 text-[10px] font-mono text-amber-200/60 bg-black/30 rounded-lg px-3 py-2 leading-relaxed">
+                                                        {`CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+CLOUDINARY_URL=cloudinary://...`}
+                                                    </pre>
+                                                    <p className="text-[10px] text-amber-300/50 pt-1">Add these in your Vercel / cloud dashboard → Environment Variables, then redeploy your connector.</p>
                                                 </div>
                                             </div>
+                                        )}
 
-                                            {/* BreakPoints Section */}
-                                            <div className="space-y-3">
-                                                <div className="flex items-center justify-between">
-                                                    <Label className="text-sm font-semibold">BreakPoints (Split Routing)</Label>
-                                                    <Button variant="ghost" size="sm" onClick={addSplit} className="h-6 gap-1">
-                                                        <Plus className="h-3 w-3" /> Add Rule
-                                                    </Button>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">Route specific fields to specific databases (e.g. Analytics data to Mongo).</p>
-
-                                                <div className="space-y-3">
-                                                    {splits.map((split, idx) => (
-                                                        <div key={idx} className="flex gap-2 items-start border p-3 rounded-md bg-muted/20 relative group">
-                                                            <div className="grid gap-2 flex-1">
-                                                                <div className="grid grid-cols-2 gap-2">
-                                                                    <div className="space-y-1">
-                                                                        <Label className="text-xs">Target DB</Label>
-                                                                        <Select value={split.target} onValueChange={(val) => updateSplit(idx, "target", val)}>
-                                                                            <SelectTrigger className="h-8 text-xs">
-                                                                                <SelectValue placeholder="Select DB" />
-                                                                            </SelectTrigger>
-                                                                            <SelectContent>
-                                                                                {availableDatabases.map(db => (
-                                                                                    <SelectItem key={db} value={db}>{db}</SelectItem>
-                                                                                ))}
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <Label className="text-xs">Fields to Send</Label>
-                                                                        <Select
-                                                                            // Hacky multi-select simulation or just use simple select for now?
-                                                                            // Let's use a simpler approach: Comma separated text for now to save UI complexity
-                                                                            // Or, better, mapped checkboxes in a dropdown? Too complex for this snippet.
-                                                                            // Let's use a text input for field names for MVP.
-                                                                            value={split.fields.join(", ")}
-                                                                            disabled
-                                                                        >
-                                                                            <SelectTrigger className="h-8 text-xs">
-                                                                                <SelectValue placeholder="Select Fields" />
-                                                                            </SelectTrigger>
-                                                                        </Select>
-                                                                        {/* Actual Field Selection UI */}
-                                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                                            {fields.map(f => (
-                                                                                <div
-                                                                                    key={f.id}
-                                                                                    onClick={() => {
-                                                                                        const newFields = split.fields.includes(f.label)
-                                                                                            ? split.fields.filter(n => n !== f.label)
-                                                                                            : [...split.fields, f.label];
-                                                                                        updateSplit(idx, "fields", newFields);
-                                                                                    }}
-                                                                                    className={`cursor-pointer text-[10px] px-2 py-1 rounded-full border ${split.fields.includes(f.label) ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
-                                                                                >
-                                                                                    {f.label}
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex items-center space-x-2 pt-2 border-t border-dashed mt-2">
-                                                                    <Switch
-                                                                        id={`exclude-${idx}`}
-                                                                        checked={split.excludeFromMain || false}
-                                                                        onCheckedChange={(checked) => updateSplit(idx, "excludeFromMain", checked)}
-                                                                    />
-                                                                    <Label htmlFor={`exclude-${idx}`} className="text-[10px] text-muted-foreground font-normal">
-                                                                        Exclude these fields from Main Database?
-                                                                    </Label>
-                                                                </div>
-                                                            </div>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-6 w-6 absolute -top-2 -right-2 bg-background border shadow-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                onClick={() => removeSplit(idx)}
-                                                            >
-                                                                <Trash2 className="h-3 w-3 text-destructive" />
-                                                            </Button>
-                                                        </div>
+                                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                            <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                                <div className="space-y-1">
+                                                    {fields.map((field) => (
+                                                        <SortableField key={field.id} field={field} updateField={updateField} removeField={removeField} isNew={field.id === newFieldId} />
                                                     ))}
-                                                    {splits.length === 0 && (
-                                                        <div className="text-xs text-muted-foreground text-center py-4 border border-dashed rounded-md">
-                                                            No routing rules defined.
+                                                    {fields.length === 0 && (
+                                                        <div className="text-center py-12 border border-dashed border-white/10 rounded-xl bg-white/5">
+                                                            <Layers className="w-8 h-8 mx-auto text-neutral-500 mb-3" />
+                                                            <p className="text-sm text-neutral-400">Schema is empty</p>
+                                                            <Button variant="link" onClick={addField} className="text-primary h-auto p-0 mt-2">Add your first field</Button>
                                                         </div>
                                                     )}
                                                 </div>
+                                            </SortableContext>
+                                        </DndContext>
+                                    </div>
+                                )}
+
+                                {/* SETTINGS TAB */}
+                                {activeTab === 'settings' && (
+                                    <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-500">
+                                        <div className="space-y-6">
+                                            <div>
+                                                <h2 className="text-sm font-semibold text-white flex items-center gap-2"><Database className="w-4 h-4 text-indigo-400" /> Core Integration</h2>
+                                                <p className="text-xs text-neutral-400 mt-1">Select the backend matrix for this form.</p>
                                             </div>
-
-                                            {/* Data Transformation Section */}
-                                            <div className="space-y-3 pt-4 border-t">
-                                                <Label className="text-sm font-semibold">Data Transformation (Security)</Label>
-                                                <p className="text-xs text-muted-foreground">Apply security rules before data is stored.</p>
-
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <div className="space-y-2">
-                                                        <Label className="text-xs font-medium">Masking (****-1234)</Label>
-                                                        <div className="flex flex-wrap gap-1 p-2 border rounded-md bg-muted/20 min-h-[40px]">
-                                                            {fields.map(f => (
-                                                                <div
-                                                                    key={`mask-${f.id}`}
-                                                                    onClick={() => {
-                                                                        setMaskedFields(prev =>
-                                                                            prev.includes(f.label) ? prev.filter(n => n !== f.label) : [...prev, f.label]
-                                                                        );
-                                                                    }}
-                                                                    className={`cursor-pointer text-[10px] px-2 py-1 rounded-full border ${maskedFields.includes(f.label) ? "bg-orange-100 text-orange-700 border-orange-200" : "bg-background hover:bg-muted"}`}
-                                                                >
-                                                                    {f.label}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                        <p className="text-[10px] text-muted-foreground">Best for: Phone numbers, Credit Cards, IDs.</p>
-                                                    </div>
-
-                                                    <div className="space-y-2">
-                                                        <Label className="text-xs font-medium">Hashing (SHA-256)</Label>
-                                                        <div className="flex flex-wrap gap-1 p-2 border rounded-md bg-muted/20 min-h-[40px]">
-                                                            {fields.map(f => (
-                                                                <div
-                                                                    key={`hash-${f.id}`}
-                                                                    onClick={() => {
-                                                                        setHashedFields(prev =>
-                                                                            prev.includes(f.label) ? prev.filter(n => n !== f.label) : [...prev, f.label]
-                                                                        );
-                                                                    }}
-                                                                    className={`cursor-pointer text-[10px] px-2 py-1 rounded-full border ${hashedFields.includes(f.label) ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-background hover:bg-muted"}`}
-                                                                >
-                                                                    {f.label}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                        <p className="text-[10px] text-muted-foreground">Best for: Passwords, Secrets.</p>
-                                                    </div>
+                                            <div className="space-y-4 bg-white/5 p-4 rounded-xl border border-white/5">
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-neutral-300">Target Connector</Label>
+                                                    <Select value={connector} onValueChange={setConnector}>
+                                                        <SelectTrigger className="bg-[#0A0A0F] border-white/10 text-white"><SelectValue placeholder="Choose target connector..." /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {connectors.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-neutral-300">Target Database</Label>
+                                                    <Select value={targetDb} onValueChange={setTargetDb}>
+                                                        <SelectTrigger className="bg-[#0A0A0F] border-white/10 text-white"><SelectValue placeholder="Select primary database..." /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="default">Default Node</SelectItem>
+                                                            {availableDatabases.map((key: string) => <SelectItem key={key} value={key}>{key}</SelectItem>)}
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
 
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">Form Fields</h3>
-                            <Button size="sm" variant="outline" onClick={addField}>
-                                <Plus className="mr-2 h-3.5 w-3.5" /> Add Field
-                            </Button>
+                                        {connector && availableDatabases.length > 0 && (
+                                            <div className="space-y-6 pt-6 border-t border-white/5">
+                                                <div>
+                                                    <h2 className="text-sm font-semibold text-white flex items-center gap-2"><Send className="w-4 h-4 text-blue-400" /> Advanced Routing</h2>
+                                                    <p className="text-xs text-neutral-400 mt-1">Distribute subsets of data across systems.</p>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    {/* Broadcast */}
+                                                    <div className="space-y-3">
+                                                        <Label className="text-xs font-medium text-neutral-300">Multi-Node Broadcast</Label>
+                                                        <div className="grid grid-cols-1 gap-2">
+                                                            {availableDatabases.filter(db => db !== targetDb).map((db) => (
+                                                                <div key={db} className="flex items-center space-x-3 border border-white/5 bg-black/40 p-3 rounded-xl">
+                                                                    <Switch id={`broadcast-${db}`} checked={broadcastTargets.includes(db)} onCheckedChange={() => toggleBroadcast(db)} />
+                                                                    <Label htmlFor={`broadcast-${db}`} className="text-xs text-neutral-200">Mirror to <span className="font-mono text-primary/80">{db}</span></Label>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Breakpoints */}
+                                                    <div className="space-y-3 pt-4 border-t border-white/5">
+                                                        <div className="flex items-center justify-between">
+                                                            <Label className="text-xs font-medium text-neutral-300">Field Breakpoints</Label>
+                                                            <Button variant="ghost" size="sm" onClick={addSplit} className="h-6 text-[10px] px-2 bg-white/5 hover:bg-white/10 rounded-md text-white">
+                                                                <Plus className="h-3 w-3 mr-1" /> Add Rule
+                                                            </Button>
+                                                        </div>
+                                                        <div className="space-y-3">
+                                                            {splits.map((split, idx) => (
+                                                                <div key={idx} className="p-3 border border-white/5 bg-black/40 rounded-xl space-y-3 relative group">
+                                                                    <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-400" onClick={() => removeSplit(idx)}>
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </Button>
+                                                                    <div className="grid grid-cols-1 gap-3 pr-6">
+                                                                        <div className="space-y-1">
+                                                                            <Label className="text-[9px] text-neutral-500 uppercase tracking-widest">Target DB</Label>
+                                                                            <Select value={split.target} onValueChange={(val) => updateSplit(idx, "target", val)}>
+                                                                                <SelectTrigger className="h-7 text-[10px] bg-[#0A0A0F] border-white/5 text-white"><SelectValue /></SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    {availableDatabases.map(db => <SelectItem key={db} value={db}>{db}</SelectItem>)}
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        </div>
+                                                                        <div className="space-y-1">
+                                                                            <Label className="text-[9px] text-neutral-500 uppercase tracking-widest">Fields (Click to toggle)</Label>
+                                                                            <div className="flex flex-wrap gap-1">
+                                                                                {fields.map(f => (
+                                                                                    <div
+                                                                                        key={f.id}
+                                                                                        onClick={() => updateSplit(idx, "fields", split.fields.includes(f.label) ? split.fields.filter(n => n !== f.label) : [...split.fields, f.label])}
+                                                                                        className={`cursor-pointer text-[9px] px-2 py-1 rounded border ${split.fields.includes(f.label) ? "bg-primary/20 text-primary border-primary/30" : "bg-white/5 border-transparent text-neutral-400 hover:bg-white/10"}`}
+                                                                                    >
+                                                                                        {f.label}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center space-x-2 pt-2 border-t border-white/5">
+                                                                        <Switch className="scale-75 origin-left" checked={split.excludeFromMain || false} onCheckedChange={(checked) => updateSplit(idx, "excludeFromMain", checked)} />
+                                                                        <Label className="text-[10px] text-neutral-400">Exclude from Main Database</Label>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {connector && availableDatabases.length > 0 && (
+                                            <div className="space-y-6 pt-6 border-t border-white/5">
+                                                <div>
+                                                    <h2 className="text-sm font-semibold text-white flex items-center gap-2"><Shield className="w-4 h-4 text-orange-400" /> Security Transformations</h2>
+                                                    <p className="text-xs text-neutral-400 mt-1">Apply cryptographic overlays to sensitive fields.</p>
+                                                </div>
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    <div className="space-y-2 p-3 border border-white/5 bg-black/40 rounded-xl">
+                                                        <Label className="text-[10px] font-semibold text-orange-400 uppercase tracking-wider">Masking (****)</Label>
+                                                        <div className="flex flex-wrap gap-1 min-h-[40px]">
+                                                            {fields.map(f => (
+                                                                <div key={`mask-${f.id}`} onClick={() => setMaskedFields(prev => prev.includes(f.label) ? prev.filter(n => n !== f.label) : [...prev, f.label])} className={`cursor-pointer text-[10px] px-2 py-1 rounded border ${maskedFields.includes(f.label) ? "bg-orange-500/20 text-orange-300 border-orange-500/30" : "bg-white/5 border-transparent text-neutral-400 hover:bg-white/10"}`}>{f.label}</div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-2 p-3 border border-white/5 bg-black/40 rounded-xl">
+                                                        <Label className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">Hashing (SHA256)</Label>
+                                                        <div className="flex flex-wrap gap-1 min-h-[40px]">
+                                                            {fields.map(f => (
+                                                                <div key={`hash-${f.id}`} onClick={() => setHashedFields(prev => prev.includes(f.label) ? prev.filter(n => n !== f.label) : [...prev, f.label])} className={`cursor-pointer text-[10px] px-2 py-1 rounded border ${hashedFields.includes(f.label) ? "bg-blue-500/20 text-blue-300 border-blue-500/30" : "bg-white/5 border-transparent text-neutral-400 hover:bg-white/10"}`}>{f.label}</div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* EMBED TAB */}
+                                {activeTab === 'embed' && (
+                                    <div className="space-y-6 animate-in fade-in slide-in-from-left-2 duration-500 h-full flex flex-col">
+                                        <div>
+                                            <h2 className="text-sm font-semibold text-white flex items-center gap-2"><Code className="w-4 h-4 text-green-400" /> Integration Code</h2>
+                                            <p className="text-xs text-neutral-400 mt-1">Your form is ready to be injected into any client.</p>
+                                        </div>
+
+                                        {!generatedId ? (
+                                            <div className="flex-1 min-h-[300px] flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl bg-black/20 text-center p-8">
+                                                <AlertCircle className="h-10 w-10 text-neutral-600 mb-4" />
+                                                <p className="text-sm font-medium text-neutral-300 mb-2">Form not deployed yet</p>
+                                                <p className="text-xs text-neutral-500 max-w-xs mb-6">You need to deploy the form to the network before connection codes become available.</p>
+                                                <RainbowButton onClick={handleSave} className="h-9 px-6 text-sm">Deploy Now</RainbowButton>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div className="p-3 border border-indigo-500/30 bg-indigo-500/10 rounded-xl">
+                                                    <Label className="text-[10px] text-indigo-300 uppercase tracking-wider">Endpoint</Label>
+                                                    <div className="flex items-center mt-1">
+                                                        <input readOnly value={embedUrl} className="flex-1 bg-transparent text-xs text-indigo-100 outline-none" />
+                                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-indigo-400 hover:text-indigo-300 hover:bg-white/5" onClick={() => { navigator.clipboard.writeText(embedUrl); toast({ description: "Endpoint copied" }); }}><Clipboard className="h-3 w-3" /></Button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="relative group border border-white/10 rounded-xl overflow-hidden bg-[#0A0A0F]">
+                                                    <Tabs defaultValue="react" className="w-full">
+                                                        <TabsList className="w-full flex bg-white/5 border-b border-white/5 p-0 h-auto rounded-none justify-start">
+                                                            <TabsTrigger value="react" className="text-[10px] rounded-none py-2 px-4 data-[state=active]:bg-white/10 data-[state=active]:text-white">React / Next.js</TabsTrigger>
+                                                            <TabsTrigger value="html" className="text-[10px] rounded-none py-2 px-4 data-[state=active]:bg-white/10 data-[state=active]:text-white">HTML snippet</TabsTrigger>
+                                                        </TabsList>
+
+                                                        <TabsContent value="react" className="mt-0 relative">
+                                                            <Button size="sm" variant="ghost" className="absolute top-2 right-2 h-6 px-2 text-[10px] text-neutral-400 hover:text-white bg-black/50" onClick={() => { navigator.clipboard.writeText(embedCodeReact); toast({ description: "React code copied" }); }}><Clipboard className="h-3 w-3 mr-1" /> Copy</Button>
+                                                            <pre className="p-4 pt-10 text-[10px] text-neutral-300 font-mono overflow-auto max-h-[350px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+                                                                <code>{embedCodeReact}</code>
+                                                            </pre>
+                                                        </TabsContent>
+
+                                                        <TabsContent value="html" className="mt-0 relative">
+                                                            <Button size="sm" variant="ghost" className="absolute top-2 right-2 h-6 px-2 text-[10px] text-neutral-400 hover:text-white bg-black/50" onClick={() => { navigator.clipboard.writeText(embedCodeHTML); toast({ description: "HTML copied" }); }}><Clipboard className="h-3 w-3 mr-1" /> Copy</Button>
+                                                            <pre className="p-4 pt-10 text-[10px] text-neutral-300 font-mono overflow-auto max-h-[350px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+                                                                <code>{embedCodeHTML}</code>
+                                                            </pre>
+                                                        </TabsContent>
+                                                    </Tabs>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
+                    </div>
 
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleDragEnd}
-                        >
-                            <SortableContext
-                                items={fields.map(f => f.id)}
-                                strategy={verticalListSortingStrategy}
-                            >
-                                <div className="space-y-4">
-                                    {fields.map((field) => (
-                                        <SortableField
-                                            key={field.id}
-                                            field={field}
-                                            updateField={updateField}
-                                            removeField={removeField}
-                                        />
-                                    ))}
-                                </div>
-                            </SortableContext>
-                        </DndContext>
+                    {/* Right Panel: Live Preview Canvas */}
+                    <div className={`absolute xl:relative flex-1 bg-gradient-to-br from-[#020205] to-[#0A0A10] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full flex items-start justify-center p-6 md:p-12 transition-all duration-300 h-full w-full ${activeTab === 'preview' ? 'z-20' : 'opacity-0 xl:opacity-100 -z-10 xl:z-0'}`}>
+                        {/* Grid Pattern Overlay */}
+                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+
+                        <div className="w-full min-h-full max-w-2xl flex justify-center items-start pt-12 md:pt-20 pb-12 relative z-10 animate-in zoom-in-95 xl:zoom-in-100 duration-700">
+                            {renderLivePreview()}
+                        </div>
                     </div>
                 </div>
-
-                {/* Right Column: Preview/Code */}
-                <div className="lg:col-span-2 space-y-6">
-                    <Card className="sticky top-6">
-                        <CardHeader>
-                            <CardTitle>Generated Embed</CardTitle>
-                            <CardDescription>
-                                {generatedId ? "Copy this code to your website." : "Save your form to generate code."}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {generatedId ? (
-                                <Tabs defaultValue="html">
-                                    <TabsList className="w-full mb-4">
-                                        <TabsTrigger value="html" className="flex-1">HTML</TabsTrigger>
-                                        <TabsTrigger value="react" className="flex-1">React</TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent value="html">
-                                        <div className="relative">
-                                            <pre className="bg-muted p-4 rounded-md text-xs font-mono overflow-auto max-h-[400px]">
-                                                {embedCodeHTML}
-                                            </pre>
-                                            <CopyButton text={embedCodeHTML} />
-                                        </div>
-                                    </TabsContent>
-                                    <TabsContent value="react">
-                                        <div className="relative">
-                                            <pre className="bg-muted p-4 rounded-md text-xs font-mono overflow-auto max-h-[400px]">
-                                                {embedCodeReact}
-                                            </pre>
-                                            <CopyButton text={embedCodeReact} />
-                                        </div>
-                                    </TabsContent>
-                                </Tabs>
-                            ) : (
-                                <div className="h-[200px] flex items-center justify-center border-2 border-dashed rounded-md text-muted-foreground text-sm bg-muted/20">
-                                    Click "Save Form" to generate code
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
             </div>
-        </div >
+        </div>
     );
 }

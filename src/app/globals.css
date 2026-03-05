@@ -17,16 +17,16 @@
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
-    --accent: 333 79% 55%;
-    /* #E5388B */
+    --accent: 279 69% 61%;
+    /* #9D4EDD */
     --accent-foreground: 0 0% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 333 79% 55%;
+    --ring: 279 69% 61%;
     --chart-1: 279 69% 61%;
-    --chart-2: 333 79% 55%;
+    --chart-2: 240 95% 65%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
@@ -38,7 +38,7 @@
     --sidebar-accent: 0 0% 96.1%;
     --sidebar-accent-foreground: 0 0% 9%;
     --sidebar-border: 0 0% 89.8%;
-    --sidebar-ring: 333 79% 55%;
+    --sidebar-ring: 279 69% 61%;
 
     --color-1: 225 95% 65%;
     /* Purple */
@@ -66,16 +66,16 @@
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 10%;
     --muted-foreground: 0 0% 63.9%;
-    --accent: 333 79% 55%;
-    /* #E5388B */
+    --accent: 279 69% 61%;
+    /* #9D4EDD */
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 10%;
     --input: 0 0% 10%;
-    --ring: 333 79% 55%;
+    --ring: 279 69% 61%;
     --chart-1: 279 69% 61%;
-    --chart-2: 333 79% 55%;
+    --chart-2: 240 95% 65%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
@@ -86,7 +86,11 @@
     --sidebar-accent: 0 0% 10%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 0 0% 10%;
-    --sidebar-ring: 333 79% 55%;
+    --sidebar-ring: 279 69% 61%;
+  }
+
+  .theme {
+    --animate-shiny-text: shiny-text 8s infinite;
   }
 }
 
@@ -145,7 +149,6 @@
     @apply block relative mix-blend-difference;
   }
 
-
   .animated-underline {
     @apply relative;
   }
@@ -167,5 +170,21 @@
 
   .ai-glow-aurora {
     filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.6)) drop-shadow(0 0 60px rgba(59, 130, 246, 0.4));
+  }
+}
+
+@theme inline {
+  @keyframes shiny-text {
+
+    0%,
+    90%,
+    100% {
+      background-position: calc(-100% - var(--shiny-width)) 0;
+    }
+
+    30%,
+    60% {
+      background-position: calc(100% + var(--shiny-width)) 0;
+    }
   }
 }

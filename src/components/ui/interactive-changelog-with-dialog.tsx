@@ -20,7 +20,46 @@ import {
 
 const releases = [
     {
+        title: "v2.2.0: Static Dashboard & UX Overhaul",
+        date: "March 05, 2026",
+        image: "https://res.cloudinary.com/dbaw86kzf/image/upload/v1772690437/edbdae56-1562-4160-a071-3c9ea33e2c51.png",
+        excerpt:
+            "Complete redesign of the /static setup wizard with a live WebGL shader background, Cloudinary image-upload guidance, searchable field-type dropdown, visual form builder feedback, refined skeleton loaders, and expanded footer.",
+        contributors: [
+            "https://github.com/Sourodip-1",
+        ],
+        content: (
+            <div className="prose dark:prose-invert max-w-none">
+                <h3>Static Setup Wizard Redesign</h3>
+                <p>
+                    The <code>/static</code> connector setup page has been completely redesigned by <strong>Sourodip</strong>. It now features a live Three.js WebGL shader animation as the full-page background with a glassmorphism frosted-glass card overlay, radial vignette edge fading, and smooth bottom dissolve.
+                </p>
+                <ul>
+                    <li><strong>Shader Background</strong>: Full-screen fractal ring WebGL animation via Three.js with proper cleanup and resize handling.</li>
+                    <li><strong>Glassmorphism Card</strong>: <code>backdrop-blur-2xl</code> frosted card with violet accent progress bar and step indicators.</li>
+                    <li><strong>Edge Vignette</strong>: Multi-layer radial + linear gradient overlays to fade the shader softly into the dark page on all sides.</li>
+                </ul>
+                <h3>Form Builder Improvements</h3>
+                <ul>
+                    <li><strong>Searchable Type Dropdown</strong>: Live search input at the top of the field-type selector — filters across all categories in real time.</li>
+                    <li><strong>Cloudinary Notice</strong>: An amber alert banner auto-appears in the Fields panel whenever an image field is added, showing all required <code>CLOUDINARY_*</code> env vars.</li>
+                    <li><strong>Add Field Feedback</strong>: The + button flashes green with a ✓ icon for 600ms on click; the new card gets a glowing emerald ring for 1s and the panel auto-scrolls to it.</li>
+                </ul>
+                <h3>Skeleton Loaders</h3>
+                <ul>
+                    <li>All four dashboard skeleton files refined with dark-mode-aware opacity classes and layouts that accurately mirror the real pages.</li>
+                </ul>
+                <h3>Footer</h3>
+                <ul>
+                    <li>Added contact emails (founder, souvik.dev, soyam.dev), Instagram <code>@postpipe.official</code> card, and GitHub contribution link.</li>
+                    <li>Copyright bar with maker credits added between nav and the animated wordmark.</li>
+                </ul>
+            </div>
+        ),
+    },
+    {
         title: "v2.1.0: CCDRS (Cross Database Data Routing System)",
+
         date: "February 07, 2026",
         image: "https://res.cloudinary.com/dbaw86kzf/image/upload/v1770438091/postpipe_postgres_nap4nn.png",
         excerpt:

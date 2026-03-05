@@ -187,7 +187,10 @@ export class MongoAdapter implements DatabaseAdapter {
     console.log(`[MongoAdapter] Establishing connection to host: ${uri.split('@').pop() || 'localhost'}`);
 
     // Create promise and store it immediately
-    const clientPromise = new MongoClient(uri).connect().then(client => {
+    const clientPromise = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+    }).connect().then(client => {
       console.log(`[MongoAdapter] Connection established successfully.`);
       return client;
     });
@@ -272,8 +275,64 @@ export class MongoAdapter implements DatabaseAdapter {
       .limit(options?.limit || 50)
       .toArray();
 
-    console.log(`[MongoAdapter] Query finished. Found ${results.length} documents.`);
-    return results as unknown as PostPipeIngestPayload[];
+    const taggedResults = results.map(doc => ({
+      ...doc,
+      _dbType: 'mongodb',
+      _sourceDb: targetDbName
+    }));
+
+    console.log(`[MongoAdapter] Query finished. Found ${taggedResults.length} documents.`);
+    return taggedResults as unknown as PostPipeIngestPayload[];
+  }
+
+  // --- AUTH METHODS ---
+  async findUserByEmail(email: string, context?: any) {
+    const uri = this.resolveConnectionString(context);
+    if (!uri) throw new Error("[MongoAdapter] Cannot query: No MongoDB URI provided.");
+    const targetDbName = context?.targetDatabase || process.env.MONGODB_DB_NAME || 'postpipe';
+    
+    // We reuse getClient. But the original file uses `getClient` which is private.
+    const client = await this.getClient(uri);
+    const db = client.db(targetDbName);
+    const collection = db.collection('postpipe_users');
+    return collection.findOne({ email });
+  }
+
+  async insertUser(user: any, context?: any) {
+    const uri = this.resolveConnectionString(context);
+    if (!uri) throw new Error("[MongoAdapter] Cannot query: No MongoDB URI provided.");
+    const targetDbName = context?.targetDatabase || process.env.MONGODB_DB_NAME || 'postpipe';
+    
+    const client = await this.getClient(uri);
+    const db = client.db(targetDbName);
+    const collection = db.collection('postpipe_users');
+    
+    // Ensure unique index on email
+    await collection.createIndex({ email: 1 }, { unique: true });
+    
+    try {
+      await collection.insertOne(user);
+      console.log(`[MongoAdapter] Inserted Auth User: ${user.email}`);
+    } catch (error: any) {
+      if (error.code !== 11000) { // Ignore duplicate key errors if they happen
+        throw error;
+      }
+    }
+  }
+
+  async updateUserLastLogin(userId: string, context?: any) {
+    const uri = this.resolveConnectionString(context);
+    if (!uri) return;
+    const targetDbName = context?.targetDatabase || process.env.MONGODB_DB_NAME || 'postpipe';
+    
+    const client = await this.getClient(uri);
+    const db = client.db(targetDbName);
+    const collection = db.collection('postpipe_users');
+    await collection.updateOne({ id: userId }, { $set: { last_login: new Date().toISOString() } });
+  }
+
+  private resolveConnectionString(context?: any): string | undefined {
+    return this.getTargetConfig({ targetDatabase: context?.targetDatabase, databaseConfig: context?.databaseConfig } as any).uri;
   }
 
   async disconnect(): Promise<void> {

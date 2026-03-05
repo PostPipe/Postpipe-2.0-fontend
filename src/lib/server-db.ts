@@ -85,6 +85,27 @@ export interface UserSystemsDocument {
   systems: System[];
 }
 
+export interface AuthPreset {
+  id: string;
+  name: string;
+  connectorId: string;
+  targetDatabase?: string;
+  projectId?: string;
+  redirectUrl?: string;
+  apiUrl?: string;
+  providers: {
+    email: boolean;
+    google: boolean;
+    github: boolean;
+  };
+  createdAt: string;
+}
+
+export interface UserAuthPresetsDocument {
+  userId: string;
+  presets: AuthPreset[];
+}
+
 // --- Persistence ---
 // NOTE: We check this lazily or let it fail at runtime in functions to allow build-time execution without env vars.
 
@@ -257,6 +278,66 @@ export async function duplicateForm(originalFormId: string, userId: string): Pro
   return newForm;
 }
 
+export async function loadForms(userId: string) {
+  const db = await getDB();
+  const doc = await db.collection<UserFormsDocument>('user_forms').findOne({ userId });
+  return doc ? doc.forms : [];
+}
+
+// === AUTH PRESETS METHODS ===
+async function getAuthPresetsCollection() {
+  const client = await getClientPromise();
+  return client.db(dbName!).collection<UserAuthPresetsDocument>('user_auth_presets');
+}
+
+export async function createAuthPreset(userId: string, presetData: Omit<AuthPreset, 'id' | 'createdAt'>) {
+  const collection = await getAuthPresetsCollection();
+  const newPreset: AuthPreset = {
+    ...presetData,
+    id: Math.random().toString(36).substr(2, 9),
+    createdAt: new Date().toISOString()
+  };
+
+  await collection.updateOne(
+    { userId },
+    { $push: { presets: newPreset } },
+    { upsert: true }
+  );
+  return newPreset;
+}
+
+export async function updateAuthPreset(userId: string, presetId: string, updates: Partial<Omit<AuthPreset, 'id' | 'createdAt'>>) {
+  const collection = await getAuthPresetsCollection();
+  
+  const setOps: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) {
+      setOps[`presets.$.${key}`] = value;
+    }
+  }
+
+  await collection.updateOne(
+    { userId, "presets.id": presetId },
+    { $set: setOps }
+  );
+  return { success: true };
+}
+
+export async function getAuthPresets(userId: string) {
+  const collection = await getAuthPresetsCollection();
+  const doc = await collection.findOne({ userId });
+  return doc ? doc.presets : [];
+}
+
+export async function deleteAuthPreset(userId: string, presetId: string) {
+  const collection = await getAuthPresetsCollection();
+  await collection.updateOne(
+    { userId },
+    { $pull: { presets: { id: presetId } } }
+  );
+}
+
+// --- Systems (User Backend Systems) ---
 export async function getForms(userId?: string): Promise<Form[]> {
   const db = await getDB();
   if (!userId) return [];

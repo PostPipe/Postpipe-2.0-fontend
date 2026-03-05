@@ -5,6 +5,18 @@ import path from 'path';
 import { getForm, getConnector, incrementSubmissionCount, getUserDatabaseConfig } from '../../../../../lib/server-db';
 import { ensureFullUrl } from '../../../../../lib/utils';
 
+// ---- CORS helper ----
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+// Handle browser CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ formId: string }> }
@@ -14,16 +26,16 @@ export async function POST(
     const form = await getForm(formId);
 
     if (!form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Form not found' }, { status: 404, headers: corsHeaders });
     }
 
     if (form.status === 'Paused') {
-      return NextResponse.json({ error: 'Form is paused and not accepting submissions.' }, { status: 423 });
+      return NextResponse.json({ error: 'Form is paused and not accepting submissions.' }, { status: 423, headers: corsHeaders });
     }
 
     const connector = await getConnector(form.connectorId);
     if (!connector) {
-      return NextResponse.json({ error: 'Connector not provisioned' }, { status: 503 });
+      return NextResponse.json({ error: 'Connector not provisioned' }, { status: 503, headers: corsHeaders });
     }
 
     // 1. Extract Data
@@ -148,10 +160,10 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ success: true, submissionId });
+    return NextResponse.json({ success: true, submissionId }, { headers: corsHeaders });
 
   } catch (error: any) {
     console.error("[Proxy] Error:", error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500, headers: corsHeaders });
   }
 }

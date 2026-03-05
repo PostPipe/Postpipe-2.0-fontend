@@ -19,7 +19,7 @@ export function MagneticText({ text = "CREATIVE", hoverText = "PRO", className }
 
   const mousePos = useRef({ x: 0, y: 0 })
   const currentPos = useRef({ x: 0, y: 0 })
-  const animationFrameRef = useRef<number>()
+  const animationFrameRef = useRef<number>(0)
 
   useEffect(() => {
     const updateSize = () => {
