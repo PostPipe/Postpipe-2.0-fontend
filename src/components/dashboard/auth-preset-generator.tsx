@@ -31,7 +31,8 @@ export default function AuthPresetGenerator({ onSuccess, initialPreset }: { onSu
     const [redirectUrl, setRedirectUrl] = React.useState(initialPreset?.redirectUrl || "");
     const [projectId, setProjectId] = React.useState(initialPreset?.projectId || "");
     const [targetDatabase, setTargetDatabase] = React.useState(initialPreset?.targetDatabase || "default");
-    const [apiUrl, setApiUrl] = React.useState(initialPreset?.apiUrl || "http://localhost:3002/api/auth");
+    const [apiUrl, setApiUrl] = React.useState(initialPreset?.apiUrl || "");
+    const [isApiUrlManuallyEdited, setIsApiUrlManuallyEdited] = React.useState(!!initialPreset?.apiUrl);
 
     // Email Provider and SMTP settings
     const [emailProvider, setEmailProvider] = React.useState<"resend" | "nodemailer">(initialPreset?.providers?.emailProvider || "resend");
@@ -57,6 +58,14 @@ export default function AuthPresetGenerator({ onSuccess, initialPreset }: { onSu
 
     const activeConnectorData = connectors.find((c: any) => c.id === selectedConnector);
     const availableDatabases = activeConnectorData?.databases ? Object.keys(activeConnectorData.databases) : [];
+
+    React.useEffect(() => {
+        if (!isApiUrlManuallyEdited && activeConnectorData?.url) {
+            // Trim trailing slash just in case
+            const base = activeConnectorData.url.replace(/\/$/, "");
+            setApiUrl(`${base}/api/auth`);
+        }
+    }, [selectedConnector, activeConnectorData, isApiUrlManuallyEdited]);
 
     const handleProviderChange = (provider: keyof typeof providers) => {
         setProviders((prev: typeof providers) => {
@@ -402,6 +411,22 @@ export default function AuthPresetGenerator({ onSuccess, initialPreset }: { onSu
                                     </SelectContent>
                                 </Select>
                                 <p className="text-xs text-muted-foreground">Select where the `postpipe_users` table/collection will be instantiated.</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium flex items-center gap-2">
+                                    <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                                    Auth API URL
+                                </label>
+                                <Input
+                                    placeholder="e.g., https://my-connector.com/api/auth"
+                                    value={apiUrl}
+                                    onChange={(e) => {
+                                        setApiUrl(e.target.value);
+                                        setIsApiUrlManuallyEdited(true);
+                                    }}
+                                />
+                                <p className="text-xs text-muted-foreground">The fully qualified URL to your Connector's auth edge. Auto-inferred from selected connector.</p>
                             </div>
                         </div>
                     </div>
