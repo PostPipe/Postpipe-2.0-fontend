@@ -441,7 +441,7 @@ export default function AuthPresetGenerator({ onSuccess, initialPreset }: { onSu
                             <span className="text-[#89B4FA]">    apiUrl</span>: <span className="text-[#A6E3A1]">"{apiUrl}"</span>,{'\n'}
                             <span className="text-[#89B4FA]">    projectId</span>: <span className="text-[#A6E3A1]">"{projectId || 'YOUR_PROJECT_ID'}"</span>,{'\n'}
                             <span className="text-[#89B4FA]">    providers</span>: <span className="text-[#F9E2AF]">{JSON.stringify(Object.keys(providers).filter(k => providers[k as keyof typeof providers]))}</span>,{'\n'}
-                            <span className="text-[#89B4FA]">    redirectUrl</span>: {redirectUrl ? <span className="text-[#A6E3A1]">"{redirectUrl}"</span> : <span className="text-[#F9E2AF]">window.location.href</span>}{targetDatabase && targetDatabase !== 'default' ? `,\n<span className="text-[#89B4FA]">    targetDatabase</span>: <span className="text-[#A6E3A1]">"${targetDatabase}"</span>` : ''}{'\n'}
+                            <span className="text-[#89B4FA]">    redirectUrl</span>: {redirectUrl ? <span className="text-[#A6E3A1]">"{redirectUrl}"</span> : <span className="text-[#F9E2AF]">window.location.href</span>}{targetDatabase && targetDatabase !== 'default' ? `,\n    targetDatabase: "${targetDatabase}"` : ''}{'\n'}
                             {`}`});{'\n\n'}
                             <span className="text-[#7EE787]">// Handle Auth Events</span>{'\n'}
                             <span className="text-[#89B4FA]">PostpipeAuth</span>.<span className="text-[#89B4FA]">on</span>(<span className="text-[#A6E3A1]">"success"</span>, (<span className="text-[#F38BA8]">user</span>) <span className="text-[#CBA6F7]">=&gt;</span> {`{`}{'\n'}
