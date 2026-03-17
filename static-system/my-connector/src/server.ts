@@ -11,6 +11,7 @@ import authRouter from './routes/auth';
 import cdnRouter from './routes/cdn';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
+import { getPrefixedEnv } from './lib/config';
 
 dotenv.config();
 
@@ -42,7 +43,7 @@ const pgKeys = Object.keys(process.env).filter(k => k.startsWith('POSTGRES_URL')
 console.log(`[Server] Detected Postgres URLs: ${pgKeys.length > 0 ? pgKeys.join(', ') : 'NONE'}`);
 
 console.log(`[Server] CONNECTOR_ID: ${process.env.POSTPIPE_CONNECTOR_ID ? 'SET' : 'MISSING'}`);
-console.log(`[Server] CONNECTOR_SECRET: ${process.env.POSTPIPE_CONNECTOR_SECRET ? 'SET' : 'MISSING'}`);
+console.log(`[Server] CONNECTOR_SECRET: ${process.env.JWT_SECRET || process.env.POSTPIPE_CONNECTOR_SECRET ? 'SET' : 'MISSING'}`);
 
 if (!process.env.DB_TYPE) {
     if (pgKeys.length > 0) {
@@ -65,19 +66,8 @@ const PORT = process.env.PORT || 3002;
 // --- Prefix Resolution Helper ---
 const VAR_PREFIX = process.env.POSTPIPE_VAR_PREFIX || "";
 
-function getPrefixedEnv(key: string): string | undefined {
-    if (VAR_PREFIX) {
-        const prefixed = `${VAR_PREFIX}_${key}`;
-        if (process.env[prefixed]) {
-            console.log(`[Config] Resolved '${key}' from prefixed variable: ${prefixed}`);
-            return process.env[prefixed];
-        }
-    }
-    return process.env[key];
-}
-
 const CONNECTOR_ID = getPrefixedEnv('POSTPIPE_CONNECTOR_ID');
-const CONNECTOR_SECRET = getPrefixedEnv('POSTPIPE_CONNECTOR_SECRET');
+const CONNECTOR_SECRET = getPrefixedEnv('JWT_SECRET') || getPrefixedEnv('POSTPIPE_CONNECTOR_SECRET');
 
 if (!CONNECTOR_ID || !CONNECTOR_SECRET) {
     console.error("❌ CRITICAL ERROR: POSTPIPE_CONNECTOR_ID or POSTPIPE_CONNECTOR_SECRET is missing.");
