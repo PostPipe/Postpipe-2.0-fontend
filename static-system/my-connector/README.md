@@ -5,9 +5,10 @@ It acts as a secure bridge between PostPipe's Ingest API and your private databa
 
 ## 🚨 Security Principles
 
-1.  **Zero Trust**: This connector never trusts the payload blindly. It verifies the request signature `X-PostPipe-Signature` using your `POSTPIPE_CONNECTOR_SECRET`.
-2.  **No Leaks**: Database credentials exist ONLY in this environment. PostPipe never sees them.
-3.  **Audit**: All security logic is in `src/lib/security.ts`. You are encouraged to read it.
+1.  **Zero Trust**: This connector never trusts the payload blindly. It verifies the request signature `X-PostPipe-Signature` using your `JWT_SECRET` (or `POSTPIPE_CONNECTOR_SECRET`).
+2.  **Environment Aliasing**: Support for project-specific secrets and SMTP settings via a flexible aliasing system.
+3.  **No Leaks**: Database credentials exist ONLY in this environment. PostPipe never sees them.
+4.  **Audit**: All security logic is in `src/lib/security.ts`. You are encouraged to read it.
 
 ## 🚀 Getting Started
 
@@ -23,7 +24,7 @@ Copy `.env.example` to `.env` and fill in your details:
 
 ```env
 POSTPIPE_CONNECTOR_ID=pp_conn_...
-POSTPIPE_CONNECTOR_SECRET=...     # Keep this secret!
+JWT_SECRET=...                  # Keep this secret! (formerly POSTPIPE_CONNECTOR_SECRET)
 DB_TYPE=mongodb                   # mongodb | postgres | supabase
 ```
 
@@ -57,10 +58,41 @@ This project is set up as a standard Express app. To deploy to Vercel, simply ad
 }
 ```
 
+## 🧭 Multi-tenant & Alias System
+
+The Postpipe Connector supports a powerful aliasing system. This allows you to deploy a single connector and serve multiple frontends/projects, each with its own configuration, by prefixing environment variables.
+
+### 1. Security Keys & Routing
+The connector prioritizes `JWT_SECRET` for signing and verifying tokens. If you provide an `envFrontendUrlAlias` (e.g., `APP1`) in your dashboard configuration, the connector will search for variables prefixed with that alias first.
+
+Example `.env`:
+```env
+# Global
+JWT_SECRET="global-secret"
+
+# Project-Specific Overrides
+APP1_JWT_SECRET="secret-for-app1"
+APP1_FRONTEND_URL="https://app1.com/reset-password"
+```
+
+### 2. SMTP Alias System
+SMTP settings can also be aliased. If a project sends identifying metadata (like `envFrontendUrlAlias`), the connector will look for SMTP variables with that prefix.
+
+Example `.env` for alias `APP1`:
+```env
+APP1_EMAIL_PROVIDER="nodemailer"
+APP1_SMTP_HOST="smtp.gmail.com"
+APP1_SMTP_PORT="465"
+APP1_SMTP_USER="app1@gmail.com"
+APP1_SMTP_PASS="password-for-app1"
+APP1_SMTP_SECURE="true"
+```
+
 ## 🛠 Troubleshooting
 
-- **Invalid Signature**: Check that `POSTPIPE_CONNECTOR_SECRET` matches exactly what is in your PostPipe Dashboard.
-- **Timestamp Skew**: Ensure your server's clock is synced (NTP). Requests older than 5 minutes are rejected.
+- **Signature Validation Failed**: Ensure `JWT_SECRET` in your connector matches your dashboard settings. If using aliases, verify `ALIAS_JWT_SECRET`.
+- **Email not sending**: If using aliases, verify that `ALIAS_SMTP_HOST` etc. are correctly named in your `.env`.
+- **Redirects failing**: Ensure `ALIAS_FRONTEND_URL` is correctly set for password reset routing.
 
 ## 🌐 Multi-Database Routing
 

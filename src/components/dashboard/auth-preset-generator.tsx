@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Copy, Download, Link as LinkIcon, AlertCircle, Database } from "lucide-react";
+import { Copy, Download, Link as LinkIcon, AlertCircle, Database, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
     Select,
@@ -173,6 +173,8 @@ export default function AuthPresetGenerator({ onSuccess, initialPreset }: { onSu
         }
     };
 
+    const projectAlias = presetName.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'PROJECT';
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Configuration Panel */}
@@ -197,49 +199,57 @@ export default function AuthPresetGenerator({ onSuccess, initialPreset }: { onSu
                                 <li className="mt-2">
                                     <strong>Connector Configuration Required:</strong> Add these to your Connector's <code>.env</code> file:
                                     <div className="mt-2 bg-orange-100/50 dark:bg-orange-950/50 p-3 rounded-md text-xs font-mono space-y-1 border border-orange-200/50 dark:border-orange-900/50 overflow-x-auto selection:bg-orange-200 dark:selection:bg-orange-900 text-orange-900 dark:text-orange-200">
-                                        <div className="text-orange-900/50 dark:text-orange-200/50"># Core Auth Settings</div>
-                                        <div>CONNECTOR_SECRET="<span className="opacity-50">your-super-secret-jwt-key</span>"</div>
-                                        <div>{envFrontendUrlAlias || 'FRONTEND_URL'}="<span className="opacity-50">https://your-app.com</span>"</div>
+                                        {(() => {
+                                            const getEnvKey = (key: string) => `${key}_${projectAlias}`;
 
-                                        {providers.google && (
-                                            <>
-                                                <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># Google OAuth</div>
-                                                <div>GOOGLE_CLIENT_ID="<span className="opacity-50">your-google-client-id</span>"</div>
-                                                <div>GOOGLE_CLIENT_SECRET="<span className="opacity-50">your-google-client-secret</span>"</div>
-                                            </>
-                                        )}
+                                            return (
+                                                <>
+                                                    <div className="text-orange-900/50 dark:text-orange-200/50"># Core Auth Settings</div>
+                                                    <div>{getEnvKey('JWT_SECRET')}="<span className="opacity-50">your-super-secret-jwt-key</span>"</div>
+                                                    <div>{envFrontendUrlAlias || 'FRONTEND_URL'}="<span className="opacity-50">https://your-app.com</span>"</div>
 
-                                        {providers.github && (
-                                            <>
-                                                <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># GitHub OAuth</div>
-                                                <div>GITHUB_CLIENT_ID="<span className="opacity-50">your-github-client-id</span>"</div>
-                                                <div>GITHUB_CLIENT_SECRET="<span className="opacity-50">your-github-client-secret</span>"</div>
-                                            </>
-                                        )}
+                                                    {providers.google && (
+                                                        <>
+                                                            <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># Google OAuth</div>
+                                                            <div>{getEnvKey('GOOGLE_CLIENT_ID')}="<span className="opacity-50">your-google-client-id</span>"</div>
+                                                            <div>{getEnvKey('GOOGLE_CLIENT_SECRET')}="<span className="opacity-50">your-google-client-secret</span>"</div>
+                                                        </>
+                                                    )}
 
-                                        {providers.email && requireEmailVerification && (
-                                            <>
-                                                <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># Email Provider Choice</div>
-                                                <div>EMAIL_PROVIDER="{emailProvider}"</div>
+                                                    {providers.github && (
+                                                        <>
+                                                            <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># GitHub OAuth</div>
+                                                            <div>{getEnvKey('GITHUB_CLIENT_ID')}="<span className="opacity-50">your-github-client-id</span>"</div>
+                                                            <div>{getEnvKey('GITHUB_CLIENT_SECRET')}="<span className="opacity-50">your-github-client-secret</span>"</div>
+                                                        </>
+                                                    )}
 
-                                                {emailProvider === 'resend' ? (
-                                                    <>
-                                                        <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># Resend Verification</div>
-                                                        <div>RESEND_API_KEY="<span className="opacity-50">your-resend-api-key</span>"</div>
-                                                        <div>RESEND_FROM_EMAIL="<span className="opacity-50">onboarding@resend.dev</span>"</div>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># Nodemailer (SMTP)</div>
-                                                        <div>SMTP_HOST="{smtpHost || '<span className="opacity-50">smtp.example.com</span>'}"</div>
-                                                        <div>SMTP_PORT="{smtpPort || '587'}"</div>
-                                                        <div>SMTP_USER="{smtpUser || '<span className="opacity-50">user@example.com</span>'}"</div>
-                                                        <div>SMTP_PASS="{smtpPass || '<span className="opacity-50">your-password</span>'}"</div>
-                                                        <div>SMTP_SECURE="{smtpPort === '465' ? 'true' : 'false'}"</div>
-                                                    </>
-                                                )}
-                                            </>
-                                        )}
+                                                    {providers.email && requireEmailVerification && (
+                                                        <>
+                                                            <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># Email Provider Choice</div>
+                                                            <div>{getEnvKey('EMAIL_PROVIDER')}="{emailProvider}"</div>
+
+                                                            {emailProvider === 'resend' ? (
+                                                                <>
+                                                                    <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># Resend Verification</div>
+                                                                    <div>{getEnvKey('RESEND_API_KEY')}="<span className="opacity-50">your-resend-api-key</span>"</div>
+                                                                    <div>{getEnvKey('RESEND_FROM_EMAIL')}="<span className="opacity-50">onboarding@resend.dev</span>"</div>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="text-orange-900/50 dark:text-orange-200/50 mt-2"># Nodemailer (SMTP)</div>
+                                                                    <div>{getEnvKey('SMTP_HOST')}="{smtpHost || '<span className="opacity-50">smtp.example.com</span>'}"</div>
+                                                                    <div>{getEnvKey('SMTP_PORT')}="{smtpPort || '587'}"</div>
+                                                                    <div>{getEnvKey('SMTP_USER')}="{smtpUser || '<span className="opacity-50">user@example.com</span>'}"</div>
+                                                                    <div>{getEnvKey('SMTP_PASS')}="{smtpPass || '<span className="opacity-50">your-password</span>'}"</div>
+                                                                    <div>{getEnvKey('SMTP_SECURE')}="{smtpPort === '465' ? 'true' : 'false'}"</div>
+                                                                </>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 </li>
                                 {providers.email && (
@@ -248,6 +258,33 @@ export default function AuthPresetGenerator({ onSuccess, initialPreset }: { onSu
                                     </li>
                                 )}
                             </ul>
+                        </div>
+                    </div>
+
+                    <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-blue-800 dark:text-blue-300 font-semibold text-sm">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Next Steps for Beginners
+                        </div>
+                        <div className="space-y-4">
+                            <div className="flex gap-3">
+                                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 text-xs font-bold text-blue-700 dark:text-blue-300">1</div>
+                                <div className="text-xs text-muted-foreground leading-relaxed">
+                                    <strong className="text-foreground">Configure Env:</strong> Copy the orange snippet above and paste it into your Connector's <code>.env</code> file. Update the placeholders with your actual secrets.
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 text-xs font-bold text-blue-700 dark:text-blue-300">2</div>
+                                <div className="text-xs text-muted-foreground leading-relaxed">
+                                    <strong className="text-foreground">Embed Snippet:</strong> Copy the code from the right panel and paste it into your website (e.g., <code>index.html</code>).
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 text-xs font-bold text-blue-700 dark:text-blue-300">3</div>
+                                <div className="text-xs text-muted-foreground leading-relaxed">
+                                    <strong className="text-foreground">Catch Redirects:</strong> Create a matching <code>reset-password.html</code> and paste the same snippet there to handle password recovery.
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -390,11 +427,11 @@ export default function AuthPresetGenerator({ onSuccess, initialPreset }: { onSu
                                 Frontend URL .env Alias (Optional)
                             </label>
                             <Input
-                                placeholder="e.g., APP1_FRONTEND_URL"
+                                placeholder="e.g., YOUR_FRONTEND_URL"
                                 value={envFrontendUrlAlias}
                                 onChange={(e) => setEnvFrontendUrlAlias(e.target.value)}
                             />
-                            <p className="text-xs text-muted-foreground">Custom environment variable name your connector should use to read this frontend's URL for routing.</p>
+                            <p className="text-xs text-muted-foreground">The environment variable name your connector should use to read this frontend's URL (e.g., <code>FRONTEND_URL</code>).</p>
                         </div>
 
                         <div className="space-y-4 pt-4 border-t">
@@ -487,7 +524,7 @@ export default function AuthPresetGenerator({ onSuccess, initialPreset }: { onSu
                             <span className="text-[#89B4FA]">    apiUrl</span>: <span className="text-[#A6E3A1]">"{apiUrl}"</span>,{'\n'}
                             <span className="text-[#89B4FA]">    projectId</span>: <span className="text-[#A6E3A1]">"{projectId || 'YOUR_PROJECT_ID'}"</span>,{'\n'}
                             <span className="text-[#89B4FA]">    providers</span>: <span className="text-[#F9E2AF]">{JSON.stringify(Object.keys(providers).filter(k => providers[k as keyof typeof providers]))}</span>,{'\n'}
-                            <span className="text-[#89B4FA]">    redirectUrl</span>: {redirectUrl ? <span className="text-[#A6E3A1]">"{redirectUrl}"</span> : <span className="text-[#F9E2AF]">window.location.href</span>}{envFrontendUrlAlias ? `,\n    envFrontendUrlAlias: "${envFrontendUrlAlias}"` : ''}{targetDatabase && targetDatabase !== 'default' ? `,\n    targetDatabase: "${targetDatabase}"` : ''}{'\n'}
+                            <span className="text-[#89B4FA]">    redirectUrl</span>: {redirectUrl ? <span className="text-[#A6E3A1]">"{redirectUrl}"</span> : <span className="text-[#F9E2AF]">window.location.href</span>}{envFrontendUrlAlias ? `,\n    envFrontendUrlAlias: "${envFrontendUrlAlias}"` : ''}{projectAlias ? `,\n    projectAlias: "${projectAlias}"` : ''}{targetDatabase && targetDatabase !== 'default' ? `,\n    targetDatabase: "${targetDatabase}"` : ''}{'\n'}
                             {`}`});{'\n\n'}
                             <span className="text-[#7EE787]">// Handle Auth Events</span>{'\n'}
                             <span className="text-[#89B4FA]">PostpipeAuth</span>.<span className="text-[#89B4FA]">on</span>(<span className="text-[#A6E3A1]">"success"</span>, (<span className="text-[#F38BA8]">user</span>) <span className="text-[#CBA6F7]">=&gt;</span> {`{`}{'\n'}
