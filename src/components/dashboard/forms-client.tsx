@@ -67,6 +67,7 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
     const [presets, setPresets] = React.useState<any[]>(initialPresets);
     const [searchQuery, setSearchQuery] = React.useState("");
     const [statusFilter, setStatusFilter] = React.useState("all");
+    const [dbFilter, setDbFilter] = React.useState("all");
     const [sortBy, setSortBy] = React.useState("name");
     const [expandedFormId, setExpandedFormId] = React.useState<string | null>(null);
     const [copiedId, setCopiedId] = React.useState<string | null>(null);
@@ -94,7 +95,7 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
         }
         return {
             id: f.id, name: f.name,
-            connectorName: f.connectorName || "Standard Connector",
+            connectorName: f.targetDatabase || f.connectorName || "Default Connector",
             submissions: subCount, lastSubmission: lastSub,
             status: f.status || "Live", fields: f.fields || []
         };
@@ -191,6 +192,7 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
     const filteredForms = forms
         .filter(f => {
             if (statusFilter !== 'all' && f.status.toLowerCase() !== statusFilter) return false;
+            if (dbFilter !== 'all' && f.connectorName !== dbFilter) return false;
             if (searchQuery && !f.name.toLowerCase().includes(searchQuery.toLowerCase()) && !f.id.toLowerCase().includes(searchQuery.toLowerCase())) return false;
             return true;
         })
@@ -286,6 +288,18 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
                                 placeholder="Search by name or endpoint ID…"
                             />
                             <div className="flex gap-2 shrink-0">
+                                <Select value={dbFilter} onValueChange={setDbFilter}>
+                                    <SelectTrigger className="h-10 rounded-lg bg-muted border-border text-xs text-muted-foreground w-[150px] focus:ring-violet-500/40 hover:bg-accent transition-colors">
+                                        <Database className="mr-2 h-3.5 w-3.5" />
+                                        <SelectValue placeholder="All Databases" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-lg border-border bg-popover backdrop-blur-xl">
+                                        <SelectItem value="all">All Databases</SelectItem>
+                                        {uniqueConnectors.map(conn => (
+                                            <SelectItem key={conn} value={conn}>{conn}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                                     <SelectTrigger className="h-10 rounded-lg bg-muted border-border text-xs text-muted-foreground w-[120px] focus:ring-violet-500/40 hover:bg-accent transition-colors">
                                         <Filter className="mr-2 h-3.5 w-3.5" />

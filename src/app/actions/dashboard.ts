@@ -59,6 +59,7 @@ export async function getDashboardData() {
     return {
       ...f,
       connectorUrl: ensureFullUrl(connector.url),
+      connectorName: connector.name,
       readToken: token,
       publicSubmitUrl: `http://localhost:3000/api/public/submit/${f.id}`,
       connectorGetterUrl: `${ensureFullUrl(connector.url)}/api/postpipe/forms/${f.id}/submissions`

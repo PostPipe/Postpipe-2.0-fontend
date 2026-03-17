@@ -20,6 +20,7 @@ export async function GET(req: Request) {
                 providers: ['email'],
                 redirectUrl: window.location.origin,
                 envFrontendUrlAlias: null,
+                projectAlias: null,
                 apiUrl: 'http://localhost:3002/api/auth'
             };
             this.listeners = {
@@ -81,7 +82,8 @@ export async function GET(req: Request) {
                         projectId: this.config.projectId, 
                         targetDatabase: this.config.targetDatabase,
                         redirectUrl: this.config.redirectUrl,
-                        envFrontendUrlAlias: this.config.envFrontendUrlAlias
+                        envFrontendUrlAlias: this.config.envFrontendUrlAlias,
+                        projectAlias: this.config.projectAlias
                     })
                 });
 
@@ -118,7 +120,8 @@ export async function GET(req: Request) {
                         projectId: this.config.projectId, 
                         targetDatabase: this.config.targetDatabase,
                         redirectUrl: this.config.redirectUrl,
-                        envFrontendUrlAlias: this.config.envFrontendUrlAlias
+                        envFrontendUrlAlias: this.config.envFrontendUrlAlias,
+                        projectAlias: this.config.projectAlias
                     })
                 });
 
@@ -152,7 +155,9 @@ export async function GET(req: Request) {
                     body: JSON.stringify({ 
                         token: this._ppToken,
                         newPassword,
-                        targetDatabase: this.config.targetDatabase
+                        targetDatabase: this.config.targetDatabase,
+                        envFrontendUrlAlias: this.config.envFrontendUrlAlias,
+                        projectAlias: this.config.projectAlias
                     })
                 });
 
@@ -176,7 +181,9 @@ export async function GET(req: Request) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         token: this._ppToken,
-                        targetDatabase: this.config.targetDatabase
+                        targetDatabase: this.config.targetDatabase,
+                        envFrontendUrlAlias: this.config.envFrontendUrlAlias,
+                        projectAlias: this.config.projectAlias
                     })
                 });
 
@@ -221,7 +228,9 @@ export async function GET(req: Request) {
                     body: JSON.stringify({ 
                         email: this._pendingEmail, 
                         otp, 
-                        targetDatabase: this.config.targetDatabase 
+                        targetDatabase: this.config.targetDatabase,
+                        envFrontendUrlAlias: this.config.envFrontendUrlAlias,
+                        projectAlias: this.config.projectAlias
                     })
                 });
 
@@ -250,7 +259,9 @@ export async function GET(req: Request) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         email: this._pendingEmail, 
-                        targetDatabase: this.config.targetDatabase 
+                        targetDatabase: this.config.targetDatabase,
+                        envFrontendUrlAlias: this.config.envFrontendUrlAlias,
+                        projectAlias: this.config.projectAlias
                     })
                 });
 
@@ -273,7 +284,8 @@ export async function GET(req: Request) {
                     body: JSON.stringify({ 
                         email,
                         redirectUrl: this.config.redirectUrl,
-                        envFrontendUrlAlias: this.config.envFrontendUrlAlias
+                        envFrontendUrlAlias: this.config.envFrontendUrlAlias,
+                        projectAlias: this.config.projectAlias
                     })
                 });
 
@@ -287,7 +299,7 @@ export async function GET(req: Request) {
         }
 
         loginWithOAuth(provider) {
-            const oauthUrl = \`\${this.config.apiUrl}/\${provider}?projectId=\${this.config.projectId || ''}&targetDatabase=\${this.config.targetDatabase || ''}&envFrontendUrlAlias=\${this.config.envFrontendUrlAlias || ''}&redirect=\${encodeURIComponent(window.location.href)}\`;
+            const oauthUrl = \`\${this.config.apiUrl}/\${provider}?projectId=\${this.config.projectId || ''}&targetDatabase=\${this.config.targetDatabase || ''}&envFrontendUrlAlias=\${this.config.envFrontendUrlAlias || ''}&projectAlias=\${this.config.projectAlias || ''}&redirect=\${encodeURIComponent(window.location.href)}\`;
             window.location.href = oauthUrl;
         }
 

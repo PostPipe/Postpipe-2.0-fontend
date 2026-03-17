@@ -4,11 +4,12 @@ import jwt from 'jsonwebtoken';
 import { getAdapter } from '../lib/db';
 import crypto from 'crypto';
 import { sendEmail } from '../lib/email';
+import { getPrefixedEnv } from '../lib/config';
 
-const CONNECTOR_SECRET = process.env.POSTPIPE_CONNECTOR_SECRET || 'fallback_secret';
+const getSecret = (prefix?: string) => getPrefixedEnv('JWT_SECRET', prefix) || getPrefixedEnv('POSTPIPE_CONNECTOR_SECRET', prefix) || 'fallback_secret';
 
 // Helper to generate JWT
-const generateToken = (user: any) => {
+const generateToken = (user: any, prefix?: string) => {
     return jwt.sign(
         { 
             id: user.id, 
@@ -16,14 +17,14 @@ const generateToken = (user: any) => {
             provider: user.provider,
             email_verified: user.email_verified 
         },
-        CONNECTOR_SECRET,
+        getSecret(prefix),
         { expiresIn: '7d' }
     );
 };
 
 export const registerWithEmail = async (req: Request, res: Response) => {
     try {
-        const { name, email, password, projectId, targetDatabase, redirectUrl } = req.body;
+    const { name, email, password, projectId, targetDatabase, redirectUrl, envFrontendUrlAlias, projectAlias } = req.body;
 
         if (!email || !password || !name) {
             return res.status(400).json({ message: 'Name, email, and password are required.' });
@@ -75,7 +76,8 @@ export const registerWithEmail = async (req: Request, res: Response) => {
                     </div>
                     <p style="color: #888; font-size: 12px; margin-bottom: 0;">If you didn't request this code, you can safely ignore this email.</p>
                 </div>
-            `
+            `,
+            prefix: projectAlias
         }).catch(e => console.error('[Auth] Failed to send OTP email:', e));
 
         // Remove sensitive data before sending
@@ -94,7 +96,7 @@ export const registerWithEmail = async (req: Request, res: Response) => {
 
 export const loginWithEmail = async (req: Request, res: Response) => {
     try {
-        const { email, password, projectId, targetDatabase } = req.body;
+        const { email, password, projectId, targetDatabase, envFrontendUrlAlias, projectAlias } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ message: 'Email and password are required.' });
@@ -128,7 +130,7 @@ export const loginWithEmail = async (req: Request, res: Response) => {
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
 
-        const token = generateToken(user);
+        const token = generateToken(user, projectAlias);
         
         // Update last login
         await adapter.updateUserLastLogin(user.id, { targetDatabase });
@@ -148,12 +150,14 @@ export const loginWithEmail = async (req: Request, res: Response) => {
 
 export const handleOAuthInitiation = async (req: Request, res: Response) => {
     const { provider } = req.params;
-    const { projectId, redirect, targetDatabase } = req.query;
+    const { projectId, redirect, targetDatabase, envFrontendUrlAlias, projectAlias } = req.query;
     
     // Store routing state in cookie
     const stateObj = { 
         redirect: redirect || 'http://localhost:3000', 
-        targetDatabase: targetDatabase || 'default' 
+        targetDatabase: targetDatabase || 'default',
+        envFrontendUrlAlias,
+        projectAlias
     };
     
     // Encode state to pass to Google/GitHub
@@ -343,7 +347,7 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
         }
 
         // Create JWT Token using helper
-        const token = generateToken(user);
+        const token = generateToken(user, decodedState.projectAlias);
 
         // Send back to the client UI with a token
         return res.redirect(`${uiRedirect}?pp_token=${token}`);
@@ -363,7 +367,7 @@ export const logout = async (req: Request, res: Response) => {
 
 export const forgotPassword = async (req: Request, res: Response) => {
     try {
-        const { email, targetDatabase, redirectUrl, envFrontendUrlAlias } = req.body;
+        const { email, targetDatabase, redirectUrl, envFrontendUrlAlias, projectAlias } = req.body;
 
         if (!email) {
             return res.status(400).json({ message: 'Email is required.' });
@@ -386,8 +390,8 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
         // Generate short-lived token (15 minutes)
         const resetToken = jwt.sign(
-            { id: user.id, email: user.email, purpose: 'password_reset' },
-            CONNECTOR_SECRET,
+            { id: user.id, email: user.email, purpose: 'password_reset', prefix: projectAlias },
+            getSecret(projectAlias),
             { expiresIn: '15m' }
         );
 
@@ -402,7 +406,8 @@ export const forgotPassword = async (req: Request, res: Response) => {
             await sendEmail({
                 to: email,
                 subject: 'Password Reset Request',
-                html: `<p>You requested a password reset. Click the link below to reset your password:</p><p><a href="${resetLink}">Reset Password</a></p><p>This link is valid for 15 minutes.</p><p>If you didn't request this, you can safely ignore this email.</p>`
+                html: `<p>You requested a password reset. Click the link below to reset your password:</p><p><a href="${resetLink}">Reset Password</a></p><p>This link is valid for 15 minutes.</p><p>If you didn't request this, you can safely ignore this email.</p>`,
+                prefix: projectAlias
             });
         } catch (error: any) {
             console.error('[Auth] Email Sending Error:', error);
@@ -423,7 +428,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
 export const resetPassword = async (req: Request, res: Response) => {
     try {
-        const { token, newPassword, targetDatabase } = req.body;
+        const { token, newPassword, targetDatabase, projectAlias, envFrontendUrlAlias } = req.body;
 
         if (!token || !newPassword) {
             return res.status(400).json({ message: 'Token and new password are required.' });
@@ -435,7 +440,10 @@ export const resetPassword = async (req: Request, res: Response) => {
 
         let decoded: any;
         try {
-            decoded = jwt.verify(token, CONNECTOR_SECRET);
+            // First decode to get prefix if hidden in token
+            const preDecoded = jwt.decode(token) as any;
+            const prefix = preDecoded?.prefix || envFrontendUrlAlias;
+            decoded = jwt.verify(token, getSecret(prefix));
         } catch (err) {
             return res.status(400).json({ message: 'Invalid or expired token.' });
         }
@@ -468,7 +476,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 
 export const verifyOtp = async (req: Request, res: Response) => {
     try {
-        const { email, otp, targetDatabase } = req.body;
+        const { email, otp, targetDatabase, projectAlias, envFrontendUrlAlias } = req.body;
 
         if (!email || !otp) {
             return res.status(400).json({ message: 'Email and OTP are required.' });
@@ -500,7 +508,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
         await adapter.verifyUserEmail(user.id, { targetDatabase });
 
-        const token = generateToken({ ...user, email_verified: true });
+        const token = generateToken({ ...user, email_verified: true }, projectAlias);
 
         return res.status(200).json({ 
             message: 'Email verified successfully!', 
@@ -515,7 +523,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
 export const resendOtp = async (req: Request, res: Response) => {
     try {
-        const { email, targetDatabase } = req.body;
+        const { email, targetDatabase, projectAlias, envFrontendUrlAlias } = req.body;
 
         if (!email) {
             return res.status(400).json({ message: 'Email is required.' });
@@ -548,7 +556,8 @@ export const resendOtp = async (req: Request, res: Response) => {
                         ${otp}
                     </div>
                 </div>
-            `
+            `,
+            prefix: projectAlias
         });
 
         return res.status(200).json({ message: 'OTP resent successfully.' });
@@ -560,7 +569,7 @@ export const resendOtp = async (req: Request, res: Response) => {
 
 export const verifyEmail = async (req: Request, res: Response) => {
     try {
-        const { token, targetDatabase } = req.body;
+        const { token, targetDatabase, projectAlias, envFrontendUrlAlias } = req.body;
 
         if (!token) {
             return res.status(400).json({ message: 'Verification token is required.' });
@@ -568,7 +577,9 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
         let decoded: any;
         try {
-            decoded = jwt.verify(token, CONNECTOR_SECRET);
+            const preDecoded = jwt.decode(token) as any;
+            const prefix = preDecoded?.prefix || envFrontendUrlAlias;
+            decoded = jwt.verify(token, getSecret(prefix));
         } catch (err) {
             return res.status(400).json({ message: 'Invalid or expired verification token.' });
         }
@@ -610,7 +621,9 @@ export const getMe = async (req: Request, res: Response) => {
         const token = authHeader.split(' ')[1];
         let decoded: any;
         try {
-            decoded = jwt.verify(token, CONNECTOR_SECRET);
+            const preDecoded = jwt.decode(token) as any;
+            const prefix = preDecoded?.prefix || (req.query.projectAlias as string);
+            decoded = jwt.verify(token, getSecret(prefix));
         } catch (err) {
             return res.status(401).json({ message: 'Invalid or expired token' });
         }
