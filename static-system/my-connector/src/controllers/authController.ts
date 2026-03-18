@@ -22,6 +22,19 @@ const generateToken = (user: any, prefix?: string) => {
     );
 };
 
+const resolveAdapter = (targetDatabase?: string) => {
+    let resolvedType = process.env.DB_TYPE || 'postgres';
+    const targetLower = String(targetDatabase || '').toLowerCase();
+    
+    if (targetLower.includes('postgres') || targetLower.includes('pg') || targetLower.includes('neon')) {
+        resolvedType = 'postgres';
+    } else if (targetLower.includes('mongo') || targetLower.includes('mongodb') || targetLower.includes('atlas')) {
+        resolvedType = 'mongodb';
+    }
+    
+    return getAdapter(resolvedType);
+};
+
 export const registerWithEmail = async (req: Request, res: Response) => {
     try {
     const { name, email, password, projectId, targetDatabase, redirectUrl, envFrontendUrlAlias, projectAlias } = req.body;
@@ -30,8 +43,7 @@ export const registerWithEmail = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Name, email, and password are required.' });
         }
 
-        const resolvedType = process.env.DB_TYPE || 'postgres';
-        const adapter = getAdapter(resolvedType);
+        const adapter = resolveAdapter(targetDatabase as string);
         
         await adapter.connect({ targetDatabase });
 
@@ -102,8 +114,7 @@ export const loginWithEmail = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Email and password are required.' });
         }
 
-        const resolvedType = process.env.DB_TYPE || 'postgres';
-        const adapter = getAdapter(resolvedType);
+        const adapter = resolveAdapter(targetDatabase as string);
         
         await adapter.connect({ targetDatabase });
 
@@ -313,8 +324,8 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
         }
 
         // --- Database Sync ---
-        const resolvedType = process.env.DB_TYPE || 'postgres';
-        const adapter = getAdapter(resolvedType);
+        const resolvedType = resolveAdapter(targetDatabase as string);
+        const adapter = resolvedType;
         
         let user = await adapter.findUserByEmail(oauthProfile.email, { targetDatabase });
         
@@ -373,8 +384,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Email is required.' });
         }
 
-        const resolvedType = process.env.DB_TYPE || 'postgres';
-        const adapter = getAdapter(resolvedType);
+        const adapter = resolveAdapter(targetDatabase as string);
         
         await adapter.connect({ targetDatabase });
 
@@ -452,8 +462,7 @@ export const resetPassword = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Invalid token purpose.' });
         }
 
-        const resolvedType = process.env.DB_TYPE || 'postgres';
-        const adapter = getAdapter(resolvedType);
+        const adapter = resolveAdapter(targetDatabase as string);
         
         await adapter.connect({ targetDatabase });
 
@@ -482,8 +491,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Email and OTP are required.' });
         }
 
-        const resolvedType = process.env.DB_TYPE || 'postgres';
-        const adapter = getAdapter(resolvedType);
+        const adapter = resolveAdapter(targetDatabase as string);
         
         await adapter.connect({ targetDatabase });
 
@@ -529,8 +537,7 @@ export const resendOtp = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Email is required.' });
         }
 
-        const resolvedType = process.env.DB_TYPE || 'postgres';
-        const adapter = getAdapter(resolvedType);
+        const adapter = resolveAdapter(targetDatabase as string);
         
         await adapter.connect({ targetDatabase });
 
@@ -591,8 +598,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
         console.log(`[Auth] Verifying email for: ${decoded.email} (ID: ${decoded.id})`);
 
-        const resolvedType = process.env.DB_TYPE || 'postgres';
-        const adapter = getAdapter(resolvedType);
+        const adapter = resolveAdapter(targetDatabase as string);
         
         await adapter.connect({ targetDatabase });
 
@@ -629,8 +635,7 @@ export const getMe = async (req: Request, res: Response) => {
         }
 
         const { targetDatabase } = req.query;
-        const resolvedType = process.env.DB_TYPE || 'postgres';
-        const adapter = getAdapter(resolvedType);
+        const adapter = resolveAdapter(targetDatabase as string);
         
         await adapter.connect({ targetDatabase: targetDatabase as string });
 
