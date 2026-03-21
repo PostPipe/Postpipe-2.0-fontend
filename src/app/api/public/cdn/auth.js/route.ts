@@ -283,6 +283,7 @@ export async function GET(req: Request) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         email,
+                        targetDatabase: this.config.targetDatabase,
                         redirectUrl: this.config.redirectUrl,
                         envFrontendUrlAlias: this.config.envFrontendUrlAlias,
                         projectAlias: this.config.projectAlias
