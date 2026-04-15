@@ -17,6 +17,7 @@ The PostPipe architecture consists of three main components:
 1.  **PostPipe SaaS (The Lab)**: The central orchestration layer and dashboard. It manages forms and connectors but **never sees your database credentials**.
 2.  **The Connector**: A self-hosted, lightweight Node.js secure agent that lives next to your database (on your laptop, server, or cloud VPC). It connects outbound to PostPipe SaaS using a secure ID and Secret.
 3.  **The Browser**: The client-side interface that initiates requests.
+    final
 
 ### The Zero Trust Flow
 
