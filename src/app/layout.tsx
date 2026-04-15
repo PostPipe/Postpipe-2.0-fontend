@@ -7,6 +7,9 @@ import { SmoothScroller } from '@/components/layout/smooth-scroller';
 import { Header2 } from '@/components/ui/header-2';
 import { AnimatedFooter } from '@/components/layout/animated-footer';
 
+// 1. WE ADDED THE RBAC IMPORT HERE
+import { RBACProvider } from '@/lib/rbac';
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.postpipe.in'),
   title: {
@@ -41,7 +44,7 @@ export const metadata: Metadata = {
     siteName: 'PostPipe',
     images: [
       {
-        url: '/og-image.png', // Ensure you have an og-image.png in public folder or use a placeholder
+        url: '/og-image.png',
         width: 1200,
         height: 630,
         alt: 'PostPipe Platform Preview',
@@ -55,7 +58,7 @@ export const metadata: Metadata = {
     title: 'PostPipe - Default Backend for Modern Web',
     description:
       'Scale your Next.js apps with PostPipe. Visual builder, secure auth, and instant backend connectors.',
-    creator: '@sourodip_1', // Update if there is an official handle
+    creator: '@sourodip_1',
     images: ['/og-image.png'],
   },
   icons: {
@@ -85,7 +88,7 @@ export const metadata: Metadata = {
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5, // Allow zooming for accessibility
+  maximumScale: 5,
   userScalable: true,
 };
 
@@ -94,6 +97,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  
+  // 2. WE CREATED A MOCK USER TO TEST THE ROLES
+  const mockUser = { id: "test-user-1", role: "ADMIN" as any };
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -111,12 +118,17 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <Header2 />
-            <SmoothScroller>
-              <main className="flex-1">{children}</main>
-              <AnimatedFooter />
-            </SmoothScroller>
-            <Toaster />
+            
+            {/* 3. WE WRAPPED THE APP WITH RBACProvider */}
+            <RBACProvider config={{}} currentUser={mockUser}>
+              <Header2 />
+              <SmoothScroller>
+                <main className="flex-1">{children}</main>
+                <AnimatedFooter />
+              </SmoothScroller>
+              <Toaster />
+            </RBACProvider>
+
           </AuthProvider>
         </ThemeProvider>
       </body>
