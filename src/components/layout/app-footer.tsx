@@ -109,7 +109,7 @@ export function AppFooter() {
                                 </a>
 
                                 <a
-                                    href="https://github.com/Sourodip-1/Postpipe-2.0-fontend"
+                                    href="https://github.com/PostPipe/Postpipe-2.0-fontend"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="group flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
