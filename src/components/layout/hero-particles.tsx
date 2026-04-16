@@ -36,7 +36,7 @@ export function HeroParticles() {
           />
         </div>
         <div className="flex flex-col sm:flex-row gap-4 items-center mt-4 w-full sm:w-auto">
-          <div 
+          <div
             onClick={() => {
               const element = document.getElementById('choose-path');
               if (element) {
@@ -44,12 +44,12 @@ export function HeroParticles() {
               } else {
                 router.push(isAuthenticated ? "/dashboard" : "/login");
               }
-            }} 
+            }}
             className="cursor-pointer w-full sm:w-auto"
           >
             <AnimatedButton className="w-full sm:w-auto">Get Started</AnimatedButton>
           </div>
-          <Link href="https://github.com/Sourodip-1/Postpipe-2.0-fontend" target="_blank" className="w-full sm:w-auto">
+          <Link href="https://github.com/PostPipe/Postpipe-2.0-fontend" target="_blank" className="w-full sm:w-auto">
             <button className="btn-31 h-[56px] w-full sm:w-auto px-8 flex items-center justify-center bg-zinc-950 border border-zinc-800 text-white font-black uppercase tracking-wider gap-2 cursor-pointer shadow-lg relative overflow-hidden transition-all duration-300">
               <span className="text-wrapper">Star This repo</span>
             </button>
