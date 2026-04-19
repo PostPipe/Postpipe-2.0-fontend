@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, Code, Save, GripVertical, Clipboard, Check, AlertCircle, Settings, Layers, Send, Lock, Sparkles, Database, Shield, RotateCcw } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Code, Save, GripVertical, Clipboard, Check, AlertCircle, Settings, Layers, Send, Lock, Sparkles, Database, Shield, RotateCcw, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,13 +17,17 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { FIELD_TYPES, getGroupedFieldTypes } from "@/config/field-types";
+import { ReferenceFieldConfig } from "@/components/ui/reference-input";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import Loader from "@/components/ui/loader";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
 import { toast } from "@/hooks/use-toast";
 import { createFormAction, getConnectorsAction, updateFormAction } from "@/app/actions/builder";
+import { getFormsAction } from "@/app/actions/dashboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { inferCollectionFromFieldName } from "@/lib/reference-utils";
+import { generateSnippets } from "@/lib/snippet-generator";
 
 import {
     DndContext,
@@ -49,7 +53,15 @@ type FormField = {
     type: string; // keyof typeof FIELD_TYPES
     required: boolean;
     options?: string;
+    isRelationalSource?: boolean;
+    reference?: {
+        collection: string;
+        displayField?: string;
+    };
 };
+
+/** The set of field types that trigger the reference config panel */
+const REFERENCE_TYPES = new Set(["reference"]);
 
 type NewFormClientProps = {
     onBack?: () => void;
@@ -57,7 +69,13 @@ type NewFormClientProps = {
 };
 
 // Sortable Item Component
-function SortableField({ field, updateField, removeField, isNew }: { field: FormField; updateField: (id: string, key: keyof FormField, value: any) => void; removeField: (id: string) => void; isNew?: boolean; }) {
+function SortableField({ field, updateField, removeField, isNew, availableCollections }: {
+    field: FormField;
+    updateField: (id: string, key: keyof FormField, value: any) => void;
+    removeField: (id: string) => void;
+    isNew?: boolean;
+    availableCollections?: { id: string; name: string; fields?: { name: string; type: string }[] }[];
+}) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id });
     const [typeSearch, setTypeSearch] = useState("");
 
@@ -79,12 +97,38 @@ function SortableField({ field, updateField, removeField, isNew }: { field: Form
         return result;
     }, [typeSearch]);
 
+    const isReferenceType = REFERENCE_TYPES.has(field.type);
+
+    // When switching TO a reference type, auto-suggest a collection from the label
+    const handleTypeChange = (val: string) => {
+        updateField(field.id, "type", val);
+        setTypeSearch("");
+        if (REFERENCE_TYPES.has(val) && !field.reference?.collection) {
+            const suggested = inferCollectionFromFieldName(field.label);
+            updateField(field.id, "reference", {
+                collection: suggested,
+                displayField: "name",
+            });
+        }
+        // Clear reference when switching away from reference type
+        if (!REFERENCE_TYPES.has(val) && field.reference) {
+            updateField(field.id, "reference", undefined);
+        }
+    };
+
     return (
         <div id={`field-card-${field.id}`} ref={setNodeRef} style={style} className="relative mt-2">
-            <div className={`relative group rounded-xl border bg-black/40 backdrop-blur-md shadow-sm transition-all duration-300 ${isDragging ? "opacity-50 scale-[0.98] ring-2 ring-primary/50" :
+            <div className={`relative group rounded-xl border bg-black/40 backdrop-blur-md shadow-sm transition-all duration-300 ${
+                isDragging ? "opacity-50 scale-[0.98] ring-2 ring-primary/50" :
                 isNew ? "border-emerald-500/50 ring-2 ring-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.2)]" :
-                    "hover:border-primary/30 border-white/5"
-                }`}>
+                isReferenceType ? "border-violet-500/30 hover:border-violet-400/50" :
+                "hover:border-primary/30 border-white/5"
+            }`}>
+                {/* Subtle violet glow on reference fields */}
+                {isReferenceType && !isDragging && (
+                    <div className="absolute inset-0 rounded-xl bg-violet-500/5 pointer-events-none" />
+                )}
+
                 <div className="p-4 flex gap-3 items-start relative z-10">
                     <div className="mt-2 text-neutral-500 cursor-grab active:cursor-grabbing hover:text-white transition-colors" {...attributes} {...listeners}>
                         <GripVertical className="h-4 w-4" />
@@ -97,9 +141,18 @@ function SortableField({ field, updateField, removeField, isNew }: { field: Form
                                 <Input value={field.label} onChange={e => updateField(field.id, "label", e.target.value)} className="h-8 text-xs bg-white/5 border-white/10 text-white" />
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-[10px] text-neutral-400 uppercase tracking-wider">Type</Label>
-                                <Select value={field.type} onValueChange={val => { updateField(field.id, "type", val); setTypeSearch(""); }}>
-                                    <SelectTrigger className="h-8 text-xs bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+                                <Label className="text-[10px] text-neutral-400 uppercase tracking-wider">
+                                    Type
+                                    {isReferenceType && (
+                                        <span className="ml-1.5 text-[8px] text-violet-400 bg-violet-500/15 border border-violet-500/25 px-1.5 py-0.5 rounded-full uppercase tracking-widest">
+                                            relational
+                                        </span>
+                                    )}
+                                </Label>
+                                <Select value={field.type} onValueChange={handleTypeChange}>
+                                    <SelectTrigger className={`h-8 text-xs border-white/10 text-white ${
+                                        isReferenceType ? "bg-violet-500/10 border-violet-500/30" : "bg-white/5"
+                                    }`}><SelectValue /></SelectTrigger>
                                     <SelectContent className="max-h-[340px] p-0">
                                         {/* Search input */}
                                         <div className="sticky top-0 z-20 bg-[#09090D] border-b border-white/5 px-2 py-1.5">
@@ -118,10 +171,15 @@ function SortableField({ field, updateField, removeField, isNew }: { field: Form
                                             ) : (
                                                 Object.entries(filteredGroups).map(([category, ftypes]) => (
                                                     <SelectGroup key={category}>
-                                                        <SelectLabel className="text-xs font-semibold text-indigo-300 bg-black/40 px-2 py-1 uppercase tracking-wider sticky top-0 z-10">{category}</SelectLabel>
+                                                        <SelectLabel className={`text-xs font-semibold bg-black/40 px-2 py-1 uppercase tracking-wider sticky top-0 z-10 ${
+                                                            category === 'Reference' ? 'text-violet-300' : 'text-indigo-300'
+                                                        }`}>{category}</SelectLabel>
                                                         {ftypes.map(f => (
                                                             <SelectItem key={f.value} value={f.value} className="pl-6 text-xs hover:bg-white/5 cursor-pointer">
                                                                 {f.label}
+                                                                {REFERENCE_TYPES.has(f.value) && (
+                                                                    <span className="ml-2 text-[9px] text-violet-400">🔗</span>
+                                                                )}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectGroup>
@@ -132,20 +190,51 @@ function SortableField({ field, updateField, removeField, isNew }: { field: Form
                                 </Select>
                             </div>
                         </div>
+
+                        {/* Enum Options */}
                         {field.type === 'enum' && (
                             <div className="pt-2">
                                 <Label className="text-[10px] text-neutral-400 uppercase tracking-wider">Options (Comma-separated)</Label>
                                 <Input value={field.options || ""} onChange={e => updateField(field.id, "options", e.target.value)} placeholder="e.g. user, admin, guest" className="h-8 text-xs bg-white/5 border-white/10 text-white mt-1" />
                             </div>
                         )}
-                        <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1">
-                            <div className="flex items-center space-x-2">
-                                <Switch id={`req-${field.id}`} checked={field.required} onCheckedChange={checked => updateField(field.id, "required", checked)} className="scale-75 origin-left" />
-                                <Label htmlFor={`req-${field.id}`} className="text-xs text-neutral-300 font-normal">Required field</Label>
+
+                        {/* ── Reference Configuration Panel ── */}
+                        {isReferenceType && (
+                            <div className="pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                <ReferenceFieldConfig
+                                    value={field.reference}
+                                    onChange={(ref) => updateField(field.id, "reference", ref)}
+                                    collections={availableCollections || []}
+                                    compact={false}
+                                />
                             </div>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100" onClick={() => removeField(field.id)}>
-                                <Trash2 className="h-3 w-3" />
-                            </Button>
+                        )}
+
+                        <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1">
+                            <div className="flex items-center space-x-6">
+                                <div className="flex items-center space-x-2">
+                                    <Switch id={`req-${field.id}`} checked={field.required} onCheckedChange={checked => updateField(field.id, "required", checked)} className="scale-75 origin-left" />
+                                    <Label htmlFor={`req-${field.id}`} className="text-xs text-neutral-300 font-normal">Required</Label>
+                                </div>
+                                {!isReferenceType && (
+                                    <div className="flex items-center space-x-2">
+                                        <Switch id={`rel-${field.id}`} checked={field.isRelationalSource || false} onCheckedChange={checked => updateField(field.id, "isRelationalSource", checked)} className="scale-75 origin-left" />
+                                        <Label htmlFor={`rel-${field.id}`} className="text-xs text-emerald-300 font-normal">Make Relational Field</Label>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {isReferenceType && field.reference?.collection && (
+                                    <span className="text-[9px] text-violet-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Link2 className="w-2.5 h-2.5" />
+                                        → {field.reference.collection}
+                                    </span>
+                                )}
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100" onClick={() => removeField(field.id)}>
+                                    <Trash2 className="h-3 w-3" />
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -175,7 +264,15 @@ export default function NewFormClient({ onBack, initialData }: NewFormClientProp
     const [isSaving, setIsSaving] = useState(false);
 
     const initialFields = initialData?.fields
-        ? initialData.fields.map((f: any, i: number) => ({ id: i.toString(), label: f.name, type: f.type, required: f.required }))
+        ? initialData.fields.map((f: any, i: number) => ({
+            id: i.toString(),
+            label: f.name,
+            type: f.type,
+            required: f.required,
+            options: f.options,
+            isRelationalSource: f.isRelationalSource,
+            reference: f.reference, // preserve existing reference configs
+        }))
         : [
             { id: "1", label: "Full Name", type: "text", required: true },
             { id: "2", label: "Email Address", type: "email", required: true },
@@ -223,7 +320,21 @@ export default function NewFormClient({ onBack, initialData }: NewFormClientProp
     const [hashedFields, setHashedFields] = useState<string[]>(initialData?.routing?.transformations?.hash || []);
 
     const [connectors, setConnectors] = useState<any[]>([]);
-    useEffect(() => { getConnectorsAction().then(data => setConnectors(data)); }, []);
+    const [availableForms, setAvailableForms] = useState<any[]>([]);
+
+    useEffect(() => {
+        getConnectorsAction().then(data => setConnectors(data));
+        // Load existing forms as available collections for reference fields
+        getFormsAction().then((forms: any[]) => {
+            setAvailableForms(forms.map((f: any) => ({
+                id: f.id,
+                name: f.name,
+                fields: (f.fields || []).map((ff: any) => ({ name: ff.name, type: ff.type, isRelationalSource: ff.isRelationalSource })),
+            })));
+        }).catch(() => {
+            // Non-critical — silently fail if forms can't be loaded
+        });
+    }, []);
 
     const selectedConnectorData = connectors.find((c: any) => c.id === connector);
     const availableDatabases = selectedConnectorData?.databases ? Object.keys(selectedConnectorData.databases) : [];
@@ -251,7 +362,15 @@ export default function NewFormClient({ onBack, initialData }: NewFormClientProp
         formData.append('name', formName);
         formData.append('connectorId', connector);
         if (targetDb) formData.append('targetDatabase', targetDb);
-        const simplifiedFields = fields.map(f => ({ name: f.label, type: f.type, required: f.required, options: f.options }));
+        const simplifiedFields = fields.map(f => ({
+            name: f.label,
+            type: f.type,
+            required: f.required,
+            options: f.options,
+            isRelationalSource: f.isRelationalSource,
+            // Include reference config so it's persisted to the DB
+            ...(f.reference?.collection ? { reference: f.reference } : {}),
+        }));
         formData.append('fields', JSON.stringify(simplifiedFields));
         formData.append('routing', JSON.stringify({ broadcast: broadcastTargets, splits: splits.filter(s => s.target && s.fields.length > 0), transformations: { mask: maskedFields, hash: hashedFields } }));
 
@@ -292,213 +411,19 @@ export default function NewFormClient({ onBack, initialData }: NewFormClientProp
         toast({ description: "Form workspace has been reset." });
     };
 
-    const embedUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/api/public/submit/${generatedId || 'YOUR_FORM_ID'}`;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+    const embedUrl = `${appUrl}/api/public/submit/${generatedId || 'YOUR_FORM_ID'}`;
 
     const hasImageFields = fields.some(f => f.type === 'image' || f.type === 'image_array');
     const connectorUrl = connectors.find((c: any) => c.id === connector)?.url || 'http://localhost:3002';
 
-    const renderEmbedField = (f: FormField) => {
-        const conf = FIELD_TYPES[f.type] || FIELD_TYPES.text;
-
-        if (conf.category === 'Media' && (f.type === 'image' || f.type === 'image_array')) {
-            const isMultiple = f.type === 'image_array';
-            return `  <div class="field-group">
-    <label>${f.label}${f.required ? ' *' : ''}</label>
-    <input type="file" name="${f.label}" accept="image/*" ${isMultiple ? 'multiple ' : ''}${f.required ? 'required' : ''} />
-    <${isMultiple ? 'div' : 'img'} id="preview-${f.label}" style="display:${isMultiple ? 'flex' : 'none'};${isMultiple ? 'gap:8px;flex-wrap:wrap;' : 'max-width:200px;'}margin-top:8px;${isMultiple ? '' : 'border-radius:6px;'}"${isMultiple ? '' : ' alt="preview"'}></${isMultiple ? 'div' : 'img'}>
-  </div>`;
-        }
-        if (conf.category === 'Boolean') {
-            return `  <div class="field-group" style="display:flex;align-items:center;gap:8px;">
-    <input type="checkbox" name="${f.label}" id="${f.label}" ${f.required ? 'required' : ''} />
-    <label for="${f.label}">${f.label}${f.required ? ' *' : ''}</label>
-  </div>`;
-        }
-        if (conf.category === 'Selection' && f.type === 'enum') {
-            const options = (f.options || "").split(',').map(o => o.trim()).filter(Boolean);
-            return `  <div class="field-group">
-    <label>${f.label}${f.required ? ' *' : ''}</label>
-    <select name="${f.label}" ${f.required ? 'required' : ''}>
-      <option value="">Select an option</option>
-${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
-    </select>
-  </div>`;
-        }
-
-        const isTextarea = conf.component === 'TextareaInput' || conf.component === 'JsonEditor';
-        let inputType = 'text';
-        if (f.type === 'email') inputType = 'email';
-        else if (conf.category === 'Numeric') inputType = 'number';
-        else if (conf.category === 'Temporal') inputType = 'datetime-local';
-
-        let step = '';
-        if (f.type === 'number') step = ' step="1"';
-        if (f.type === 'decimal') step = ' step="any"';
-
-        const placeholder = f.type === 'uuid' ? ' placeholder="UUID"' : (f.type === 'foreign_key' || f.type === 'fk' ? ' placeholder="Reference ID"' : '');
-
-        return `  <div class="field-group">
-    <label>${f.label}${f.required ? ' *' : ''}${f.type === 'list' || f.type === 'array' ? ' (comma-separated)' : ''}</label>
-    <${isTextarea ? 'textarea' : `input type="${inputType}"${step}${placeholder}`} name="${f.label}" ${f.required ? 'required' : ''}></${isTextarea ? 'textarea' : 'input'}>
-  </div>`;
-    };
-
-    const imageUploadScript = hasImageFields ? `
-<script>
-  document.getElementById('pp-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    var btn = document.getElementById('pp-submit-btn');
-    btn.disabled = true; btn.textContent = 'Uploading...';
-    var data = {}; var errors = [];
-    var uploads = Array.from(this.querySelectorAll('input,textarea,select')).map(async function(input) {
-      if (!input.name) return;
-      if (input.type === 'file' && input.files && input.files.length > 0) {
-        try {
-          var uploadedUrls = [];
-          for (var i = 0; i < input.files.length; i++) {
-            var fileInfo = input.files[i];
-            var compressed = fileInfo;
-            if (fileInfo.type.startsWith('image/')) {
-              compressed = await new Promise(function(resolve) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                  var img = new Image();
-                  img.onload = function() {
-                    var canvas = document.createElement('canvas');
-                    var w = img.width, h = img.height, max = 1000;
-                    if (w > max) { h = Math.round((h * max) / w); w = max; }
-                    canvas.width = w; canvas.height = h;
-                    var ctx = canvas.getContext('2d');
-                    if (!ctx) return resolve(fileInfo);
-                    ctx.drawImage(img, 0, 0, w, h);
-                    canvas.toBlob(function(b) {
-                      if (b) resolve(new File([b], fileInfo.name, {type: 'image/jpeg'}));
-                      else resolve(fileInfo);
-                    }, 'image/jpeg', 0.8);
-                  };
-                  img.onerror = function() { resolve(fileInfo); };
-                  img.src = e.target.result;
-                };
-                reader.onerror = function() { resolve(fileInfo); };
-                reader.readAsDataURL(fileInfo);
-              });
-            }
-            var fd = new FormData(); fd.append('file', compressed);
-            var r = await fetch('${connectorUrl}/postpipe/upload', { method: 'POST', body: fd });
-            var d = await r.json();
-            if (!r.ok || !d.url) throw new Error(d.error || 'Upload failed');
-            uploadedUrls.push(d.url);
-          }
-          if (input.multiple) {
-            data[input.name] = uploadedUrls;
-          } else {
-            data[input.name] = uploadedUrls[0];
-          }
-        } catch(e) { errors.push(input.name + ': ' + e.message); }
-      } else if (input.type !== 'submit') { data[input.name] = input.value; }
-    });
-    await Promise.all(uploads);
-    if (errors.length) { alert('Upload failed:\\n' + errors.join('\\n')); btn.disabled=false; btn.textContent='Submit Form'; return; }
-    btn.textContent = 'Submitting...';
-    try {
-      var res = await fetch('${embedUrl}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
-      if (res.ok) { btn.textContent='✓ Submitted!'; document.getElementById('pp-form').reset(); document.querySelectorAll('[id^="preview-"]').forEach(function(el){if(el.tagName.toLowerCase()==='img'){el.src='';el.style.display='none';}else{el.innerHTML='';}}); }
-      else { var err=await res.json(); alert('Submission failed: '+(err.error||res.statusText)); btn.disabled=false; btn.textContent='Submit Form'; }
-    } catch(e) { alert('Network error: '+e.message); btn.disabled=false; btn.textContent='Submit Form'; }
-  });
-  document.querySelectorAll('input[type="file"]').forEach(function(input) {
-    input.addEventListener('change', function() {
-      var p = document.getElementById('preview-'+input.name);
-      if (p && input.files && input.files.length > 0) {
-        if (p.tagName.toLowerCase() === 'img') {
-          p.src = URL.createObjectURL(input.files[0]); p.style.display = 'block';
-        } else {
-          p.innerHTML = '';
-          for (var i = 0; i < input.files.length; i++) {
-            var img = document.createElement('img');
-            img.src = URL.createObjectURL(input.files[i]);
-            img.style.maxWidth = '100px';
-            img.style.borderRadius = '6px';
-            p.appendChild(img);
-          }
-        }
-      }
-    });
-  });
-</script>` : '';
-
-    const embedCodeHTML = `<!-- Postpipe Cosmic Embed -->
-<form ${hasImageFields ? 'id="pp-form"' : `action="${embedUrl}" method="POST"`} class="postpipe-form"${hasImageFields ? ` id="pp-form"` : ''}>
-${fields.map(renderEmbedField).join('\n')}
-  <button type="submit" ${hasImageFields ? 'id="pp-submit-btn" ' : ''}class="submit-btn">Submit Form</button>
-</form>${imageUploadScript}`;
-
-    const embedCodeReact = `import { useState } from 'react';
-
-export default function MyPostpipeForm() {
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    const formData = new FormData(e.target);
-    
-    try {
-      await fetch('${embedUrl}', {
-        method: 'POST',
-        body: formData
-      });
-      alert('Success!');
-    } catch(err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-${fields.map(f => {
-        const conf = FIELD_TYPES[f.type] || FIELD_TYPES.text;
-        if (conf.category === 'Boolean') {
-            return `      <div className="flex items-center gap-2">
-        <input type="checkbox" name="${f.label}" id="${f.label}" ${f.required ? 'required' : ''} />
-        <label htmlFor="${f.label}">${f.label}</label>
-      </div>`;
-        }
-        if (conf.category === 'Selection' && f.type === 'enum') {
-            const opts = (f.options || "").split(',').map(o => o.trim()).filter(Boolean);
-            return `      <div>
-        <label>${f.label}</label>
-        <select name="${f.label}" ${f.required ? 'required' : ''} className="border p-2 w-full rounded">
-          <option value="">Select...</option>
-${opts.map(o => `          <option value="${o}">${o}</option>`).join('\n')}
-        </select>
-      </div>`;
-        }
-        const isTa = conf.component === 'TextareaInput' || conf.component === 'JsonEditor';
-        let inputType = 'text';
-        if (f.type === 'email') inputType = 'email';
-        else if (conf.category === 'Numeric') inputType = 'number';
-        else if (conf.category === 'Temporal') inputType = 'datetime-local';
-
-        let stepAttr = '';
-        if (f.type === 'number') stepAttr = ' step="1"';
-        if (f.type === 'decimal') stepAttr = ' step="any"';
-
-        const placeholderAttr = f.type === 'uuid' ? ' placeholder="UUID"' : (f.type === 'foreign_key' || f.type === 'fk' ? ' placeholder="Reference ID"' : '');
-
-        return `      <div>
-        <label>${f.label}</label>
-        <${isTa ? 'textarea' : 'input type="' + inputType + '"' + stepAttr + placeholderAttr} name="${f.label}" ${f.required ? 'required' : ''} className="border p-2 w-full rounded" />
-      </div>`;
-    }).join('\n')}
-      <button type="submit" disabled={loading} className="bg-blue-600 text-white p-2 rounded">
-        {loading ? 'Submitting...' : 'Submit'}
-      </button>
-    </form>
-  );
-}`;
+    const { html: embedCodeHTML, react: embedCodeReact } = generateSnippets(
+        generatedId || 'YOUR_FORM_ID',
+        formName,
+        fields,
+        appUrl,
+        connectorUrl
+    );
 
     // Professional Form Preview Render
     const renderLivePreview = () => (
@@ -538,8 +463,26 @@ ${opts.map(o => `          <option value="${o}">${o}</option>`).join('\n')}
                                     <select className="w-full bg-[#12121A] border border-white/5 rounded-xl px-4 py-3 text-sm text-white outline-none shadow-inner" disabled>
                                         <option>Select {(f.options || "").split(',')[0] || "option"}...</option>
                                     </select>
+                                ) : conf.category === "Reference" ? (
+                                    /* ── Reference field preview ── */
+                                    <div className="w-full bg-[#12121A] border border-violet-500/20 rounded-xl px-4 py-3 flex items-center gap-3 shadow-inner">
+                                        <Link2 className="w-4 h-4 text-violet-400 shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-neutral-400 truncate">
+                                                {f.reference?.collection
+                                                    ? <>→ <span className="text-violet-300 font-mono">{f.reference.collection}</span></>
+                                                    : <span className="text-neutral-600 italic">No collection selected</span>
+                                                }
+                                            </p>
+                                        </div>
+                                        {f.reference?.collection && (
+                                            <span className="text-[9px] text-violet-400 bg-violet-500/15 border border-violet-500/20 px-1.5 py-0.5 rounded-full uppercase tracking-widest shrink-0">
+                                                ref
+                                            </span>
+                                        )}
+                                    </div>
                                 ) : (
-                                    <input type={conf.category === "Numeric" ? "number" : f.type === "email" ? "email" : conf.category === "Temporal" ? "datetime-local" : "text"} step={f.type === "decimal" ? "any" : f.type === "number" ? "1" : undefined} className="w-full bg-[#12121A] border border-white/5 rounded-xl px-4 py-3 text-sm text-white placeholder:text-neutral-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all outline-none shadow-inner" placeholder={conf.category === "Structured" ? "item1, item2, item3" : f.type === "uuid" ? "UUID" : conf.category === "Relational" ? "Reference ID" : `Enter ${f.label.toLowerCase()}...`} disabled />
+                                    <input type={conf.category === "Numeric" ? "number" : f.type === "email" ? "email" : conf.category === "Temporal" ? "datetime-local" : "text"} step={f.type === "decimal" ? "any" : f.type === "number" ? "1" : undefined} className="w-full bg-[#12121A] border border-white/5 rounded-xl px-4 py-3 text-sm text-white placeholder:text-neutral-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all outline-none shadow-inner" placeholder={conf.category === "Structured" ? "item1, item2, item3" : `Enter ${f.label.toLowerCase()}...`} disabled />
                                 )}
                             </div>
                         )
@@ -713,7 +656,14 @@ CLOUDINARY_URL=cloudinary://...`}
                                             <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                                 <div className="space-y-1">
                                                     {fields.map((field) => (
-                                                        <SortableField key={field.id} field={field} updateField={updateField} removeField={removeField} isNew={field.id === newFieldId} />
+                                                        <SortableField
+                                                            key={field.id}
+                                                            field={field}
+                                                            updateField={updateField}
+                                                            removeField={removeField}
+                                                            isNew={field.id === newFieldId}
+                                                            availableCollections={availableForms}
+                                                        />
                                                     ))}
                                                     {fields.length === 0 && (
                                                         <div className="text-center py-12 border border-dashed border-white/10 rounded-xl bg-white/5">

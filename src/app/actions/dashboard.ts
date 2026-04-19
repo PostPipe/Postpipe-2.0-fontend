@@ -39,7 +39,18 @@ export async function getDashboardData() {
   // Enhance forms with data from the pre-fetched connectors
   const formsWithSecrets = forms.map(f => {
     const connector = connectorMap.get(f.connectorId);
-    if (!connector) return null;
+    
+    // If no connector, return form with placeholders
+    if (!connector) {
+      return {
+        ...f,
+        connectorUrl: '#',
+        connectorName: 'Missing Connector',
+        readToken: null,
+        publicSubmitUrl: `http://localhost:3000/api/public/submit/${f.id}`,
+        connectorGetterUrl: null
+      };
+    }
 
     // Generate Read Token
     const payload = {
@@ -66,7 +77,7 @@ export async function getDashboardData() {
     };
   });
 
-  const validForms = formsWithSecrets.filter(Boolean);
+  const validForms = formsWithSecrets;
 
   // Serialize forms
   const serializedForms = validForms.map((f: any) => ({
@@ -174,4 +185,23 @@ export async function deleteAuthPresetAction(id: string) {
   if (!session || !session.userId) throw new Error("Unauthorized");
   await deleteAuthPreset(session.userId, id);
   return { success: true };
+}
+
+/**
+ * Returns a lightweight list of the user's forms for use as
+ * reference-field collection options in the form builder.
+ */
+export async function getFormsAction() {
+  const session = await getSession();
+  if (!session || !session.userId) return [];
+
+  const forms = await getForms(session.userId);
+  return forms.map((f: any) => ({
+    id: f.id,
+    name: f.name,
+    fields: (f.fields || []).map((field: any) => ({
+      name: field.name,
+      type: field.type,
+    })),
+  }));
 }
