@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyPikoApiKey } from '@/lib/api-auth';
-import { createForm, getConnectors, getForms } from '@/lib/server-db';
+import { createForm, getConnectors, getForms, getForm, updateForm } from '@/lib/server-db';
 
 /**
  * @api {post} /api/piko/v1/forms Create a new form
@@ -105,13 +105,56 @@ export async function GET(req: NextRequest) {
     }
 }
 
+/**
+ * @api {patch} /api/piko/v1/forms Update an existing form
+ */
+export async function PATCH(req: NextRequest) {
+    const apiKey = req.headers.get('x-piko-api-key');
+    
+    if (!apiKey) {
+        return NextResponse.json({ error: 'Missing Piko API key' }, { status: 401 });
+    }
+
+    const userId = await verifyPikoApiKey(apiKey);
+    if (!userId) {
+        return NextResponse.json({ error: 'Invalid or unauthorized API key' }, { status: 403 });
+    }
+
+    try {
+        const body = await req.json();
+        const { id, ...updates } = body;
+
+        if (!id) {
+            return NextResponse.json({ error: 'Missing form ID' }, { status: 400 });
+        }
+
+        // Verify ownership
+        const existingForm = await getForm(id);
+        if (!existingForm || existingForm.userId !== userId) {
+            return NextResponse.json({ error: 'Form not found or unauthorized' }, { status: 404 });
+        }
+
+        await updateForm(id, updates);
+
+        return NextResponse.json({
+            success: true,
+            message: 'Form updated successfully',
+            id
+        });
+
+    } catch (e: any) {
+        console.error('Piko Form Update Error:', e);
+        return NextResponse.json({ error: 'Failed to update form', details: e.message }, { status: 500 });
+    }
+}
+
 // Enable CORS for Piko AI
 export async function OPTIONS() {
     return new NextResponse(null, {
         status: 204,
         headers: {
             'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type, x-piko-api-key',
         },
     });
