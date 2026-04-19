@@ -69,6 +69,11 @@ export default function DashboardShell({
             href: "/dashboard/database",
             icon: <Database className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
         },
+        {
+            label: "API & Piko AI",
+            href: "/dashboard/api",
+            icon: <Terminal className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+        },
     ];
 
     const bottomLinks = [

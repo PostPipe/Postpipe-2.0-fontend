@@ -52,6 +52,11 @@ export function DashboardSidebar({ className }: SidebarProps) {
             icon: Key,
         },
         {
+            title: "API & Piko AI",
+            href: "/dashboard/api",
+            icon: Terminal,
+        },
+        {
             title: "Settings",
             href: "/dashboard/settings",
             icon: Settings,
