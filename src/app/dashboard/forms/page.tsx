@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { Metadata } from 'next';
-import FormsClient from '@/components/dashboard/forms-client';
+import FormsClient from '@/components/dashboard/forms/forms-client';
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 
 export const metadata: Metadata = {
