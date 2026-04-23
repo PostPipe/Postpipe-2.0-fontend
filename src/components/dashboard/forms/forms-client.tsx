@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { Input } from "@/components/ui/input";
-import AuthPresetGenerator from "./auth-preset-generator";
+import AuthPresetGenerator from "../auth-preset-generator";
 import { Badge } from "@/components/ui/badge";
 import {
     DropdownMenu,
@@ -46,6 +46,12 @@ import IsoLevelWarp from "@/components/ui/isometric-wave-grid-background";
 import { FormSearchBar } from "@/components/ui/animated-search-bar";
 import { motion, AnimatePresence } from "framer-motion";
 
+// ── RBAC IMPORT ──────────────────────────────────────────────────────────────
+import RBACPresetCard from "@/components/rbac/RBACPresetCard";
+import { DEFAULT_RBAC_CONFIG } from "@/lib/rbac/permissions";
+import type { RBACConfig } from "@/lib/rbac/types";
+// ─────────────────────────────────────────────────────────────────────────────
+
 type Form = {
     id: string;
     name: string;
@@ -73,16 +79,19 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
     const [expandedFormId, setExpandedFormId] = React.useState<string | null>(null);
     const [copiedId, setCopiedId] = React.useState<string | null>(null);
     const [searchExpanded, setSearchExpanded] = React.useState(false);
-    const pendingDeletions = React.useRef<Record<string, any>>({});
 
+    // ── RBAC state ────────────────────────────────────────────────────────────
+    const [rbacConfig, setRbacConfig] = React.useState<RBACConfig>(DEFAULT_RBAC_CONFIG);
+    const [rbacSaved, setRbacSaved] = React.useState(false);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const pendingDeletions = React.useRef<Record<string, any>>({});
 
     const searchParams = useSearchParams();
 
     React.useEffect(() => {
         const tab = searchParams.get('tab');
         if (tab === 'presets') {
-            // Since we're using Radix/Shadcn Tabs, we might need to control the state if we want to programmatically switch.
-            // But if we just want to open the 'isCreatingPreset' dialog if an action is specified:
             const action = searchParams.get('action');
             if (action === 'new-preset') {
                 setIsCreatingPreset(true);
@@ -118,10 +127,9 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
     });
 
     const [forms, setForms] = React.useState<Form[]>(mapForms(initialForms));
-    React.useEffect(() => { 
+    React.useEffect(() => {
         const mapped = mapForms(initialForms);
-        // Ensure pending deletions don't reappear if initialForms updates from server
-        setForms(mapped.filter(f => !pendingDeletions.current[f.id])); 
+        setForms(mapped.filter(f => !pendingDeletions.current[f.id]));
     }, [initialForms]);
 
     const toggleStatus = async (id: string, e?: React.MouseEvent) => {
@@ -154,11 +162,10 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
 
     const deleteForm = async (id: string, e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
-        
+
         const formToDelete = forms.find(f => f.id === id);
         if (!formToDelete) return;
 
-        // Optimistically remove from state
         setForms(prev => prev.filter(f => f.id !== id));
         setExpandedFormId(null);
 
@@ -168,13 +175,11 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
                 delete pendingDeletions.current[id];
                 router.refresh();
             } catch {
-                // Restore if failed
                 setForms(prev => [...prev, formToDelete]);
                 toast({ title: "Error", description: "Failed to delete endpoint", variant: "destructive" });
             }
         };
 
-        // Delay the actual server action by 5 seconds
         const timeoutId = setTimeout(performDelete, 5000);
         pendingDeletions.current[id] = timeoutId;
 
@@ -182,8 +187,8 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
             title: "Endpoint Deleted",
             description: `"${formToDelete.name}" has been removed.`,
             action: (
-                <ToastAction 
-                    altText="Undo deletion" 
+                <ToastAction
+                    altText="Undo deletion"
                     onClick={() => {
                         if (pendingDeletions.current[id]) {
                             clearTimeout(pendingDeletions.current[id]);
@@ -243,6 +248,25 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
         copyToClipboard(html, "HTML embed copied!");
     };
 
+    // ── RBAC save handler ─────────────────────────────────────────────────────
+    const handleRbacChange = (cfg: RBACConfig) => {
+        setRbacConfig(cfg);
+        setRbacSaved(false);
+    };
+
+    const handleRbacSave = async () => {
+        try {
+            // TODO: replace with your real server action, e.g. saveRbacConfigAction(rbacConfig)
+            // await saveRbacConfigAction(rbacConfig);
+            console.log("Saving RBAC config:", rbacConfig);
+            setRbacSaved(true);
+            toast({ title: "RBAC config saved", description: `${rbacConfig.roles.length} roles · default: ${rbacConfig.defaultRole}` });
+        } catch {
+            toast({ title: "Failed to save RBAC config", variant: "destructive" });
+        }
+    };
+    // ─────────────────────────────────────────────────────────────────────────
+
     const filteredForms = forms
         .filter(f => {
             if (statusFilter !== 'all' && f.status.toLowerCase() !== statusFilter) return false;
@@ -263,18 +287,16 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
 
                 {/* ══ HEADER ══ */}
                 <div className="relative rounded-xl overflow-hidden mb-2 bg-neutral-100/80 dark:bg-transparent border border-neutral-200 dark:border-white/5">
-                    {/* Animated canvas background */}
                     <IsoLevelWarp
                         color="100, 80, 255"
                         speed={0.8}
                         density={45}
                         className="!bg-transparent"
                     />
-                    {/* Soft overlay */}
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-neutral-100/20 to-neutral-100/80 dark:from-black/20 dark:via-black/30 dark:to-black/60 pointer-events-none z-10" />
 
                     <div className="relative z-20 flex flex-col gap-6 px-8 py-8 border-b border-black/10 dark:border-white/5">
-                        {/* Top row: pill + button */}
+                        {/* Top row */}
                         <div className="flex items-center justify-between flex-wrap gap-3">
                             <div className="flex items-center gap-2 rounded-full border border-black/15 dark:border-white/20 bg-white/60 dark:bg-black/30 backdrop-blur-md px-4 py-1.5 text-xs font-semibold text-neutral-700 dark:text-white/70">
                                 <span className="relative flex h-1.5 w-1.5">
@@ -321,7 +343,7 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
                 </div>
 
                 {/* ══ TABS ══ */}
-                <Tabs defaultValue={searchParams.get('tab') === 'presets' ? 'presets' : 'endpoints'} className="w-full">
+                <Tabs defaultValue={searchParams.get('tab') === 'presets' ? 'presets' : searchParams.get('tab') === 'rbac' ? 'rbac' : 'endpoints'} className="w-full">
                     <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
                         <TabsList className="bg-muted dark:bg-white/[0.06] rounded-lg h-10 p-1 gap-1">
                             <TabsTrigger value="endpoints" className="rounded-lg text-xs font-semibold data-[state=active]:bg-background dark:data-[state=active]:bg-white/10 data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm text-muted-foreground px-4 h-8 transition-all">
@@ -329,6 +351,9 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
                             </TabsTrigger>
                             <TabsTrigger value="presets" className="rounded-lg text-xs font-semibold data-[state=active]:bg-background dark:data-[state=active]:bg-white/10 data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm text-muted-foreground px-4 h-8 transition-all">
                                 <Shield className="mr-2 h-3.5 w-3.5" /> Auth Presets
+                            </TabsTrigger>
+                            <TabsTrigger value="rbac" className="rounded-lg text-xs font-semibold data-[state=active]:bg-background dark:data-[state=active]:bg-white/10 data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm text-muted-foreground px-4 h-8 transition-all">
+                                <Settings2 className="mr-2 h-3.5 w-3.5" /> Role Based Auth
                             </TabsTrigger>
                         </TabsList>
                     </div>
@@ -601,13 +626,10 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
                                                             preset.providers?.google && '"google"',
                                                             preset.providers?.github && '"github"',
                                                         ].filter(Boolean).join(', ');
-                                                        const snip = `<!-- Place this where you want the Postpipe Auth UI to render -->
-<div id="postpipe-auth"></div>
+                                                        const snip = `<div id="postpipe-auth"></div>
 
-<!-- Include the Postpipe Auth CDN script -->
 <script src="${origin}/api/public/cdn/auth.js?projectId=${preset.projectId || ''}"></script>
 
-<!-- Initialize Postpipe Auth -->
 <script>
     PostpipeAuth.init({
         apiUrl: "${preset.apiUrl || ''}",
@@ -655,9 +677,82 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
                             </div>
                         )}
                     </TabsContent>
-                </Tabs>
-            </div >
 
-        </div >
+                    {/* ══ RBAC TAB ══════════════════════════════════════════════════════════ */}
+                    <TabsContent value="rbac" className="mt-0">
+                        <div className="space-y-5">
+                            {/* Tab header row */}
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-lg font-bold text-neutral-800 dark:text-white/80">Role-Based Access Control</h2>
+                                    <p className="text-sm text-neutral-500 dark:text-white/30 mt-0.5">
+                                        Define roles and permissions for your project. Changes are applied across all protected routes.
+                                    </p>
+                                </div>
+
+                                {/* Save button — only shows when there are unsaved changes */}
+                                {!rbacSaved && (
+                                    <Button
+                                        onClick={handleRbacSave}
+                                        className="h-9 rounded-lg px-5 text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-all"
+                                    >
+                                        <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Save Config
+                                    </Button>
+                                )}
+                                {rbacSaved && (
+                                    <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                        <CheckCircle2 className="h-3.5 w-3.5" /> Saved
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Status banner when RBAC is enabled */}
+                            {rbacConfig.enabled && (
+                                <div className="flex items-center gap-3 rounded-lg border border-emerald-200 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3">
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                                    </span>
+                                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                        RBAC is <strong>active</strong> — routes and UI elements are being guarded by role permissions.
+                                        Default role for new users: <code className="font-mono bg-emerald-100 dark:bg-emerald-500/20 px-1.5 py-0.5 rounded">{rbacConfig.defaultRole}</code>
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* The actual RBAC preset card */}
+                            <RBACPresetCard
+                                value={rbacConfig}
+                                onChange={handleRbacChange}
+                            />
+
+                            {/* Info box */}
+                            <div className="rounded-lg border border-neutral-200 dark:border-white/[0.06] bg-neutral-50 dark:bg-white/[0.02] px-5 py-4 space-y-3">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-neutral-400 dark:text-white/30">How it works</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    {[
+                                        { icon: Shield, title: "Define roles", desc: "Owner, Admin, Editor, Viewer — or add your own custom roles." },
+                                        { icon: Settings2, title: "Set permissions", desc: "Each role gets fine-grained read / write / delete / manage permissions per resource." },
+                                        { icon: Zap, title: "Auto-enforced", desc: "Middleware and <Can> guards protect routes and UI elements automatically." },
+                                    ].map(({ icon: Icon, title, desc }) => (
+                                        <div key={title} className="flex gap-3">
+                                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 dark:border-white/10 bg-white dark:bg-white/[0.04]">
+                                                <Icon className="h-4 w-4 text-violet-500 dark:text-violet-400" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-semibold text-neutral-700 dark:text-white/70">{title}</p>
+                                                <p className="text-xs text-neutral-400 dark:text-white/30 mt-0.5 leading-relaxed">{desc}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </TabsContent>
+                    {/* ══ END RBAC TAB ══════════════════════════════════════════════════════ */}
+
+                </Tabs>
+            </div>
+        </div>
     );
 }

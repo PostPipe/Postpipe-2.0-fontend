@@ -15,7 +15,7 @@ export function middleware(request: NextRequest) {
   const isAuthenticated = request.cookies.has(AUTH_COOKIE_NAME);
 
   // 2. Get the user's role for RBAC
-  const userRole = request.cookies.get('postpipe_role')?.value || 'VIEWER';
+  const userRole = (request.cookies.get('postpipe_role')?.value || 'viewer').toLowerCase();
 
   const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
 
@@ -42,7 +42,7 @@ export function middleware(request: NextRequest) {
   // 4. NEW: RBAC Authorization Check
   const isAdminRoute = ADMIN_ROUTES.some(route => pathname.startsWith(route));
   
-  if (isAdminRoute && userRole !== 'ADMIN' && userRole !== 'OWNER') {
+ if (isAdminRoute && userRole !== 'admin' && userRole !== 'owner') {
     return NextResponse.redirect(new URL('/dashboard?error=unauthorized', request.url));
   }
 

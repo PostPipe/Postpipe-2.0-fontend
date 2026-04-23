@@ -8,7 +8,7 @@ import { Header2 } from '@/components/ui/header-2';
 import { AnimatedFooter } from '@/components/layout/animated-footer';
 
 // 1. WE ADDED THE RBAC IMPORT HERE
-import { RBACProvider } from '@/lib/rbac';
+import { RBACProvider, DEFAULT_RBAC_CONFIG } from '@/lib/rbac';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.postpipe.in'),
@@ -99,7 +99,7 @@ export default function RootLayout({
 }>) {
   
   // 2. WE CREATED A MOCK USER TO TEST THE ROLES
-  const mockUser = { id: "test-user-1", role: "ADMIN" as any };
+const mockUser = { id: "test-user-1", email: "test@postpipe.in", role: "admin" };
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -120,7 +120,7 @@ export default function RootLayout({
           <AuthProvider>
             
             {/* 3. WE WRAPPED THE APP WITH RBACProvider */}
-            <RBACProvider config={{}} currentUser={mockUser}>
+            <RBACProvider config={DEFAULT_RBAC_CONFIG} currentUser={mockUser}>
               <Header2 />
               <SmoothScroller>
                 <main className="flex-1">{children}</main>
