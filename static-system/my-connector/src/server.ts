@@ -67,7 +67,7 @@ const PORT = process.env.PORT || 3002;
 const VAR_PREFIX = process.env.POSTPIPE_VAR_PREFIX || "";
 
 const CONNECTOR_ID = getPrefixedEnv('POSTPIPE_CONNECTOR_ID');
-const CONNECTOR_SECRET = getPrefixedEnv('JWT_SECRET') || getPrefixedEnv('POSTPIPE_CONNECTOR_SECRET');
+const CONNECTOR_SECRET = getPrefixedEnv('POSTPIPE_CONNECTOR_SECRET') || getPrefixedEnv('JWT_SECRET');
 
 if (!CONNECTOR_ID || !CONNECTOR_SECRET) {
     console.error("❌ CRITICAL ERROR: POSTPIPE_CONNECTOR_ID or POSTPIPE_CONNECTOR_SECRET is missing.");
@@ -249,6 +249,16 @@ app.post('/postpipe/ingest', async (req: Request, res: Response) => {
 
         // 3. Verify Signature
         // We check `x-postpipe-signature` header.
+        const maskedSecret = (CONNECTOR_SECRET as string).substring(0, 8) + "..." + (CONNECTOR_SECRET as string).slice(-4);
+        console.log(`[Debug] Verifying Signature. Secret: ${maskedSecret}`);
+        console.log(`[Debug] Received Signature: ${signature}`);
+        
+        const expectedSignature = nodeCrypto
+            .createHmac('sha256', CONNECTOR_SECRET as string)
+            .update(rawBody)
+            .digest('hex');
+        console.log(`[Debug] Expected Signature: ${expectedSignature}`);
+
         const isValid = verifySignature(rawBody, signature, CONNECTOR_SECRET as string);
         if (!isValid) {
             console.warn(`[Security] Invalid Signature from IP: ${req.ip}`);

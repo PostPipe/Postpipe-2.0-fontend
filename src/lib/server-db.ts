@@ -444,6 +444,19 @@ export async function deleteForm(id: string): Promise<void> {
   );
 }
 
+export async function getSubmissions(formId: string): Promise<Submission[]> {
+  const db = await getDB();
+  const res = await db.collection<UserFormsDocument>('user_forms').findOne(
+    { forms: { $elemMatch: { id: formId } } },
+    { projection: { "forms.$": 1 } }
+  );
+
+  if (res && res.forms && res.forms.length > 0) {
+    return res.forms[0].submissions || [];
+  }
+  return [];
+}
+
 
 // --- Systems (User Backend Systems) ---
 export async function createSystem(name: string, type: string, templateId?: string, userId?: string): Promise<System> {
