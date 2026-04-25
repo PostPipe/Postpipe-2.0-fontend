@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getForm } from '../../../../../lib/server-db';
+import { ensureFullUrl } from '../../../../../lib/utils';
 
 // For simplicity, we only support a fixed set of field types in this test form.
 const FORM_FIELD_TYPES = [
@@ -15,6 +16,7 @@ const FORM_FIELD_TYPES = [
     'textarea',
     'datetime',
     'enum',
+    'reference'
 ];
 
 export async function GET(
@@ -42,7 +44,99 @@ export async function GET(
         required: boolean;
         label?: string;
         options?: string;
+        reference?: {
+            collection: string;
+            displayField?: string;
+        };
     }[] = form?.fields || [];
+
+    // Pre-fetch relational data for reference fields
+    const relationalData: Record<string, string[]> = {};
+    const { getSubmissions } = await import('../../../../../lib/server-db');
+
+    for (const f of fields) {
+        const isRelational = f.type === 'reference' || f.type === 'relational' || !!f.reference;
+        
+        if (isRelational && f.reference?.collection) {
+            try {
+                // 1. Get the target form config
+                const targetForm = await getForm(f.reference.collection);
+                if (!targetForm) {
+                    console.warn(`[TestConsole] Target form ${f.reference.collection} not found`);
+                    continue;
+                }
+
+                // 2. Get the connector for the target form
+                const { getConnector, getUserDatabaseConfig } = await import('../../../../../lib/server-db');
+                const connector = await getConnector(targetForm.connectorId);
+                if (!connector) {
+                    console.warn(`[TestConsole] Connector ${targetForm.connectorId} not found`);
+                    continue;
+                }
+
+                // 3. Resolve Database Config (matching submissions/route.ts logic)
+                const targetDb = targetForm.targetDatabase || "default";
+                let databaseConfig = null;
+                
+                if (targetForm.userId) {
+                    const userConfig = await getUserDatabaseConfig(targetForm.userId);
+                    if (userConfig?.databases?.[targetDb]) {
+                        const config = userConfig.databases[targetDb];
+                        databaseConfig = { uri: config.uri, dbName: config.dbName, type: config.type || 'mongodb' };
+                    }
+                }
+                
+                if (!databaseConfig && connector.databases?.[targetDb]) {
+                    const config = connector.databases[targetDb];
+                    databaseConfig = { uri: config.uri, dbName: config.dbName, type: config.type || 'mongodb' };
+                }
+
+                // 4. Fetch from Connector
+                const connectorUrl = ensureFullUrl(connector.url);
+                const queryUrl = new URL(`${connectorUrl}/postpipe/data`);
+                queryUrl.searchParams.set('formId', targetForm.id);
+                queryUrl.searchParams.set('targetDatabase', targetDb);
+                if (databaseConfig) {
+                    queryUrl.searchParams.set('databaseConfig', JSON.stringify(databaseConfig));
+                }
+                queryUrl.searchParams.set('limit', '100');
+
+                console.log(`[TestConsole] Fetching relational data from ${queryUrl.toString()}`);
+
+                const res = await fetch(queryUrl.toString(), {
+                    headers: {
+                        'Authorization': `Bearer ${connector.secret}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Connector responded with ${res.status}`);
+                }
+
+                const json = await res.json();
+                const targetSubmissions = json.data || [];
+                const displayField = f.reference.displayField || 'Name';
+                
+                const values = targetSubmissions
+                    .map((s: any) => {
+                        // Data might be in s.data (Postpipe format) or flattened (Adapter format)
+                        const val = s.data?.[displayField] || s[displayField];
+                        return val;
+                    })
+                    .filter((v: any) => v !== undefined && v !== null && v !== '')
+                    .map((v: any) => String(v));
+                
+                const uniqueValues = Array.from(new Set(values)) as string[];
+                relationalData[f.name] = uniqueValues;
+                
+                console.log(`[TestConsole] Successfully fetched ${uniqueValues.length} values for ${f.name}`);
+            } catch (err) {
+                console.error(`[TestConsole] Error fetching relational data for ${f.name}:`, err);
+                relationalData[f.name] = [];
+            }
+        }
+    }
 
     const fieldInputs = fields
         .map((f) => {
@@ -71,6 +165,18 @@ export async function GET(
                 <label for="${f.name}">${label}${f.required ? ' <span class="req">*</span>' : ''}</label>
                 <input id="${f.name}" type="datetime-local" name="${f.name}" ${f.required ? 'required' : ''} />
             </div>`;
+            }
+            if (f.type === 'reference' || f.type === 'relational' || !!f.reference) {
+                const options = relationalData[f.name] || [];
+                return `
+                <div class="field">
+                    <label for="${f.name}">${label}${f.required ? ' <span class="req">*</span>' : ''}</label>
+                    <select id="${f.name}" name="${f.name}" class="select-placeholder" ${f.required ? 'required' : ''}>
+                        <option value="" disabled selected>Select ${label}...</option>
+                        ${options.map((opt: string) => `<option value="${opt}">${opt}</option>`).join('\n')}
+                        ${options.length === 0 ? '<option disabled>No data found in source</option>' : ''}
+                    </select>
+                </div>`;
             }
             if (type === 'enum') {
                 const options =
