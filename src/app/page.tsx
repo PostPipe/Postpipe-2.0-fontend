@@ -189,9 +189,11 @@ export default function Home() {
                   { id: 1, name: 'Sourodip-1', src: 'https://github.com/Sourodip-1.png', href: 'https://github.com/Sourodip-1', size: 120 },
                   { id: 2, name: 'yo-soyam', src: 'https://github.com/yo-soyam.png', href: 'https://github.com/yo-soyam', size: 110 },
                   { id: 3, name: 'souvikvos', src: 'https://github.com/souvikvos.png', href: 'https://github.com/souvikvos', size: 110 },
+                  { id: 4, name: 'ghosthouse7', src: 'https://github.com/ghosthouse7.png', href: 'https://github.com/ghosthouse7', size: 110 },
+                  { id: 5, name: 'PINaKey', src: 'https://github.com/PINaKey.png', href: 'https://github.com/PINaKey', size: 110 },
                 ]}
-                stageSize={400}
-                imageSize={70}
+                stageSize={480}
+                imageSize={80}
                 className="mx-0"
               />
             </div>
