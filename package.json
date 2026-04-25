@@ -9,7 +9,11 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:start": "docker compose up -d",
+    "db:stop": "docker compose down",
+    "db:seed-connectors": "npx tsx scripts/seed-connectors.ts",
+    "db:seed-user": "npx tsx scripts/seed-user.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
