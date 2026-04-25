@@ -18,6 +18,8 @@ const contactEmails = [
     { label: "Founder", email: "founder@postpipe.in" },
     { label: "Souvik", email: "souvik.dev@postpipe.in" },
     { label: "Soyam", email: "soyam.dev@postpipe.in" },
+    { label: "Pinaki", email: "cant-reveal@postpipe.in" },
+    { label: "Ayana", email: "To-Be-Decided@postpipe.in" },
 ];
 
 export function AppFooter() {
@@ -133,7 +135,7 @@ export function AppFooter() {
                         © {new Date().getFullYear()} Postpipe. Built with ❤️ in India.
                     </p>
                     <p className="text-xs text-muted-foreground/40">
-                        Made by Sourodip, Souvik &amp; Soyam
+                        Made by Sourodip, Pinaki, Ayana, Souvik &amp; Soyam
                     </p>
                 </div>
 
