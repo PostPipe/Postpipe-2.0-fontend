@@ -38,12 +38,7 @@ export function HeroParticles() {
         <div className="flex flex-col sm:flex-row gap-4 items-center mt-4 w-full sm:w-auto">
           <div
             onClick={() => {
-              const element = document.getElementById('choose-path');
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth' });
-              } else {
-                router.push(isAuthenticated ? "/dashboard" : "/login");
-              }
+              router.push(isAuthenticated ? "/dashboard" : "/login");
             }}
             className="cursor-pointer w-full sm:w-auto"
           >
