@@ -17,7 +17,13 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from '@/components/ui/sheet';
-import { Menu } from 'lucide-react';
+import { Menu, HelpCircle } from 'lucide-react';
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export function Header2() {
 	const scrolled = useScroll(10);
@@ -58,12 +64,42 @@ export function Header2() {
 					))}
 					<div className="flex items-center gap-3 ml-2 border-l pl-4 border-border/50">
 						<AuthButton />
+						{pathname === '/dashboard' && (
+							<TooltipProvider>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											onClick={() => document.dispatchEvent(new CustomEvent('replay-tour'))}
+											className="h-9 w-9 text-muted-foreground hover:text-foreground hover:!bg-transparent group"
+										>
+											<HelpCircle className="h-5 w-5 transition-all duration-300 group-hover:text-primary group-hover:drop-shadow-[0_0_8px_hsl(var(--primary))]" />
+											<span className="sr-only">Replay Tour</span>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>
+										<p>Replay Tour</p>
+									</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
+						)}
 						<ThemeToggle />
 					</div>
 				</div>
 
-				{/* Mobile Menu */}
 				<div className="flex items-center gap-2 md:hidden">
+					{pathname === '/dashboard' && (
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => document.dispatchEvent(new CustomEvent('replay-tour'))}
+							className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground hover:!bg-transparent group"
+							title="Replay Tour"
+						>
+							<HelpCircle className="h-5 w-5 transition-all duration-300 group-hover:text-primary group-hover:drop-shadow-[0_0_8px_hsl(var(--primary))]" />
+						</Button>
+					)}
 					<ThemeToggle />
 					<Sheet open={isOpen} onOpenChange={setIsOpen}>
 						<SheetTrigger asChild>
