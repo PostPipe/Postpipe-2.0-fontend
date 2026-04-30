@@ -257,6 +257,7 @@ export function ExploreSidebar({ open, setOpen }: ExploreSidebarProps) {
                                             src={user?.image || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YXZhdGFyfGVufDB8fDB8fHww&auto=format&fit=crop&w=800&q=60"}
                                             className="object-cover"
                                             fill
+                                            sizes="28px"
                                             alt={user?.name || "Avatar"}
                                         />
                                     </div>
@@ -296,8 +297,8 @@ export const Logo = () => {
             className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20"
         >
             <div className="relative h-8 w-40">
-                <Image src="/PostPipe-Black.svg" alt="PostPipe" fill className="dark:hidden object-contain object-left" />
-                <Image src="/PostPipe.svg" alt="PostPipe" fill className="hidden dark:block object-contain object-left" />
+                <Image src="/PostPipe-Black.svg" alt="PostPipe" fill sizes="160px" className="dark:hidden object-contain object-left" />
+                <Image src="/PostPipe.svg" alt="PostPipe" fill sizes="160px" className="hidden dark:block object-contain object-left" />
             </div>
         </Link>
     );
@@ -318,7 +319,7 @@ export const LogoIcon = () => {
                  Actually, looking at Header2 code, it uses the full SVG. 
                  Let's use the favicon or similar if possible. root layout uses /PostPipe.ico. 
                  */}
-                <Image src="/PostPipe.ico" alt="PostPipe" fill className="object-contain" />
+                <Image src="/PostPipe.ico" alt="PostPipe" fill sizes="24px" className="object-contain" />
             </div>
         </Link>
     );
