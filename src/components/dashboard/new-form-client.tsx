@@ -774,7 +774,7 @@ export default function NewFormClient({
                                     >
                                         <option>
                                             Select{' '}
-                                            {(f.options || '').split(',')[0] ||
+                                            {String(f.options || '').split(',')[0] ||
                                                 'option'}
                                             ...
                                         </option>
