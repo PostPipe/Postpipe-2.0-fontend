@@ -238,7 +238,7 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                 );
             }
             if (type === 'enum' && col.options) {
-                const options = col.options.split(',').map((o: string) => o.trim()).filter(Boolean);
+                const options = String(col.options).split(',').map((o: string) => o.trim()).filter(Boolean);
                 return (
                     <Select 
                         value={String(editData[fieldKey] ?? value ?? '')} 

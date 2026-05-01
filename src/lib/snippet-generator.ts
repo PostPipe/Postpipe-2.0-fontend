@@ -32,7 +32,7 @@ export function generateSnippets(formId: string, name: string, fields: FormField
   </div>`;
         }
         if (conf.category === 'Selection' && f.type === 'enum') {
-            const options = (f.options || "").split(',').map(o => o.trim()).filter(Boolean);
+            const options = String(f.options || "").split(',').map(o => o.trim()).filter(Boolean);
             return `  <div class="field-group">
     <label>${f.label}${f.required ? ' *' : ''}</label>
     <select name="${f.label}" ${f.required ? 'required' : ''}>
@@ -222,7 +222,7 @@ ${fields.map(f => {
       </div>`;
         }
         if (conf.category === 'Selection' && f.type === 'enum') {
-            const opts = (f.options || "").split(',').map(o => o.trim()).filter(Boolean);
+            const opts = String(f.options || "").split(',').map(o => o.trim()).filter(Boolean);
             return `      <div>
         <label>${f.label}</label>
         <select name="${f.label}" ${f.required ? 'required' : ''} className="border p-2 w-full rounded">

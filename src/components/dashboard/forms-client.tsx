@@ -111,7 +111,7 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
         }
         return {
             id: f.id, name: f.name,
-            connectorName: f.targetDatabase || f.connectorName || "Default Connector",
+            connectorName: (typeof f.targetDatabase === 'string' ? f.targetDatabase : (f.targetDatabase?.dbName || f.connectorName)) || "Default Connector",
             submissions: subCount, lastSubmission: lastSub,
             status: f.status || "Live", fields: f.fields || []
         };
@@ -582,7 +582,7 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
                                                         <code className="text-[10px] text-neutral-400 dark:text-white/[0.25] mt-1 font-mono block">ID: {preset.id?.slice(0, 16)}…</code>
                                                     </div>
                                                     <Badge className="text-[10px] bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-500/25 border rounded-lg px-2">
-                                                        {preset.targetDatabase || 'Default DB'}
+                                                        {typeof preset.targetDatabase === 'string' ? preset.targetDatabase : (preset.targetDatabase?.dbName || 'Default DB')}
                                                     </Badge>
                                                 </div>
                                                 <div className="flex flex-wrap gap-1.5">
@@ -613,7 +613,7 @@ export default function FormsClient({ initialForms = [], initialPresets = [] }: 
         apiUrl: "${preset.apiUrl || ''}",
         projectId: "${preset.projectId || ''}",
         providers: [${providers}],
-        redirectUrl: ${(!preset.redirectUrl || preset.redirectUrl === 'window.location.origin') ? 'window.location.origin' : `"${preset.redirectUrl}"`}${preset.targetDatabase && preset.targetDatabase !== 'default' ? `,\n        targetDatabase: "${preset.targetDatabase}"` : ''}
+        redirectUrl: ${(!preset.redirectUrl || preset.redirectUrl === 'window.location.origin') ? 'window.location.origin' : `"${preset.redirectUrl}"`}${preset.targetDatabase ? `,\n        targetDatabase: "${typeof preset.targetDatabase === 'string' ? preset.targetDatabase : (preset.targetDatabase.dbName || 'default')}"` : ''}
     });
 
     PostpipeAuth.on("success", (user) => {

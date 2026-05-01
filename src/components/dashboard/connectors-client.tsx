@@ -250,7 +250,7 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                         {connector.targetDatabase && (
                                             <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest border text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/25 bg-blue-50 dark:bg-blue-500/10">
                                                 <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                                                {connector.targetDatabase}
+                                                {typeof connector.targetDatabase === 'string' ? connector.targetDatabase : (connector.targetDatabase as any)?.dbName || 'default'}
                                             </span>
                                         )}
                                     </div>
