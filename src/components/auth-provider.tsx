@@ -30,6 +30,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const fetchUser = async () => {
+    // Skip the backend call if the user doesn't even have the auth cookie
+    if (typeof document !== 'undefined' && !document.cookie.includes(AUTH_COOKIE_NAME)) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/auth/me');
       if (res.ok) {
