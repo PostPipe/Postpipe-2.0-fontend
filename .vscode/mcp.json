@@ -1,0 +1,20 @@
+{
+  "servers": {
+    "chrome-devtools-puppeteer": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "env": {
+        "PUPPETEER_HEADLESS": "false" 
+      }
+    },
+    "custom-chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "tsx",
+        "<ABSOLUTE_PATH_TO_YOUR_WORKSPACE>/devtools-mcp-server.ts"
+      ]
+    }
+  }
+}
