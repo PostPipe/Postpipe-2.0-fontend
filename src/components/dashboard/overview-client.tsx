@@ -1,15 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
     Server, FileText, Key, Activity, Terminal, Zap,
     ArrowRight, Plus, Database, Globe, GitBranch, Clock,
-    TrendingUp, ChevronRight, ExternalLink
+    TrendingUp, ChevronRight, ExternalLink, HelpCircle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ParticleDashboardHeader } from "@/components/ui/particle-dashboard-header";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const Joyride = dynamic<any>(() => import("react-joyride").then((mod) => mod.Joyride as any), { ssr: false });
 
 interface OverviewClientProps {
     forms: any[];
@@ -18,6 +32,65 @@ interface OverviewClientProps {
 }
 
 export default function OverviewClient({ forms, connectors, systems = [] }: OverviewClientProps) {
+    const [runTour, setRunTour] = useState(false);
+    const [showIntentModal, setShowIntentModal] = useState(false);
+    const [tourKey, setTourKey] = useState(0);
+
+    useEffect(() => {
+        const hasSeenTour = localStorage.getItem("postpipe-tour-seen");
+        if (!hasSeenTour) {
+            setShowIntentModal(true);
+        }
+
+        const handleCustomReplay = () => handleReplayTour();
+        document.addEventListener('replay-tour', handleCustomReplay);
+        return () => document.removeEventListener('replay-tour', handleCustomReplay);
+    }, []);
+
+    const handleStartTour = () => {
+        setShowIntentModal(false);
+        setRunTour(true);
+        localStorage.setItem("postpipe-tour-seen", "true");
+    };
+
+    const handleSkipTour = () => {
+        setShowIntentModal(false);
+        localStorage.setItem("postpipe-tour-seen", "true");
+    };
+
+    const handleReplayTour = () => {
+        setTourKey(prev => prev + 1);
+        setRunTour(true);
+    };
+
+    const tourSteps = [
+        {
+            target: '#tour-welcome',
+            content: 'Welcome to your PostPipe Dashboard! Let us show you around.',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-connectors',
+            content: 'Connectors allow you to plug in any external database or data source securely.',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-systems',
+            content: 'Backend Systems are full-featured deployments you can generate from templates.',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-forms',
+            content: 'Static Forms let you easily collect data without writing a backend.',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-quick-actions',
+            content: 'Use Quick Actions to bootstrap new projects, connect data, or get CLI commands instantly.',
+            disableBeacon: true,
+        }
+    ];
+
     const copyCliCommand = () => {
         navigator.clipboard.writeText("npx create-postpipe-app@latest");
         toast({
@@ -42,6 +115,7 @@ export default function OverviewClient({ forms, connectors, systems = [] }: Over
             glow: "shadow-violet-500/10",
             href: "/dashboard/systems",
             trend: "+2 this week",
+            id: "tour-systems",
         },
         {
             label: "Static Forms",
@@ -54,6 +128,7 @@ export default function OverviewClient({ forms, connectors, systems = [] }: Over
             glow: "shadow-blue-500/10",
             href: "/dashboard/forms",
             trend: `${forms.filter((f: any) => f.status === "Live").length} live`,
+            id: "tour-forms",
         },
         {
             label: "Connectors",
@@ -66,6 +141,7 @@ export default function OverviewClient({ forms, connectors, systems = [] }: Over
             glow: "shadow-emerald-500/10",
             href: "/dashboard/connectors",
             trend: "All healthy",
+            id: "tour-connectors",
         },
         {
             label: "Requests",
@@ -78,6 +154,7 @@ export default function OverviewClient({ forms, connectors, systems = [] }: Over
             glow: "shadow-amber-500/10",
             href: "#",
             trend: "Coming soon",
+            id: "tour-requests",
         },
     ];
 
@@ -127,15 +204,19 @@ export default function OverviewClient({ forms, connectors, systems = [] }: Over
 
     return (
         <div className="flex flex-col gap-10">
-            <ParticleDashboardHeader
-                title="Overview"
-                subtitle="Welcome back! Here's what's happening with your infrastructure."
-            />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div id="tour-welcome" className="flex-1">
+                    <ParticleDashboardHeader
+                        title="Overview"
+                        subtitle="Welcome back! Here's what's happening with your infrastructure."
+                    />
+                </div>
+            </div>
 
             {/* ── Stat Cards ── */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {stats.map((s) => (
-                    <Link key={s.label} href={s.href} className="group">
+                    <Link key={s.label} href={s.href} className="group" id={s.id}>
                         <div className={cn(
                             "relative rounded-xl border p-5 flex flex-col gap-4",
                             "bg-card transition-all duration-200",
@@ -176,7 +257,7 @@ export default function OverviewClient({ forms, connectors, systems = [] }: Over
 
             {/* ── Quick Actions ── */}
             <div>
-                <div className="flex items-center gap-2 mb-5">
+                <div id="tour-quick-actions" className="flex items-center gap-2 mb-5 w-fit">
                     <div className="h-5 w-1 rounded-full bg-primary/50" />
                     <h2 className="text-base font-bold tracking-tight">Quick Actions</h2>
                 </div>
@@ -279,6 +360,93 @@ export default function OverviewClient({ forms, connectors, systems = [] }: Over
                     )}
                 </div>
             </div>
+
+            <Joyride
+                key={tourKey}
+                steps={tourSteps}
+                run={runTour}
+                continuous
+                showProgress
+                showSkipButton
+                disableOverlay={true}
+                locale={{ last: 'Finish' }}
+                styles={{
+                    options: {
+                        primaryColor: 'hsl(var(--primary))',
+                        textColor: 'hsl(var(--foreground))',
+                        backgroundColor: 'hsl(var(--card))',
+                        arrowColor: 'hsl(var(--card))',
+                        zIndex: 100,
+                    },
+                    tooltip: {
+                        borderRadius: '0.75rem',
+                        border: '1px solid hsl(var(--border))',
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                        fontFamily: 'inherit',
+                        padding: '1.25rem',
+                    },
+                    tooltipContainer: {
+                        textAlign: 'left',
+                    },
+                    tooltipContent: {
+                        padding: '0.5rem 0 1rem 0',
+                        fontSize: '0.875rem',
+                        lineHeight: '1.5',
+                    },
+                    buttonNext: {
+                        backgroundColor: 'hsl(var(--primary))',
+                        color: 'hsl(var(--primary-foreground))',
+                        borderRadius: '0.375rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        padding: '0.5rem 1rem',
+                        outline: 'none',
+                    },
+                    buttonBack: {
+                        color: 'hsl(var(--muted-foreground))',
+                        marginRight: '0.5rem',
+                        fontSize: '0.875rem',
+                        outline: 'none',
+                    },
+                    buttonSkip: {
+                        color: 'hsl(var(--muted-foreground))',
+                        fontSize: '0.875rem',
+                        outline: 'none',
+                    },
+                    beacon: {
+                        transform: 'scale(1.5)',
+                        marginTop: '-10px',
+                    },
+                    beaconInner: {
+                        backgroundColor: 'hsl(var(--primary))',
+                    },
+                    beaconOuter: {
+                        border: '2px solid hsl(var(--primary))',
+                        backgroundColor: 'hsla(var(--primary), 0.3)',
+                    }
+                }}
+                callback={(data: any) => {
+                    const { status } = data;
+                    if (['finished', 'skipped'].includes(status)) {
+                        setRunTour(false);
+                    }
+                }}
+            />
+
+            <AlertDialog open={showIntentModal} onOpenChange={setShowIntentModal}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Welcome to PostPipe!</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Would you like a quick interactive tour to understand how to manage connectors, databases, and forms?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={handleSkipTour}>Skip for now</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleStartTour}>Start Tour</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
