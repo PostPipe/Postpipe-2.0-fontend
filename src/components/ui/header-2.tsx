@@ -13,6 +13,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
 	Sheet,
 	SheetContent,
+	SheetDescription,
 	SheetHeader,
 	SheetTitle,
 	SheetTrigger,
@@ -52,8 +53,8 @@ export function Header2() {
 			>
 				<Link href="/" className="flex items-center gap-2">
 					<div className="relative h-8 w-40">
-						<Image src="/PostPipe-Black.svg" alt="PostPipe" fill className="dark:hidden object-contain object-left" />
-						<Image src="/PostPipe.svg" alt="PostPipe" fill className="hidden dark:block object-contain object-left" />
+						<Image src="/PostPipe-Black.svg" alt="PostPipe" fill sizes="160px" className="dark:hidden object-contain object-left" />
+						<Image src="/PostPipe.svg" alt="PostPipe" fill sizes="160px" className="hidden dark:block object-contain object-left" />
 					</div>
 				</Link>
 				<div className="hidden items-center gap-2 md:flex">
@@ -111,6 +112,9 @@ export function Header2() {
 						<SheetContent side="right">
 							<SheetHeader>
 								<SheetTitle className="text-left">Menu</SheetTitle>
+								<SheetDescription className="sr-only">
+									Navigation links for PostPipe.
+								</SheetDescription>
 							</SheetHeader>
 							<div className="flex flex-col gap-4 mt-8">
 								{links.map((link, i) => (

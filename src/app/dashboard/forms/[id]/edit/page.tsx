@@ -6,8 +6,12 @@ export const metadata = {
     title: 'Edit Form',
 };
 
-export default async function EditFormPage({ params }: { params: { id: string } }) {
-    const { id } = params;
+export default async function EditFormPage({
+    params,
+}: {
+    params: Promise<{ id: string }>;
+}) {
+    const { id } = await params;
 
     // Fetch initial data
     const res = await getFormAction(id);
