@@ -24,25 +24,43 @@ async function seedConnectors() {
     const userId = user._id.toString();
     const connectorsCollection = coreDb.collection<any>('user_connectors');
     
-    console.log(`Found user ${userId}. Inserting a mock connector...`);
+    console.log(`Found user ${userId}. Inserting mock connectors...`);
     
-    const result = await connectorsCollection.updateOne(
+    await connectorsCollection.updateOne(
       { userId },
       {
         $push: {
           connectors: {
-            id: `conn_${Math.random().toString(36).substr(2, 9)}`,
-            secret: `sk_live_mock_${Math.random().toString(36).substr(2, 16)}`,
-            url: 'http://localhost:3000',
-            name: 'Local Dev App',
-            envPrefix: 'DEV'
+            $each: [
+              {
+                id: `conn_${Math.random().toString(36).substr(2, 9)}`,
+                secret: `sk_live_mock_${Math.random().toString(36).substr(2, 16)}`,
+                url: 'http://localhost:3000',
+                name: 'Local Dev App',
+                envPrefix: 'DEV'
+              },
+              {
+                id: `conn_${Math.random().toString(36).substr(2, 9)}`,
+                secret: `sk_live_mock_${Math.random().toString(36).substr(2, 16)}`,
+                url: 'https://api.postpipe.app',
+                name: 'Production App',
+                envPrefix: 'PROD'
+              },
+              {
+                id: `conn_${Math.random().toString(36).substr(2, 9)}`,
+                secret: `sk_live_mock_${Math.random().toString(36).substr(2, 16)}`,
+                url: 'https://staging.api.postpipe.app',
+                name: 'Staging Environment',
+                envPrefix: 'STAG'
+              }
+            ]
           }
         }
       } as any,
       { upsert: true }
     );
 
-    console.log(`✅ Mock connector successfully added to the dashboard for postpipe@admin.com!`);
+    console.log(`✅ Mock connectors successfully added to the dashboard for postpipe@admin.com!`);
 
   } catch (error) {
     console.error('❌ Error connecting or inserting data:', error);
