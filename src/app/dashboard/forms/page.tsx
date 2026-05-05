@@ -11,12 +11,12 @@ import { getDashboardData } from '@/app/actions/dashboard';
 import { getAuthPresetsAction } from '@/app/actions/builder';
 
 export default async function FormsPage() {
-  const { forms } = await getDashboardData();
+  const { forms, connectors } = await getDashboardData();
   const presets = await getAuthPresetsAction();
   
   return (
     <Suspense fallback={<DashboardSkeleton />}>
-      <FormsClient initialForms={forms} initialPresets={presets} />
+      <FormsClient initialForms={forms} initialPresets={presets} initialConnectors={connectors} />
     </Suspense>
   );
 }

@@ -1,9 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getForm } from '../../../../../lib/server-db';
+import { ensureFullUrl } from '../../../../../lib/utils';
+
+// For simplicity, we only support a fixed set of field types in this test form.
+const FORM_FIELD_TYPES = [
+    'text',
+    'email',
+    'url',
+    'number',
+    'tel',
+    'date',
+    'password',
+    'color',
+    'checkbox',
+    'textarea',
+    'datetime',
+    'enum',
+    'reference'
+];
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: Promise<{ formId: string }> }
+    { params }: { params: Promise<{ formId: string }> },
 ) {
     const { formId } = await params;
 
@@ -20,34 +38,167 @@ export async function GET(
     const submitUrl = `${req.nextUrl.origin}/api/public/submit/${formId}`;
     const showSuccess = req.nextUrl.searchParams.get('success') === 'true';
 
-    const fields: { name: string; type: string; required: boolean; label?: string }[] = form?.fields || [];
+    const fields: {
+        name: string;
+        type: string;
+        required: boolean;
+        label?: string;
+        options?: string;
+        reference?: {
+            collection: string;
+            displayField?: string;
+        };
+    }[] = form?.fields || [];
 
-    const fieldInputs = fields.map((f) => {
-        const label = f.label || f.name;
-        const type = ['text', 'email', 'url', 'number', 'tel', 'date', 'password', 'color', 'checkbox', 'textarea'].includes(f.type) ? f.type : 'text';
+    // Pre-fetch relational data for reference fields
+    const relationalData: Record<string, string[]> = {};
+    const { getSubmissions } = await import('../../../../../lib/server-db');
 
-        if (type === 'checkbox') {
-            return `
+    for (const f of fields) {
+        const isRelational = f.type === 'reference' || f.type === 'relational' || !!f.reference;
+        
+        if (isRelational && f.reference?.collection) {
+            try {
+                // 1. Get the target form config
+                const targetForm = await getForm(f.reference.collection);
+                if (!targetForm) {
+                    console.warn(`[TestConsole] Target form ${f.reference.collection} not found`);
+                    continue;
+                }
+
+                // 2. Get the connector for the target form
+                const { getConnector, getUserDatabaseConfig } = await import('../../../../../lib/server-db');
+                const connector = await getConnector(targetForm.connectorId);
+                if (!connector) {
+                    console.warn(`[TestConsole] Connector ${targetForm.connectorId} not found`);
+                    continue;
+                }
+
+                // 3. Resolve Database Config (matching submissions/route.ts logic)
+                const targetDb = targetForm.targetDatabase || "default";
+                let databaseConfig = null;
+                
+                if (targetForm.userId) {
+                    const userConfig = await getUserDatabaseConfig(targetForm.userId);
+                    if (userConfig?.databases?.[targetDb]) {
+                        const config = userConfig.databases[targetDb];
+                        databaseConfig = { uri: config.uri, dbName: config.dbName, type: config.type || 'mongodb' };
+                    }
+                }
+                
+                if (!databaseConfig && connector.databases?.[targetDb]) {
+                    const config = connector.databases[targetDb];
+                    databaseConfig = { uri: config.uri, dbName: config.dbName, type: config.type || 'mongodb' };
+                }
+
+                // 4. Fetch from Connector
+                const connectorUrl = ensureFullUrl(connector.url);
+                const queryUrl = new URL(`${connectorUrl}/postpipe/data`);
+                queryUrl.searchParams.set('formId', targetForm.id);
+                queryUrl.searchParams.set('targetDatabase', targetDb);
+                if (databaseConfig) {
+                    queryUrl.searchParams.set('databaseConfig', JSON.stringify(databaseConfig));
+                }
+                queryUrl.searchParams.set('limit', '100');
+
+                console.log(`[TestConsole] Fetching relational data from ${queryUrl.toString()}`);
+
+                const res = await fetch(queryUrl.toString(), {
+                    headers: {
+                        'Authorization': `Bearer ${connector.secret}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Connector responded with ${res.status}`);
+                }
+
+                const json = await res.json();
+                const targetSubmissions = json.data || [];
+                const displayField = f.reference.displayField || 'Name';
+                
+                const values = targetSubmissions
+                    .map((s: any) => {
+                        // Data might be in s.data (Postpipe format) or flattened (Adapter format)
+                        const val = s.data?.[displayField] || s[displayField];
+                        return val;
+                    })
+                    .filter((v: any) => v !== undefined && v !== null && v !== '')
+                    .map((v: any) => String(v));
+                
+                const uniqueValues = Array.from(new Set(values)) as string[];
+                relationalData[f.name] = uniqueValues;
+                
+                console.log(`[TestConsole] Successfully fetched ${uniqueValues.length} values for ${f.name}`);
+            } catch (err) {
+                console.error(`[TestConsole] Error fetching relational data for ${f.name}:`, err);
+                relationalData[f.name] = [];
+            }
+        }
+    }
+
+    const fieldInputs = fields
+        .map((f) => {
+            const label = f.label || f.name;
+            const type = FORM_FIELD_TYPES.includes(f.type) ? f.type : 'text';
+
+            if (type === 'checkbox') {
+                return `
             <div class="field">
                 <label class="checkbox-label">
                     <input type="checkbox" name="${f.name}" value="true" />
                     <span>${label}${f.required ? ' <span class="req">*</span>' : ''}</span>
                 </label>
             </div>`;
-        }
-        if (type === 'textarea') {
-            return `
+            }
+            if (type === 'textarea') {
+                return `
             <div class="field">
                 <label for="${f.name}">${label}${f.required ? ' <span class="req">*</span>' : ''}</label>
                 <textarea id="${f.name}" name="${f.name}" placeholder="Enter ${label}..." rows="3" ${f.required ? 'required' : ''}></textarea>
             </div>`;
-        }
-        return `
+            }
+            if (type === 'datetime') {
+                return `
+            <div class="field">
+                <label for="${f.name}">${label}${f.required ? ' <span class="req">*</span>' : ''}</label>
+                <input id="${f.name}" type="datetime-local" name="${f.name}" ${f.required ? 'required' : ''} />
+            </div>`;
+            }
+            if (f.type === 'reference' || f.type === 'relational' || !!f.reference) {
+                const options = relationalData[f.name] || [];
+                return `
+                <div class="field">
+                    <label for="${f.name}">${label}${f.required ? ' <span class="req">*</span>' : ''}</label>
+                    <select id="${f.name}" name="${f.name}" class="select-placeholder" ${f.required ? 'required' : ''}>
+                        <option value="" disabled selected>Select ${label}...</option>
+                        ${options.map((opt: string) => `<option value="${opt}">${opt}</option>`).join('\n')}
+                        ${options.length === 0 ? '<option disabled>No data found in source</option>' : ''}
+                    </select>
+                </div>`;
+            }
+            if (type === 'enum') {
+                const options =
+                    typeof f.options === 'string'
+                        ? f.options.split(',').map((s) => s.trim())
+                        : [];
+                return `
+                <div class="field">
+                    <label for="${f.name}">${label}${f.required ? ' <span class="req">*</span>' : ''}</label>
+                    <select id="${f.name}" name="${f.name}" class="select-placeholder" ${f.required ? 'required' : ''}>
+                        <option value="" disabled selected>Select ${label}...</option>
+                        ${options.map((opt: string) => `<option value="${opt}">${opt}</option>`).join('\n')}
+                    </select>
+                </div>`;
+            }
+            return `
         <div class="field">
             <label for="${f.name}">${label}${f.required ? ' <span class="req">*</span>' : ''}</label>
             <input id="${f.name}" type="${type}" name="${f.name}" placeholder="${type === 'email' ? 'you@example.com' : `Enter ${label}...`}" ${f.required ? 'required' : ''} />
         </div>`;
-    }).join('\n');
+        })
+        .join('\n');
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -208,7 +359,7 @@ export async function GET(
 
         input[type="text"], input[type="email"], input[type="url"],
         input[type="number"], input[type="tel"], input[type="date"],
-        input[type="password"], input[type="color"], textarea {
+        input[type="datetime-local"], input[type="password"], input[type="color"], textarea, select {
             width: 100%;
             background: var(--surface2);
             border: 1px solid var(--border2);
@@ -220,9 +371,57 @@ export async function GET(
             transition: border-color 0.2s, box-shadow 0.2s;
             font-family: inherit;
         }
-        input:focus, textarea:focus {
+        input:focus, textarea:focus, select:focus {
             border-color: rgba(124,58,237,0.5);
             box-shadow: 0 0 0 3px rgba(124,58,237,0.12);
+        }
+        input[type="datetime-local"]::placeholder,
+        input[type="date"]::placeholder,
+        input[type="text"]::placeholder,
+        input[type="email"]::placeholder,
+        input[type="url"]::placeholder,
+        input[type="number"]::placeholder,
+        input[type="tel"]::placeholder,
+        input[type="password"]::placeholder,
+        textarea::placeholder {
+            color: var(--muted);
+            opacity: 1;
+        }
+        input[type="datetime-local"]::-webkit-datetime-edit,
+        input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper,
+        input[type="datetime-local"]::-webkit-datetime-edit-text,
+        input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+        input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+        input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+        input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+        input[type="datetime-local"]::-webkit-datetime-edit-minute-field {
+            color: var(--muted);
+        }
+        input[type="datetime-local"].has-value::-webkit-datetime-edit,
+        input[type="datetime-local"].has-value::-webkit-datetime-edit-fields-wrapper,
+        input[type="datetime-local"].has-value::-webkit-datetime-edit-text,
+        input[type="datetime-local"].has-value::-webkit-datetime-edit-year-field,
+        input[type="datetime-local"].has-value::-webkit-datetime-edit-month-field,
+        input[type="datetime-local"].has-value::-webkit-datetime-edit-day-field,
+        input[type="datetime-local"].has-value::-webkit-datetime-edit-hour-field,
+        input[type="datetime-local"].has-value::-webkit-datetime-edit-minute-field {
+            color: var(--text);
+        }
+        select.select-placeholder,
+        select.select-placeholder option[disabled] {
+            color: var(--muted);
+        }
+        select.select-placeholder option:not([disabled]) {
+            color: var(--text);
+        }
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.38)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 20px;
         }
         textarea { resize: vertical; min-height: 80px; }
 
@@ -340,13 +539,16 @@ export async function GET(
     </div>
 
     <div class="card">
-        ${notFound ? `
+        ${
+            notFound
+                ? `
         <div class="not-found">
             <h1>404</h1>
             <h2>Form Not Found</h2>
             <p>No endpoint with ID <code>${formId}</code> was found.</p>
         </div>
-        ` : `
+        `
+                : `
         <div class="card-header">
             <div class="endpoint-badge">
                 <span class="method">POST</span>
@@ -363,32 +565,41 @@ export async function GET(
             </div>
         </div>
 
-        ${showSuccess ? `
+        ${
+            showSuccess
+                ? `
         <div class="banner banner-success" style="margin-top:20px;">
             <span class="banner-icon">✓</span>
             <div><strong>Submission successful!</strong> Your data was forwarded to the connector.</div>
-        </div>` : ''}
+        </div>`
+                : ''
+        }
 
         <div id="response-panel" class="response-panel">
             <div class="response-label">Response</div>
             <pre id="response-output"></pre>
         </div>
 
-        ${fields.length === 0 ? `
+        ${
+            fields.length === 0
+                ? `
         <div class="empty">
             <div class="empty-icon">📋</div>
             <h3>No fields configured</h3>
             <p>This endpoint has no declared fields. You can still POST raw JSON to it.</p>
         </div>
-        ` : `
+        `
+                : `
         <form id="test-form">
             ${fieldInputs}
             <button type="submit" class="submit-btn" id="submit-btn">
                 ▶ Submit to Endpoint
             </button>
         </form>
-        `}
-        `}
+        `
+        }
+        `
+        }
     </div>
 
     <div class="footer">
@@ -438,6 +649,50 @@ export async function GET(
             }, 3000);
         });
     }
+
+    // Handle select placeholder color
+    const selects = document.querySelectorAll('select.select-placeholder');
+    selects.forEach(select => {
+        const updateSelectColor = () => {
+            if (select.value === '') {
+                select.style.color = 'rgba(255, 255, 255, 0.38)'; // --muted
+            } else {
+                select.style.color = 'rgba(255, 255, 255, 0.90)'; // --text
+            }
+        };
+        select.addEventListener('change', updateSelectColor);
+        updateSelectColor(); // Initial call
+    });
+
+    // Handle datetime-local selected value color and close picker after selection
+    const datetimeInputs = document.querySelectorAll('input[type="datetime-local"]');
+    datetimeInputs.forEach(input => {
+        const updateDatetimeColor = () => {
+            if (input.value) {
+                input.classList.add('has-value');
+                input.style.color = 'rgba(255, 255, 255, 0.90)'; // --text
+            } else {
+                input.classList.remove('has-value');
+                input.style.color = 'rgba(255, 255, 255, 0.38)'; // --muted
+            }
+        };
+
+        const closeDatetimePicker = () => {
+            if (input.value) {
+                setTimeout(() => input.blur(), 50);
+            }
+        };
+
+        input.addEventListener('input', () => {
+            updateDatetimeColor();
+            closeDatetimePicker();
+        });
+        input.addEventListener('change', () => {
+            updateDatetimeColor();
+            closeDatetimePicker();
+        });
+        updateDatetimeColor();
+    });
 </script>
 </body>
 </html>`;

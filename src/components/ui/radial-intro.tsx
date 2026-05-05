@@ -110,7 +110,7 @@ export const RadialIntro = ({
         }, 1300);
 
         return () => stops.forEach((stop) => stop());
-    }, []);
+    }, [orbitItems, animate]);
 
     return (
         <LayoutGroup>
@@ -137,7 +137,7 @@ export const RadialIntro = ({
                                     style={{
                                         width: item.size || imageSize,
                                         height: item.size || imageSize,
-                                        opacity: i === 0 ? 1 : 0,
+                                        opacity: 1,
                                     }}
                                     src={item.src}
                                     alt={item.name}
@@ -153,7 +153,7 @@ export const RadialIntro = ({
                                 style={{
                                     width: item.size || imageSize,
                                     height: item.size || imageSize,
-                                    opacity: i === 0 ? 1 : 0,
+                                    opacity: 1,
                                 }}
                                 src={item.src}
                                 alt={item.name}

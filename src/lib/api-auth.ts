@@ -13,6 +13,9 @@ export function generateApiToken(userId: string, connectorId: string, expiresIn 
     return jwt.sign({ userId, connectorId }, SECRET, { expiresIn } as jwt.SignOptions);
 }
 
+import User from './auth/User';
+import dbConnect from './auth/mongodb';
+
 export function verifyApiToken(token: string): ApiTokenPayload | null {
     try {
         const decoded = jwt.verify(token, SECRET) as ApiTokenPayload;
@@ -24,3 +27,28 @@ export function verifyApiToken(token: string): ApiTokenPayload | null {
         return null;
     }
 }
+
+export async function verifyPikoApiKey(apiKey: string): Promise<string | null> {
+    if (!apiKey) return null;
+    try {
+        await dbConnect();
+        const user = await User.findOne({ pikoApiKey: apiKey });
+        return user ? user._id.toString() : null;
+    } catch (e) {
+        console.error("Piko API Key verification error:", e);
+        return null;
+    }
+}
+
+export async function getPikoUserByApiKey(apiKey: string) {
+    if (!apiKey) return null;
+    try {
+        await dbConnect();
+        const user = await User.findOne({ pikoApiKey: apiKey }).select('name email image');
+        return user;
+    } catch (e) {
+        console.error("Piko API User retrieval error:", e);
+        return null;
+    }
+}
+

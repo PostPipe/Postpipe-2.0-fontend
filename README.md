@@ -17,6 +17,7 @@ The PostPipe architecture consists of three main components:
 1.  **PostPipe SaaS (The Lab)**: The central orchestration layer and dashboard. It manages forms and connectors but **never sees your database credentials**.
 2.  **The Connector**: A self-hosted, lightweight Node.js secure agent that lives next to your database (on your laptop, server, or cloud VPC). It connects outbound to PostPipe SaaS using a secure ID and Secret.
 3.  **The Browser**: The client-side interface that initiates requests.
+    final
 
 ### The Zero Trust Flow
 
@@ -42,35 +43,52 @@ Expertly crafted documentation to get you up and running:
 - **[Architecture](./documentation/architecture.md)**: Technical overview of the system.
 - **[CLI Tools](./documentation/cli/index.md)**: Comprehensive guide to the PostPipe CLI ecosystem.
 
-## ⚡ Quick Start (The "Dynamic Lab")
+## ⚡ Local Development Setup
 
-1.  **Start the SaaS (The Lab)**:
+To run PostPipe locally, you need [Node.js](https://nodejs.org/) and [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed on your machine.
 
-    ```bash
-    npm run dev:lab
-    # Runs on http://localhost:3000
-    ```
+1. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
 
-2.  **Create a Connector**:
+2. **Configure Environment Variables**:
+   Create a `.env` file in the root directory if you haven't already:
+   ```env
+   MONGODB_URI="mongodb://localhost:27017"
+   MONGODB_DB_NAME="postpipe_core"
+   JWT_SECRET="your-secret-key"
+   ```
 
-    ```bash
-    # Open a new terminal
-    node cli/create-postpipe-connector/dist/index.js my-test-connector
-    cd my-test-connector
-    npm install
-    ```
+3. **Start the Local Database**:
+   Make sure Docker Desktop is running, then spin up the local MongoDB instance:
+   ```bash
+   npm run db:start
+   ```
 
-3.  **Configure & Run**:
+4. **Seed the Database (Required for first login)**:
+   Because the local database starts empty, run the seed scripts to populate an admin user and mock connector:
+   ```bash
+   # Creates an admin user (postpipe@admin.com / password123)
+   npm run db:seed-user
+   
+   # Generates a mock connector in the dashboard
+   npm run db:seed-connectors
+   ```
 
-    - Set `PORT=3001` in `my-test-connector/.env`.
-    - Run `npm run dev`.
+5. **Start the Application**:
+   ```bash
+   npm run dev
+   ```
+   *The app will be available at [http://localhost:9002](http://localhost:9002).*
 
-4.  **Connect**:
-    - Go to `http://localhost:3000/connector-demo`.
-    - Enter Connector URL: `http://localhost:3001/postpipe/ingest`.
-    - Generate credentials and add them to your connector's `.env`.
+6. **Stopping the Database**:
+   When you're done developing, you can stop the database container gracefully:
+   ```bash
+   npm run db:stop
+   ```
 
-See the full **[Getting Started Guide](./documentation/getting-started.md)** for details.
+See the full **[Getting Started Guide](./documentation/getting-started.md)** for details on architecture and advanced configurations.
 
 ## 📄 License
 

@@ -120,6 +120,9 @@ export function ExploreModal({ open, onOpenChange, item }: ExploreModalProps) {
                                                 <div className="flex items-center gap-2">
                                                     <Dialog.Title className="text-lg font-semibold leading-none truncate">{item.title}</Dialog.Title>
                                                 </div>
+                                                <Dialog.Description className="sr-only">
+                                                    Details and preview for {item.title} template.
+                                                </Dialog.Description>
                                                 <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1 truncate">
                                                     <span>{item.author.name}</span>
                                                     {/* Publisher (mocked for now) */}

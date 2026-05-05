@@ -1,25 +1,103 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
-    Server, FileText, Key, Activity, Terminal, Zap, Shield,
+    Server, FileText, Key, Activity, Terminal, Zap,
     ArrowRight, Plus, Database, Globe, GitBranch, Clock,
-    TrendingUp, ChevronRight, ExternalLink, Rocket, Check
+    TrendingUp, ChevronRight, ExternalLink, HelpCircle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ParticleDashboardHeader } from "@/components/ui/particle-dashboard-header";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const Joyride = dynamic<any>(() => import("react-joyride").then((mod) => mod.Joyride), { ssr: false });
 
 interface OverviewClientProps {
     forms: any[];
     connectors: any[];
     systems: any[];
-    authPresets: any[];
 }
 
-export default function OverviewClient({ forms, connectors, systems = [], authPresets = [] }: OverviewClientProps) {
+export default function OverviewClient({ forms, connectors, systems = [] }: OverviewClientProps) {
+    const [runTour, setRunTour] = useState(false);
+    const [showIntentModal, setShowIntentModal] = useState(false);
+    const [tourKey, setTourKey] = useState(0);
 
+    useEffect(() => {
+        const hasSeenTour = localStorage.getItem("postpipe-tour-seen");
+        if (!hasSeenTour) {
+            setShowIntentModal(true);
+        }
+
+        const handleCustomReplay = () => handleReplayTour();
+        document.addEventListener('replay-tour', handleCustomReplay);
+        return () => document.removeEventListener('replay-tour', handleCustomReplay);
+    }, []);
+
+    const handleStartTour = () => {
+        setShowIntentModal(false);
+        setRunTour(true);
+        localStorage.setItem("postpipe-tour-seen", "true");
+    };
+
+    const handleSkipTour = () => {
+        setShowIntentModal(false);
+        localStorage.setItem("postpipe-tour-seen", "true");
+    };
+
+    const handleReplayTour = () => {
+        setTourKey(prev => prev + 1);
+        setRunTour(true);
+    };
+
+    const tourSteps = [
+        {
+            target: '#tour-welcome',
+            content: 'Welcome to your PostPipe Dashboard! Let us show you around.',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-connectors',
+            content: 'Connectors allow you to plug in any external database or data source securely.',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-systems',
+            content: 'Backend Systems are full-featured deployments you can generate from templates.',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-forms',
+            content: 'Static Forms let you easily collect data without writing a backend.',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-quick-actions',
+            content: 'Use Quick Actions to bootstrap new projects, connect data, or get CLI commands instantly.',
+            disableBeacon: true,
+        }
+    ];
+
+    const copyCliCommand = () => {
+        navigator.clipboard.writeText("npx create-postpipe-app@latest");
+        toast({
+            title: "Copied to clipboard",
+            description: "CLI command copied to clipboard",
+        });
+    };
 
     const recentForms = [...forms]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -37,6 +115,7 @@ export default function OverviewClient({ forms, connectors, systems = [], authPr
             glow: "shadow-violet-500/10",
             href: "/dashboard/systems",
             trend: "+2 this week",
+            id: "tour-systems",
         },
         {
             label: "Static Forms",
@@ -49,6 +128,7 @@ export default function OverviewClient({ forms, connectors, systems = [], authPr
             glow: "shadow-blue-500/10",
             href: "/dashboard/forms",
             trend: `${forms.filter((f: any) => f.status === "Live").length} live`,
+            id: "tour-forms",
         },
         {
             label: "Connectors",
@@ -61,18 +141,20 @@ export default function OverviewClient({ forms, connectors, systems = [], authPr
             glow: "shadow-emerald-500/10",
             href: "/dashboard/connectors",
             trend: "All healthy",
+            id: "tour-connectors",
         },
         {
-            label: "Auth Presets",
-            value: authPresets.length,
-            sub: "Custom auth flows",
-            icon: Shield,
+            label: "Requests",
+            value: 0,
+            sub: "Analytics soon",
+            icon: Activity,
             color: "text-amber-500 dark:text-amber-400",
             bg: "bg-amber-500/10",
             border: "border-amber-200 dark:border-amber-500/20",
             glow: "shadow-amber-500/10",
-            href: "/dashboard/forms?tab=presets",
-            trend: "All secure",
+            href: "#",
+            trend: "Coming soon",
+            id: "tour-requests",
         },
     ];
 
@@ -108,81 +190,33 @@ export default function OverviewClient({ forms, connectors, systems = [], authPr
             href: "/dashboard/connectors",
         },
         {
-            label: "Generate Auth Preset",
-            desc: "Setup authentication in minutes",
-            icon: Key,
-            iconBg: "bg-purple-500/10",
-            iconColor: "text-purple-500",
-            hoverBorder: "hover:border-purple-300 dark:hover:border-purple-500/30",
-            hoverBg: "hover:bg-purple-50/50 dark:hover:bg-purple-500/5",
-            href: "/dashboard/forms?tab=presets&action=new-preset",
+            label: "Copy CLI Command",
+            desc: "Bootstrap from your terminal",
+            icon: Terminal,
+            iconBg: "bg-neutral-500/10",
+            iconColor: "text-neutral-500",
+            hoverBorder: "hover:border-neutral-300 dark:hover:border-neutral-500/30",
+            hoverBg: "hover:bg-neutral-50/50 dark:hover:bg-neutral-500/5",
+            onClick: copyCliCommand,
+            href: undefined,
         },
-    ] as any[];
+    ];
 
     return (
         <div className="flex flex-col gap-10">
-            <ParticleDashboardHeader
-                title="Overview"
-                subtitle="Welcome back! Here's what's happening with your infrastructure."
-            />
-
-            {/* ── Guided Setup ── */}
-            {forms.length === 0 && (
-                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 md:p-8 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <Rocket className="h-24 w-24 text-primary" />
-                    </div>
-                    <div className="relative z-10 max-w-2xl">
-                        <h2 className="text-2xl font-bold mb-2 flex items-center gap-3">
-                            🚀 Welcome to PostPipe! 
-                            <span className="text-xs font-normal bg-primary/10 text-primary px-3 py-1 rounded-full uppercase tracking-wider">Newbie Guide</span>
-                        </h2>
-                        <p className="text-muted-foreground mb-6">
-                            Let&apos;s get your infrastructure up and running. Follow these steps to create your first backend connection.
-                        </p>
-                        
-                        <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                            {[
-                                { title: "Step 1: Choose Path", desc: "Static Connector or Dynamic CLI", done: true },
-                                { title: "Step 2: Initialize", desc: "Setup your first system", done: systems.length > 0 },
-                                { title: "Step 3: Create Form", desc: "Map your frontend fields", done: forms.length > 0 },
-                                { title: "Step 4: Go Live", desc: "Embed and collect data", done: false },
-                            ].map((s, i) => (
-                                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-background/50 border border-border/50">
-                                    <div className={cn(
-                                        "h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold",
-                                        s.done ? "bg-emerald-500/20 text-emerald-500" : "bg-primary/20 text-primary"
-                                    )}>
-                                        {s.done ? <Check className="h-3 w-3" /> : i + 1}
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-semibold leading-tight">{s.title}</div>
-                                        <div className="text-[11px] text-muted-foreground">{s.desc}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-3">
-                            <Link href="/static">
-                                <Button className="gap-2 font-bold">
-                                    Setup Static Connector <ArrowRight className="h-4 w-4" />
-                                </Button>
-                            </Link>
-                            <Link href="/explore">
-                                <Button variant="outline" className="gap-2 font-bold">
-                                    Explore CLI Marketplace
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div id="tour-welcome" className="flex-1">
+                    <ParticleDashboardHeader
+                        title="Overview"
+                        subtitle="Welcome back! Here's what's happening with your infrastructure."
+                    />
                 </div>
-            )}
+            </div>
 
             {/* ── Stat Cards ── */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {stats.map((s) => (
-                    <Link key={s.label} href={s.href} className="group">
+                    <Link key={s.label} href={s.href} className="group" id={s.id}>
                         <div className={cn(
                             "relative rounded-xl border p-5 flex flex-col gap-4",
                             "bg-card transition-all duration-200",
@@ -223,7 +257,7 @@ export default function OverviewClient({ forms, connectors, systems = [], authPr
 
             {/* ── Quick Actions ── */}
             <div>
-                <div className="flex items-center gap-2 mb-5">
+                <div id="tour-quick-actions" className="flex items-center gap-2 mb-5 w-fit">
                     <div className="h-5 w-1 rounded-full bg-primary/50" />
                     <h2 className="text-base font-bold tracking-tight">Quick Actions</h2>
                 </div>
@@ -326,6 +360,93 @@ export default function OverviewClient({ forms, connectors, systems = [], authPr
                     )}
                 </div>
             </div>
+
+            <Joyride
+                key={tourKey}
+                steps={tourSteps}
+                run={runTour}
+                continuous
+                showProgress
+                showSkipButton
+                disableOverlay={true}
+                locale={{ last: 'Finish' }}
+                styles={{
+                    options: {
+                        primaryColor: 'hsl(var(--primary))',
+                        textColor: 'hsl(var(--foreground))',
+                        backgroundColor: 'hsl(var(--card))',
+                        arrowColor: 'hsl(var(--card))',
+                        zIndex: 100,
+                    },
+                    tooltip: {
+                        borderRadius: '0.75rem',
+                        border: '1px solid hsl(var(--border))',
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                        fontFamily: 'inherit',
+                        padding: '1.25rem',
+                    },
+                    tooltipContainer: {
+                        textAlign: 'left',
+                    },
+                    tooltipContent: {
+                        padding: '0.5rem 0 1rem 0',
+                        fontSize: '0.875rem',
+                        lineHeight: '1.5',
+                    },
+                    buttonNext: {
+                        backgroundColor: 'hsl(var(--primary))',
+                        color: 'hsl(var(--primary-foreground))',
+                        borderRadius: '0.375rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        padding: '0.5rem 1rem',
+                        outline: 'none',
+                    },
+                    buttonBack: {
+                        color: 'hsl(var(--muted-foreground))',
+                        marginRight: '0.5rem',
+                        fontSize: '0.875rem',
+                        outline: 'none',
+                    },
+                    buttonSkip: {
+                        color: 'hsl(var(--muted-foreground))',
+                        fontSize: '0.875rem',
+                        outline: 'none',
+                    },
+                    beacon: {
+                        transform: 'scale(1.5)',
+                        marginTop: '-10px',
+                    },
+                    beaconInner: {
+                        backgroundColor: 'hsl(var(--primary))',
+                    },
+                    beaconOuter: {
+                        border: '2px solid hsl(var(--primary))',
+                        backgroundColor: 'hsla(var(--primary), 0.3)',
+                    }
+                }}
+                callback={(data: any) => {
+                    const { status } = data;
+                    if (['finished', 'skipped'].includes(status)) {
+                        setRunTour(false);
+                    }
+                }}
+            />
+
+            <AlertDialog open={showIntentModal} onOpenChange={setShowIntentModal}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Welcome to PostPipe!</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Would you like a quick interactive tour to understand how to manage connectors, databases, and forms?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={handleSkipTour}>Skip for now</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleStartTour}>Start Tour</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

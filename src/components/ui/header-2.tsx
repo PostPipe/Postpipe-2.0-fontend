@@ -13,11 +13,18 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
 	Sheet,
 	SheetContent,
+	SheetDescription,
 	SheetHeader,
 	SheetTitle,
 	SheetTrigger,
 } from '@/components/ui/sheet';
-import { Menu } from 'lucide-react';
+import { Menu, HelpCircle } from 'lucide-react';
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export function Header2() {
 	const scrolled = useScroll(10);
@@ -46,8 +53,8 @@ export function Header2() {
 			>
 				<Link href="/" className="flex items-center gap-2">
 					<div className="relative h-8 w-40">
-						<Image src="/PostPipe-Black.svg" alt="PostPipe" fill className="dark:hidden object-contain object-left" />
-						<Image src="/PostPipe.svg" alt="PostPipe" fill className="hidden dark:block object-contain object-left" />
+						<Image src="/PostPipe-Black.svg" alt="PostPipe" fill sizes="160px" className="dark:hidden object-contain object-left" />
+						<Image src="/PostPipe.svg" alt="PostPipe" fill sizes="160px" className="hidden dark:block object-contain object-left" />
 					</div>
 				</Link>
 				<div className="hidden items-center gap-2 md:flex">
@@ -58,12 +65,42 @@ export function Header2() {
 					))}
 					<div className="flex items-center gap-3 ml-2 border-l pl-4 border-border/50">
 						<AuthButton />
+						{pathname === '/dashboard' && (
+							<TooltipProvider>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											onClick={() => document.dispatchEvent(new CustomEvent('replay-tour'))}
+											className="h-9 w-9 text-muted-foreground hover:text-foreground hover:!bg-transparent group"
+										>
+											<HelpCircle className="h-5 w-5 transition-all duration-300 group-hover:text-primary group-hover:drop-shadow-[0_0_8px_hsl(var(--primary))]" />
+											<span className="sr-only">Replay Tour</span>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>
+										<p>Replay Tour</p>
+									</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
+						)}
 						<ThemeToggle />
 					</div>
 				</div>
 
-				{/* Mobile Menu */}
 				<div className="flex items-center gap-2 md:hidden">
+					{pathname === '/dashboard' && (
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => document.dispatchEvent(new CustomEvent('replay-tour'))}
+							className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground hover:!bg-transparent group"
+							title="Replay Tour"
+						>
+							<HelpCircle className="h-5 w-5 transition-all duration-300 group-hover:text-primary group-hover:drop-shadow-[0_0_8px_hsl(var(--primary))]" />
+						</Button>
+					)}
 					<ThemeToggle />
 					<Sheet open={isOpen} onOpenChange={setIsOpen}>
 						<SheetTrigger asChild>
@@ -75,6 +112,9 @@ export function Header2() {
 						<SheetContent side="right">
 							<SheetHeader>
 								<SheetTitle className="text-left">Menu</SheetTitle>
+								<SheetDescription className="sr-only">
+									Navigation links for PostPipe.
+								</SheetDescription>
 							</SheetHeader>
 							<div className="flex flex-col gap-4 mt-8">
 								{links.map((link, i) => (
