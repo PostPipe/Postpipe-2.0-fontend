@@ -13,7 +13,11 @@ export const metadata: Metadata = {
     title: 'Submissions',
 };
 
-export default async function SubmissionsPage({ params }: { params: { id: string } }) {
+export default async function SubmissionsPage({
+    params,
+}: {
+    params: Promise<{ id: string }>;
+}) {
     const session = await getSession();
     if (!session || !session.userId) {
         redirect('/login');
