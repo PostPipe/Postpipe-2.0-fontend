@@ -87,6 +87,7 @@ export async function GET(req: NextRequest) {
             secure: process.env.NODE_ENV === 'production',
             maxAge: 7 * 24 * 60 * 60 * 1000,
             path: '/',
+            ...(process.env.NODE_ENV === 'production' && { domain: '.postpipe.in' }),
         });
 
         // Client readable cookie
@@ -95,6 +96,7 @@ export async function GET(req: NextRequest) {
             secure: process.env.NODE_ENV === 'production',
             maxAge: 7 * 24 * 60 * 60 * 1000,
             path: '/',
+            ...(process.env.NODE_ENV === 'production' && { domain: '.postpipe.in' }),
         });
         
         return NextResponse.redirect(new URL('/dashboard/forms', req.url));
