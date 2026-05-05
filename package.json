@@ -80,7 +80,7 @@
     "react-day-picker": "^9.11.3",
     "react-dom": "^19.2.1",
     "react-hook-form": "^7.54.2",
-    "react-joyride": "^3.0.2",
+    "react-joyride": "^3.1.0",
     "react-markdown": "^10.1.0",
     "recharts": "^2.15.1",
     "rehype-highlight": "^7.0.2",
