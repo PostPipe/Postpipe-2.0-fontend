@@ -7,13 +7,15 @@ export const metadata: Metadata = {
 }
 
 type Props = {
-    searchParams: { [key: string]: string | string[] | undefined }
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export default async function Page({ searchParams }: Props) {
-    const q = typeof searchParams.q === 'string' ? searchParams.q : undefined;
-    const category = typeof searchParams.category === 'string' ? searchParams.category : undefined;
-    const tag = typeof searchParams.tag === 'string' ? searchParams.tag : undefined;
+    const params = await searchParams;
+    console.log("Explore Page Search Params:", params);
+    const q = typeof params.q === 'string' ? params.q : undefined;
+    const category = typeof params.category === 'string' ? params.category : undefined;
+    const tag = typeof params.tag === 'string' ? params.tag : undefined;
     const templates = await getTemplates(q, category, tag);
     return <ExplorePageContent templates={templates} />
 }
