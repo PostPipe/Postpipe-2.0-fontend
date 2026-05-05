@@ -23,7 +23,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const Joyride = dynamic<any>(() => import("react-joyride").then((mod) => mod.Joyride as any), { ssr: false });
+const Joyride = dynamic<any>(() => import("react-joyride").then((mod) => mod.default || (mod as any).Joyride), { ssr: false });
 
 interface OverviewClientProps {
     forms: any[];
