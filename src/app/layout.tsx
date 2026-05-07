@@ -14,11 +14,11 @@ export const metadata: Metadata = {
     default: 'PostPipe - The Largest Next.js Backend Component Library',
   },
   description:
-    'PostPipe is the ultimate Next.js backend component library and static ingest system. Build, deploy, and scale your applications faster with ready-to-use backend logic, connectors, and agentic AI tools.',
+    'PostPipe is the premier Next.js backend component library and static ingest system. Build, deploy, and scale your applications faster with ready-to-use backend logic, connectors, and agentic AI tools. The ultimate developer toolkit for modern web applications.',
   keywords: [
     'Next.js',
     'React',
-    'Backend',
+    'Backend as a Service',
     'Component Library',
     'Static Ingest',
     'Form Builder',
@@ -26,13 +26,20 @@ export const metadata: Metadata = {
     'Agentic AI',
     'Web Development',
     'Open Source',
-    'PostgreSQL',
-    'MongoDB',
-    'Supabase',
+    'API Connector',
+    'Database Integration',
   ],
   authors: [{ name: 'Sourodip-1', url: 'https://github.com/Sourodip-1' }],
   creator: 'Sourodip-1',
   publisher: 'PostPipe',
+  verification: {
+    google: 'your-google-verification-code', // Replace with your actual code
+  },
+  alternates: {
+    canonical: '/',
+  },
+  category: 'technology',
+  classification: 'Developer Tools',
   openGraph: {
     title: 'PostPipe - The Largest Next.js Backend Component Library',
     description:
@@ -41,7 +48,7 @@ export const metadata: Metadata = {
     siteName: 'PostPipe',
     images: [
       {
-        url: '/og-image.png', // Ensure you have an og-image.png in public folder or use a placeholder
+        url: '/og-image.png',
         width: 1200,
         height: 630,
         alt: 'PostPipe Platform Preview',
@@ -55,7 +62,7 @@ export const metadata: Metadata = {
     title: 'PostPipe - Default Backend for Modern Web',
     description:
       'Scale your Next.js apps with PostPipe. Visual builder, secure auth, and instant backend connectors.',
-    creator: '@sourodip_1', // Update if there is an official handle
+    creator: '@sourodip_1',
     images: ['/og-image.png'],
   },
   icons: {
@@ -72,9 +79,11 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    nocache: true,
     googleBot: {
       index: true,
       follow: true,
+      noimageindex: false,
       'max-video-preview': -1,
       'max-image-preview': 'large',
       'max-snippet': -1,

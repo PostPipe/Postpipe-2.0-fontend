@@ -4,6 +4,7 @@ import { AnimatedWords } from "../ui/animated-words";
 
 const productLinks = [
     { href: "/login", label: "Product" },
+    { href: "https://studio.postpipe.in", label: "Studio" },
     { href: "/docs", label: "Docs" },
     { href: "/explore", label: "Dynamic" },
 ];
