@@ -34,6 +34,7 @@ export function Header2() {
 	const links = [
 		{ href: "/explore", label: "Forge" },
 		{ href: "/static", label: "Static" },
+		{ href: "https://studio.postpipe.in", label: "Studio" },
 		{ href: "/dashboard/changelog", label: "Change Log" },
 		{ href: "/docs", label: "Docs" },
 	];

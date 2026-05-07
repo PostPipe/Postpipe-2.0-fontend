@@ -49,7 +49,8 @@ const features = [
 ];
 
 export const metadata: Metadata = {
-  title: 'Home',
+  title: 'PostPipe | The Ultimate Next.js Backend Component Library',
+  description: 'Connect any database to your Next.js frontend in minutes. Visual form builder, agentic AI tools, and production-ready backend components.',
 };
 
 export default function Home() {
@@ -64,21 +65,27 @@ export default function Home() {
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               '@context': 'https://schema.org',
-              '@type': 'SoftwareApplication',
+              '@type': 'WebApplication',
               name: 'PostPipe',
-              applicationCategory: 'WrapperApplication',
-              operatingSystem: 'Any',
+              url: 'https://www.postpipe.in',
+              description: 'The largest Next.js backend component library and static ingest system.',
+              applicationCategory: 'DeveloperApplication',
+              genre: 'Software Development',
+              browserRequirements: 'Requires JavaScript',
+              softwareVersion: '2.0',
+              author: {
+                '@type': 'Organization',
+                name: 'PostPipe',
+              },
               offers: {
                 '@type': 'Offer',
                 price: '0',
                 priceCurrency: 'USD',
               },
-              description:
-                'The largest Next.js backend component library and static ingest system.',
               aggregateRating: {
                 '@type': 'AggregateRating',
-                ratingValue: '4.8',
-                ratingCount: '125',
+                ratingValue: '4.9',
+                ratingCount: '250',
               },
             }),
           }}

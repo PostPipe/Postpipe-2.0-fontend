@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/api/', '/private/', '/dashboard/settings'],
+      disallow: ['/api/', '/_next/'],
     },
     sitemap: 'https://www.postpipe.in/sitemap.xml',
   };
