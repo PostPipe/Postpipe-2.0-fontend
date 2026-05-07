@@ -17,11 +17,11 @@ export const metadata: Metadata = {
     default: 'PostPipe - The Largest Next.js Backend Component Library',
   },
   description:
-    'PostPipe is the ultimate Next.js backend component library and static ingest system. Build, deploy, and scale your applications faster with ready-to-use backend logic, connectors, and agentic AI tools.',
+    'PostPipe is the premier Next.js backend component library and static ingest system. Build, deploy, and scale your applications faster with ready-to-use backend logic, connectors, and agentic AI tools. The ultimate developer toolkit for modern web applications.',
   keywords: [
     'Next.js',
     'React',
-    'Backend',
+    'Backend as a Service',
     'Component Library',
     'Static Ingest',
     'Form Builder',
@@ -29,13 +29,20 @@ export const metadata: Metadata = {
     'Agentic AI',
     'Web Development',
     'Open Source',
-    'PostgreSQL',
-    'MongoDB',
-    'Supabase',
+    'API Connector',
+    'Database Integration',
   ],
   authors: [{ name: 'Sourodip-1', url: 'https://github.com/Sourodip-1' }],
   creator: 'Sourodip-1',
   publisher: 'PostPipe',
+  verification: {
+    google: 'your-google-verification-code', // Replace with your actual code
+  },
+  alternates: {
+    canonical: '/',
+  },
+  category: 'technology',
+  classification: 'Developer Tools',
   openGraph: {
     title: 'PostPipe - The Largest Next.js Backend Component Library',
     description:
@@ -75,9 +82,11 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    nocache: true,
     googleBot: {
       index: true,
       follow: true,
+      noimageindex: false,
       'max-video-preview': -1,
       'max-image-preview': 'large',
       'max-snippet': -1,
