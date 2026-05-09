@@ -150,6 +150,19 @@ export async function deleteFormAction(id: string) {
   return { success: true };
 }
 
+export async function bulkUpdateFormGroupsAction(formIds: string[], groupName: string) {
+  const session = await getSession();
+  if (!session || !session.userId) throw new Error("Unauthorized");
+
+  const dbModule = await import('../../lib/server-db');
+  
+  // Update each form (in a real production app, we'd use a bulkWrite or updateMany with filter)
+  // For simplicity and to reuse updateForm logic:
+  await Promise.all(formIds.map(id => dbModule.updateForm(id, { group: groupName || undefined })));
+
+  return { success: true };
+}
+
 export async function deleteConnectorAction(id: string) {
   const session = await getSession();
   if (!session || !session.userId) {

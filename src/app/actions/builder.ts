@@ -15,6 +15,7 @@ export async function createFormAction(formData: FormData) {
     const targetDatabase = formData.get('targetDatabase') as string;
     const fieldsJson = formData.get('fields') as string;
     const routingJson = formData.get('routing') as string;
+    const group = formData.get('group') as string;
 
     if (!name || !connectorId) {
         return { error: 'Name and Connector are required' };
@@ -37,7 +38,7 @@ export async function createFormAction(formData: FormData) {
     }
 
     try {
-        const form = await createForm(connectorId, name, fields, session.userId, targetDatabase, routing);
+        const form = await createForm(connectorId, name, fields, session.userId, targetDatabase, routing, group);
         return { success: true, formId: form.id };
     } catch (e) {
         return { error: 'Failed to create form' };
@@ -92,6 +93,7 @@ export async function updateFormAction(id: string, formData: FormData) {
     const targetDatabase = formData.get('targetDatabase') as string;
     const fieldsJson = formData.get('fields') as string;
     const routingJson = formData.get('routing') as string;
+    const group = formData.get('group') as string;
 
     if (!name || !connectorId) {
         return { error: 'Name and Connector are required' };
@@ -120,7 +122,7 @@ export async function updateFormAction(id: string, formData: FormData) {
     if (existingForm.userId !== session.userId) return { error: 'Unauthorized' };
 
     try {
-        await dbModule.updateForm(id, { name, connectorId, fields, targetDatabase, routing });
+        await dbModule.updateForm(id, { name, connectorId, fields, targetDatabase, routing, group });
         return { success: true };
     } catch (e) {
         return { error: 'Failed to update form' };
