@@ -3,6 +3,12 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { RainbowButton } from '@/components/ui/rainbow-button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +30,23 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
     Select,
     SelectContent,
@@ -58,6 +81,13 @@ import {
     Shield,
     Settings2,
     ExternalLink,
+    Folder,
+    ChevronRight,
+    FolderPlus,
+    FolderMinus,
+    CheckSquare,
+    Square,
+    GripVertical,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -67,14 +97,28 @@ import {
     duplicateFormAction,
     toggleFormStatusAction,
     deleteAuthPresetAction,
+    bulkUpdateFormGroupsAction,
 } from '@/app/actions/dashboard';
 import IsoLevelWarp from '@/components/ui/isometric-wave-grid-background';
 import { FormSearchBar } from '@/components/ui/animated-search-bar';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+    DndContext,
+    DragOverlay,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    useDraggable,
+    useDroppable,
+    DragEndEvent,
+    closestCenter,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 
 type Form = {
     id: string;
     name: string;
+    group?: string;
     connectorName: string;
     connectorId: string;
     submissions: number;
@@ -88,6 +132,68 @@ interface FormsClientProps {
     initialPresets?: any[];
     initialConnectors?: any[];
 }
+
+const DraggableRow = ({
+    form,
+    children,
+}: {
+    form: Form;
+    children: any;
+}) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } =
+        useDraggable({
+            id: form.id,
+            data: {
+                type: 'form',
+                form,
+            },
+        });
+
+    const style = {
+        transform: transform ? CSS.Translate.toString(transform) : undefined,
+        opacity: isDragging ? 0.3 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style}>
+            {/* @ts-ignore */}
+            {typeof children === 'function'
+                ? children({
+                      dragAttributes: attributes,
+                      dragListeners: listeners,
+                  })
+                : React.cloneElement(children as React.ReactElement<any>, {
+                      dragAttributes: attributes,
+                      dragListeners: listeners,
+                  } as any)}
+        </div>
+    );
+};
+
+const DroppableSection = ({
+    id,
+    children,
+}: {
+    id: string;
+    children: React.ReactNode;
+}) => {
+    const { isOver, setNodeRef } = useDroppable({
+        id,
+    });
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={cn(
+                'transition-all duration-200',
+                isOver &&
+                    'bg-violet-500/10 ring-2 ring-violet-500/30 rounded-xl scale-[1.01] z-10',
+            )}
+        >
+            {children}
+        </div>
+    );
+};
 
 export default function FormsClient({
     initialForms = [],
@@ -103,6 +209,12 @@ export default function FormsClient({
     const [dbFilter, setDbFilter] = React.useState('all');
     const [connectorFilter, setConnectorFilter] = React.useState('all');
     const [sortBy, setSortBy] = React.useState('name');
+    const [selectedFormIds, setSelectedFormIds] = React.useState<Set<string>>(
+        new Set(),
+    );
+    const [isSelectionMode, setIsSelectionMode] = React.useState(false);
+    const [newGroupName, setNewGroupName] = React.useState('');
+    const [isGroupDialogOpen, setIsGroupDialogOpen] = React.useState(false);
     const [expandedFormId, setExpandedFormId] = React.useState<string | null>(
         null,
     );
@@ -161,11 +273,37 @@ export default function FormsClient({
                 submissions: subCount,
                 lastSubmission: lastSub,
                 status: f.status || 'Live',
+                group: f.group,
                 fields: f.fields || [],
             };
         });
 
     const [forms, setForms] = React.useState<Form[]>(mapForms(initialForms));
+    const [activeDragId, setActiveDragId] = React.useState<string | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+    );
+
+    const getGroupColor = (name: string) => {
+        const colors = [
+            '#6366f1', // Indigo
+            '#10b981', // Emerald
+            '#0ea5e9', // Sky
+            '#f59e0b', // Amber
+            '#ef4444', // Red
+            '#8b5cf6', // Violet
+            '#ec4899', // Pink
+            '#f97316', // Orange
+        ];
+        let hash = 0;
+        if (!name) return colors[0];
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    };
+
     React.useEffect(() => {
         const mapped = mapForms(initialForms);
         // Ensure pending deletions don't reappear if initialForms updates from server
@@ -323,10 +461,153 @@ export default function FormsClient({
         const html = `<form action="${getEndpointUrl(id)}" method="POST">\n${form.fields
             .map(
                 (f: any) =>
-                    `  <div>\n    <label>${f.name}</label>\n    <input type="${f.type}" name="${f.name}" ${f.required ? 'required' : ''} />\n  </div>`,
+                    `  <label>${f.name}</label>\n  <input type="${f.type}" name="${f.name}" />`,
             )
             .join('\n')}\n  <button type="submit">Submit</button>\n</form>`;
-        copyToClipboard(html, 'HTML embed copied!');
+        copyToClipboard(html, 'HTML embed code copied!', e);
+    };
+
+    const handleMoveToGroup = async () => {
+        if (selectedFormIds.size === 0) return;
+
+        const formIds = Array.from(selectedFormIds);
+        try {
+            await bulkUpdateFormGroupsAction(formIds, newGroupName);
+
+            // Update local state
+            setForms((prev) =>
+                prev.map((f) =>
+                    formIds.includes(f.id)
+                        ? { ...f, group: newGroupName || undefined }
+                        : f,
+                ),
+            );
+
+            setSelectedFormIds(new Set());
+            setIsSelectionMode(false);
+            setIsGroupDialogOpen(false);
+            setNewGroupName('');
+            toast({ title: 'Forms grouped successfully' });
+            router.refresh();
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: 'Failed to group forms',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleRemoveFromGroup = async (formId: string, groupName: string) => {
+        try {
+            await bulkUpdateFormGroupsAction([formId], '');
+
+            // Update local state
+            setForms((prev) =>
+                prev.map((f) =>
+                    f.id === formId ? { ...f, group: undefined } : f,
+                ),
+            );
+
+            toast({
+                title: 'Removed from Group',
+                description: `Form removed from "${groupName}" group.`,
+            });
+            router.refresh();
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: 'Failed to remove form from group',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleBulkRemoveFromGroup = async () => {
+        if (selectedFormIds.size === 0) return;
+
+        const formIds = Array.from(selectedFormIds);
+        try {
+            await bulkUpdateFormGroupsAction(formIds, '');
+
+            // Update local state
+            setForms((prev) =>
+                prev.map((f) =>
+                    formIds.includes(f.id) ? { ...f, group: undefined } : f,
+                ),
+            );
+
+            setSelectedFormIds(new Set());
+            setIsSelectionMode(false);
+            toast({
+                title: 'Forms Ungrouped',
+                description: `${formIds.length} forms moved to ungrouped.`,
+            });
+            router.refresh();
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: 'Failed to ungroup forms',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        setActiveDragId(null);
+
+        if (!over) return;
+
+        const formId = active.id as string;
+        const targetId = over.id as string;
+
+        let targetGroupName = '';
+        if (targetId.startsWith('group-')) {
+            targetGroupName = targetId.replace('group-', '');
+        } else if (targetId === 'ungrouped-container') {
+            targetGroupName = '';
+        } else {
+            return;
+        }
+
+        const form = forms.find((f) => f.id === formId);
+        if (!form) return;
+
+        if (form.group === targetGroupName || (!form.group && !targetGroupName))
+            return;
+
+        try {
+            await bulkUpdateFormGroupsAction([formId], targetGroupName);
+            setForms((prev) =>
+                prev.map((f) =>
+                    f.id === formId
+                        ? { ...f, group: targetGroupName || undefined }
+                        : f,
+                ),
+            );
+            toast({
+                title: 'Form Moved',
+                description: targetGroupName
+                    ? `Moved to "${targetGroupName}"`
+                    : 'Moved to ungrouped',
+            });
+            router.refresh();
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: 'Failed to move form',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const toggleFormSelection = (id: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        const next = new Set(selectedFormIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedFormIds(next);
     };
 
     const filteredForms = forms
@@ -360,11 +641,418 @@ export default function FormsClient({
         new Set(forms.map((f) => f.connectorName)),
     );
 
+    // Separate ungrouped forms from grouped ones
+    const ungroupedForms = filteredForms.filter((f) => !f.group);
+    const groupedFormsOnly = filteredForms.filter((f) => f.group);
+
+    const groupedForms = groupedFormsOnly.reduce(
+        (acc, form) => {
+            const groupName = form.group!;
+            if (!acc[groupName]) {
+                acc[groupName] = [];
+            }
+            acc[groupName].push(form);
+            return acc;
+        },
+        {} as Record<string, typeof filteredForms>,
+    );
+
+    const sortedGroupNames = Object.keys(groupedForms).sort((a, b) =>
+        a.localeCompare(b),
+    );
+
+    const renderFormRow = (
+        form: Form,
+        isOverlay = false,
+        dragAttributes?: any,
+        dragListeners?: any,
+    ) => {
+        const isExpanded = expandedFormId === form.id;
+        const endpoint = getEndpointUrl(form.id);
+        const isLive = form.status === 'Live';
+        const isCopied = copiedId === form.id;
+        const isSelected = selectedFormIds.has(form.id);
+        const groupColor = form.group ? getGroupColor(form.group) : null;
+
+        return (
+            <div
+                className={cn(
+                    'border-b border-neutral-200/70 dark:border-white/[0.05] last:border-b-0',
+                    'transition-colors duration-200 group/row relative',
+                    !isLive && 'opacity-60',
+                    isSelected && 'bg-violet-500/10',
+                    isOverlay &&
+                        'bg-white dark:bg-zinc-900 shadow-2xl rounded-xl border border-violet-500/50',
+                )}
+            >
+                {/* Group Color Stripe */}
+                {form.group && (
+                    <div
+                        className='absolute left-0 top-0 bottom-0 w-[3px] z-20'
+                        style={{ backgroundColor: groupColor || 'transparent' }}
+                    />
+                )}
+
+                {/* ── ROW ── */}
+                <div
+                    className={cn(
+                        'flex items-center gap-4 px-4 py-3.5 cursor-pointer',
+                        'transition-colors duration-150',
+                        isExpanded
+                            ? 'bg-indigo-100/60 dark:bg-indigo-500/5'
+                            : 'hover:bg-neutral-100/60 dark:hover:bg-white/[0.03]',
+                        isSelectionMode && 'pl-10', // Make room for checkbox
+                    )}
+                    onClick={() => {
+                        if (isSelectionMode) {
+                            toggleFormSelection(form.id);
+                        } else {
+                            setExpandedFormId(isExpanded ? null : form.id);
+                        }
+                    }}
+                >
+                    {/* Drag Handle */}
+                    {!isSelectionMode && (
+                        <div
+                            {...dragAttributes}
+                            {...dragListeners}
+                            className='drag-handle cursor-grab active:cursor-grabbing text-neutral-300 dark:text-white/10 hover:text-neutral-500 dark:hover:text-white/30 transition-colors p-1 -m-1'
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <GripVertical className='h-4 w-4' />
+                        </div>
+                    )}
+
+                    {/* Selection Checkbox */}
+                    {isSelectionMode && (
+                        <div
+                            className={cn(
+                                'absolute left-4 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded border transition-all shrink-0 z-30',
+                                isSelected
+                                    ? 'bg-violet-500 border-violet-500 text-white'
+                                    : 'border-neutral-300 dark:border-white/20 hover:border-violet-500 bg-white dark:bg-zinc-900',
+                            )}
+                        >
+                            {isSelected ? (
+                                <CheckSquare className='h-3.5 w-3.5' />
+                            ) : (
+                                <Square className='h-3.5 w-3.5 opacity-0' />
+                            )}
+                        </div>
+                    )}
+
+                    {/* Left — name + status */}
+                    <div className='flex items-center gap-3 min-w-0 flex-1'>
+                        <div
+                            className={cn(
+                                'h-2 w-2 rounded-full shrink-0',
+                                isLive
+                                    ? 'bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.6)]'
+                                    : 'bg-amber-500',
+                            )}
+                        />
+                        <span className='font-medium text-sm text-neutral-800 dark:text-white truncate'>
+                            {form.name}
+                        </span>
+                        <span
+                            className={cn(
+                                'hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest border shrink-0',
+                                isLive
+                                    ? 'text-emerald-700 dark:text-emerald-400 border-emerald-400/30 dark:border-emerald-500/20 bg-emerald-100 dark:bg-emerald-500/8'
+                                    : 'text-amber-700 dark:text-amber-400 border-amber-400/30 dark:border-amber-500/20 bg-amber-100 dark:bg-amber-500/8',
+                            )}
+                        >
+                            {form.status}
+                        </span>
+                    </div>
+
+                    {/* Center — connector + stats */}
+                    <div className='hidden md:flex items-center gap-5 shrink-0'>
+                        <span className='flex items-center gap-1.5 text-xs text-neutral-500 dark:text-white/35'>
+                            <Database className='h-3 w-3' />
+                            {form.connectorName}
+                        </span>
+                        <span className='text-xs text-neutral-500 dark:text-white/35 tabular-nums'>
+                            <span className='text-neutral-700 dark:text-white/55 font-semibold'>
+                                {form.submissions}
+                            </span>{' '}
+                            submissions
+                        </span>
+                        <span className='text-xs text-neutral-400 dark:text-white/30'>
+                            {form.lastSubmission}
+                        </span>
+                    </div>
+
+                    {/* Right — chevron + menu */}
+                    {!isSelectionMode && (
+                        <div
+                            className='flex items-center gap-1 shrink-0'
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {form.group && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant='ghost'
+                                            className='h-7 px-2.5 flex items-center gap-2 rounded-md text-neutral-400 dark:text-white/25 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all border border-transparent hover:border-red-200 dark:hover:border-red-500/20'
+                                        >
+                                            <FolderMinus className='h-3.5 w-3.5' />
+                                            <span className='text-[10px] font-bold uppercase tracking-[0.05em] hidden lg:inline'>
+                                                Remove Grouping
+                                            </span>
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent className='bg-zinc-950 border-white/10 rounded-2xl'>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle className='text-white'>
+                                                Remove from Group?
+                                            </AlertDialogTitle>
+                                            <AlertDialogDescription className='text-neutral-500'>
+                                                This will move "{form.name}"
+                                                back to the ungrouped forms
+                                                list.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel className='text-neutral-400 hover:text-white bg-transparent border-white/10 hover:bg-white/5'>
+                                                Cancel
+                                            </AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() =>
+                                                    handleRemoveFromGroup(
+                                                        form.id,
+                                                        form.group!,
+                                                    )
+                                                }
+                                                className='bg-red-600 hover:bg-red-500 text-white font-bold'
+                                            >
+                                                Remove
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        size='icon'
+                                        variant='ghost'
+                                        className='h-7 w-7 rounded-md text-neutral-400 dark:text-white/25 hover:text-neutral-700 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-white/10 transition-all'
+                                    >
+                                        <MoreHorizontal className='h-3.5 w-3.5' />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align='end'
+                                    className='w-48 rounded-xl border-neutral-200 dark:border-white/10 bg-white dark:bg-zinc-900/95 backdrop-blur-xl shadow-2xl p-1.5'
+                                >
+                                    <DropdownMenuItem
+                                        onClick={(e) => {
+                                            router.push(
+                                                `/dashboard/forms/${form.id}/edit`,
+                                            );
+                                            e.stopPropagation();
+                                        }}
+                                        className='rounded-md text-xs text-neutral-600 dark:text-white/70 cursor-pointer hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8 gap-2.5 py-2'
+                                    >
+                                        <Edit className='h-3.5 w-3.5 text-neutral-400 dark:text-white/50' />{' '}
+                                        Edit Config
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={(e) => copyEmbed(form.id, e)}
+                                        className='rounded-md text-xs text-neutral-600 dark:text-white/70 cursor-pointer hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8 gap-2.5 py-2'
+                                    >
+                                        <Code className='h-3.5 w-3.5 text-neutral-400 dark:text-white/50' />{' '}
+                                        Copy HTML
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={(e) =>
+                                            handleDuplicate(form.id, e)
+                                        }
+                                        className='rounded-md text-xs text-neutral-600 dark:text-white/70 cursor-pointer hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8 gap-2.5 py-2'
+                                    >
+                                        <CopyPlus className='h-3.5 w-3.5 text-neutral-400 dark:text-white/50' />{' '}
+                                        Duplicate
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className='my-1.5 bg-neutral-200 dark:bg-white/8' />
+                                    <DropdownMenuItem
+                                        onClick={(e) =>
+                                            toggleStatus(form.id, e)
+                                        }
+                                        className={cn(
+                                            'rounded-md text-xs cursor-pointer hover:bg-neutral-100 dark:hover:bg-white/8 gap-2.5 py-2',
+                                            isLive
+                                                ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300'
+                                                : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300',
+                                        )}
+                                    >
+                                        {isLive ? (
+                                            <>
+                                                <PauseCircle className='h-3.5 w-3.5' />{' '}
+                                                Pause Form
+                                            </>
+                                        ) : (
+                                            <>
+                                                <PlayCircle className='h-3.5 w-3.5' />{' '}
+                                                Resume Form
+                                            </>
+                                        )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className='my-1.5 bg-neutral-200 dark:bg-white/8' />
+                                    <DropdownMenuItem
+                                        onClick={(e) => deleteForm(form.id, e)}
+                                        className='rounded-md text-xs text-red-500 cursor-pointer hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/15 gap-2.5 py-2'
+                                    >
+                                        <Trash2 className='h-3.5 w-3.5' />{' '}
+                                        Delete Endpoint
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            <ChevronDown
+                                className={cn(
+                                    'h-3.5 w-3.5 text-neutral-400 dark:text-white/25 transition-transform duration-200 cursor-pointer',
+                                    isExpanded && 'rotate-180',
+                                )}
+                                onClick={() =>
+                                    setExpandedFormId(
+                                        isExpanded ? null : form.id,
+                                    )
+                                }
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* ── EXPANDED DETAIL ── */}
+                <AnimatePresence>
+                    {isExpanded && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className='overflow-hidden border-t border-neutral-200/60 dark:border-white/[0.04] bg-indigo-50/30 dark:bg-indigo-950/5'
+                        >
+                            <div className='px-4 pb-5 pt-4'>
+                                <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
+                                    {/* Details */}
+                                    <div className='lg:col-span-2 flex flex-col gap-4'>
+                                        <div>
+                                            <label className='text-[9px] font-bold uppercase tracking-widest text-neutral-500 dark:text-white/40 block mb-1.5 flex items-center gap-1.5'>
+                                                <Terminal className='h-3 w-3' />{' '}
+                                                ENDPOINT URL
+                                            </label>
+                                            <div className='flex items-center gap-2'>
+                                                <div className='flex-1 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black/40 px-3.5 py-2.5 font-mono text-xs text-neutral-600 dark:text-white/70 truncate flex items-center'>
+                                                    {endpoint}
+                                                </div>
+                                                <Button
+                                                    size='icon'
+                                                    className='h-10 w-10 rounded-xl bg-neutral-100 dark:bg-white/5 border border-neutral-200 dark:border-white/10 text-neutral-500 dark:text-white/40 hover:bg-neutral-200 dark:hover:bg-white/15 hover:text-neutral-800 dark:hover:text-white transition-all shrink-0'
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        copyEndpoint(form.id, e);
+                                                    }}
+                                                >
+                                                    {isCopied ? (
+                                                        <CheckCircle2 className='h-4 w-4 text-emerald-500' />
+                                                    ) : (
+                                                        <Copy className='h-4 w-4' />
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className='grid grid-cols-2 md:grid-cols-4 gap-2.5'>
+                                            {[
+                                                {
+                                                    label: 'Connector',
+                                                    value: form.connectorName,
+                                                    icon: (
+                                                        <Database className='h-3 w-3 opacity-60' />
+                                                    ),
+                                                },
+                                                {
+                                                    label: 'Schema',
+                                                    value: `${form.fields?.length || 0} fields`,
+                                                    icon: (
+                                                        <Settings2 className='h-3 w-3 opacity-60' />
+                                                    ),
+                                                },
+                                                {
+                                                    label: 'Submissions',
+                                                    value: form.submissions.toLocaleString(),
+                                                },
+                                                {
+                                                    label: 'Form ID',
+                                                    value: form.id,
+                                                    mono: true,
+                                                },
+                                            ].map(
+                                                ({
+                                                    label,
+                                                    value,
+                                                    icon,
+                                                    mono,
+                                                }) => (
+                                                    <div
+                                                        key={label}
+                                                        className='flex flex-col rounded-xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-white/[0.02] p-3'
+                                                    >
+                                                        <span className='text-[9px] font-bold tracking-widest uppercase text-neutral-400 dark:text-white/30 mb-1 flex items-center gap-1.5'>
+                                                            {icon}
+                                                            {label}
+                                                        </span>
+                                                        <span
+                                                            className={cn(
+                                                                'text-xs font-semibold text-neutral-700 dark:text-white/80 truncate',
+                                                                mono &&
+                                                                    'font-mono font-medium',
+                                                            )}
+                                                        >
+                                                            {value}
+                                                        </span>
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                    </div>
+                                    {/* Actions */}
+                                    <div className='flex flex-col gap-2.5 justify-center lg:border-l border-neutral-200 dark:border-white/10 lg:pl-5 mt-2 lg:mt-0'>
+                                        <Button
+                                            className='w-full h-10 rounded-xl bg-neutral-100 dark:bg-white/10 hover:bg-neutral-200 dark:hover:bg-white/20 text-neutral-700 dark:text-white font-bold transition-all'
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                window.open(
+                                                    `/api/public/test-form/${form.id}`,
+                                                    '_blank',
+                                                );
+                                            }}
+                                        >
+                                            <ExternalLink className='mr-2 h-4 w-4 opacity-50' />{' '}
+                                            Test Endpoint
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        );
+    };
+
+
+
     return (
         <div className='relative min-h-screen text-foreground'>
-            {/* ── Main content ── */}
-            <div className='relative z-10 flex flex-col gap-10 pb-16'>
-                {/* ══ HEADER ══ */}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={(e) => setActiveDragId(e.active.id as string)}
+                onDragEnd={handleDragEnd}
+            >
+                {/* ── Main content ── */}
+                <div className='relative z-10 flex flex-col gap-10 pb-16'>
+                    {/* ══ HEADER ══ */}
                 <div className='relative rounded-xl overflow-hidden mb-2 bg-neutral-100/80 dark:bg-transparent border border-neutral-200 dark:border-white/5'>
                     {/* Animated canvas background */}
                     <IsoLevelWarp
@@ -584,6 +1272,41 @@ export default function FormsClient({
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <Button
+                                    variant={
+                                        isSelectionMode ? 'default' : 'outline'
+                                    }
+                                    size='sm'
+                                    className={cn(
+                                        'h-10 rounded-lg px-4 text-xs font-semibold transition-all',
+                                        isSelectionMode
+                                            ? 'bg-violet-600 text-white hover:bg-violet-500'
+                                            : 'bg-muted border-border text-muted-foreground hover:bg-accent',
+                                    )}
+                                    onClick={() => {
+                                        setIsSelectionMode(!isSelectionMode);
+                                        if (!isSelectionMode)
+                                            setSelectedFormIds(new Set());
+                                    }}
+                                >
+                                    <FolderPlus className='mr-2 h-3.5 w-3.5' />
+                                    {isSelectionMode
+                                        ? 'Cancel Selection'
+                                        : 'Group Forms'}
+                                </Button>
+                                {isSelectionMode &&
+                                    selectedFormIds.size > 0 && (
+                                        <Button
+                                            size='sm'
+                                            className='h-10 rounded-lg px-4 text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 transition-all animate-in fade-in slide-in-from-left-2'
+                                            onClick={() =>
+                                                setIsGroupDialogOpen(true)
+                                            }
+                                        >
+                                            Finalize Grouping (
+                                            {selectedFormIds.size})
+                                        </Button>
+                                    )}
                             </div>
                         </div>
 
@@ -611,350 +1334,114 @@ export default function FormsClient({
                                 </Link>
                             </div>
                         ) : (
-                            <div className='rounded-xl border border-indigo-200/60 dark:border-indigo-500/10 bg-indigo-50/50 dark:bg-indigo-950/10 backdrop-blur-sm overflow-hidden'>
-                                {filteredForms.map((form, index) => {
-                                    const isExpanded =
-                                        expandedFormId === form.id;
-                                    const endpoint = getEndpointUrl(form.id);
-                                    const isLive = form.status === 'Live';
-                                    const isCopied = copiedId === form.id;
-
-                                    return (
-                                        <div
-                                            key={form.id}
-                                            className={cn(
-                                                'border-b border-neutral-200/70 dark:border-white/[0.05] last:border-b-0',
-                                                'transition-colors duration-200',
-                                                !isLive && 'opacity-60',
-                                            )}
-                                        >
-                                            {/* ── ROW ── */}
-                                            <div
-                                                className={cn(
-                                                    'flex items-center gap-4 px-4 py-3.5 cursor-pointer',
-                                                    'transition-colors duration-150',
-                                                    isExpanded
-                                                        ? 'bg-indigo-100/60 dark:bg-indigo-500/5'
-                                                        : 'hover:bg-neutral-100/60 dark:hover:bg-white/[0.03]',
-                                                )}
-                                                onClick={() =>
-                                                    setExpandedFormId(
-                                                        isExpanded
-                                                            ? null
-                                                            : form.id,
-                                                    )
-                                                }
-                                            >
-                                                {/* Left — name + status */}
-                                                <div className='flex items-center gap-3 min-w-0 flex-1'>
-                                                    <div
-                                                        className={cn(
-                                                            'h-2 w-2 rounded-full shrink-0',
-                                                            isLive
-                                                                ? 'bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.6)]'
-                                                                : 'bg-amber-500',
-                                                        )}
-                                                    />
-                                                    <span className='font-medium text-sm text-neutral-800 dark:text-white truncate'>
-                                                        {form.name}
-                                                    </span>
-                                                    <span
-                                                        className={cn(
-                                                            'hidden sm:inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest border shrink-0',
-                                                            isLive
-                                                                ? 'text-emerald-700 dark:text-emerald-400 border-emerald-400/30 dark:border-emerald-500/20 bg-emerald-100 dark:bg-emerald-500/8'
-                                                                : 'text-amber-700 dark:text-amber-400 border-amber-400/30 dark:border-amber-500/20 bg-amber-100 dark:bg-amber-500/8',
-                                                        )}
-                                                    >
-                                                        {form.status}
-                                                    </span>
-                                                </div>
-
-                                                {/* Center — connector + stats */}
-                                                <div className='hidden md:flex items-center gap-5 shrink-0'>
-                                                    <span className='flex items-center gap-1.5 text-xs text-neutral-500 dark:text-white/35'>
-                                                        <Database className='h-3 w-3' />
-                                                        {form.connectorName}
-                                                    </span>
-                                                    <span className='text-xs text-neutral-500 dark:text-white/35 tabular-nums'>
-                                                        <span className='text-neutral-700 dark:text-white/55 font-semibold'>
-                                                            {form.submissions}
-                                                        </span>{' '}
-                                                        submissions
-                                                    </span>
-                                                    <span className='text-xs text-neutral-400 dark:text-white/30'>
-                                                        {form.lastSubmission}
-                                                    </span>
-                                                </div>
-
-                                                {/* Right — chevron + menu */}
-                                                <div
-                                                    className='flex items-center gap-1 shrink-0'
-                                                    onClick={(e) =>
-                                                        e.stopPropagation()
-                                                    }
-                                                >
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger
-                                                            asChild
-                                                        >
-                                                            <Button
-                                                                size='icon'
-                                                                variant='ghost'
-                                                                className='h-7 w-7 rounded-md text-neutral-400 dark:text-white/25 hover:text-neutral-700 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-white/10 transition-all'
-                                                            >
-                                                                <MoreHorizontal className='h-3.5 w-3.5' />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent
-                                                            align='end'
-                                                            className='w-48 rounded-xl border-neutral-200 dark:border-white/10 bg-white dark:bg-zinc-900/95 backdrop-blur-xl shadow-2xl p-1.5'
-                                                        >
-                                                            <DropdownMenuItem
-                                                                onClick={(
-                                                                    e,
-                                                                ) => {
-                                                                    router.push(
-                                                                        `/dashboard/forms/${form.id}/edit`,
-                                                                    );
-                                                                    e.stopPropagation();
-                                                                }}
-                                                                className='rounded-md text-xs text-neutral-600 dark:text-white/70 cursor-pointer hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8 gap-2.5 py-2'
-                                                            >
-                                                                <Edit className='h-3.5 w-3.5 text-neutral-400 dark:text-white/50' />{' '}
-                                                                Edit Config
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={(e) =>
-                                                                    copyEmbed(
-                                                                        form.id,
-                                                                        e,
-                                                                    )
-                                                                }
-                                                                className='rounded-md text-xs text-neutral-600 dark:text-white/70 cursor-pointer hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8 gap-2.5 py-2'
-                                                            >
-                                                                <Code className='h-3.5 w-3.5 text-neutral-400 dark:text-white/50' />{' '}
-                                                                Copy HTML
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={(e) =>
-                                                                    handleDuplicate(
-                                                                        form.id,
-                                                                        e,
-                                                                    )
-                                                                }
-                                                                className='rounded-md text-xs text-neutral-600 dark:text-white/70 cursor-pointer hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8 gap-2.5 py-2'
-                                                            >
-                                                                <CopyPlus className='h-3.5 w-3.5 text-neutral-400 dark:text-white/50' />{' '}
-                                                                Duplicate
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator className='my-1.5 bg-neutral-200 dark:bg-white/8' />
-                                                            <DropdownMenuItem
-                                                                onClick={(e) =>
-                                                                    toggleStatus(
-                                                                        form.id,
-                                                                        e,
-                                                                    )
-                                                                }
-                                                                className={cn(
-                                                                    'rounded-md text-xs cursor-pointer hover:bg-neutral-100 dark:hover:bg-white/8 gap-2.5 py-2',
-                                                                    isLive
-                                                                        ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300'
-                                                                        : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300',
-                                                                )}
-                                                            >
-                                                                {isLive ? (
-                                                                    <>
-                                                                        <PauseCircle className='h-3.5 w-3.5' />{' '}
-                                                                        Pause
-                                                                        Form
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <PlayCircle className='h-3.5 w-3.5' />{' '}
-                                                                        Resume
-                                                                        Form
-                                                                    </>
-                                                                )}
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator className='my-1.5 bg-neutral-200 dark:bg-white/8' />
-                                                            <DropdownMenuItem
-                                                                onClick={(e) =>
-                                                                    deleteForm(
-                                                                        form.id,
-                                                                        e,
-                                                                    )
-                                                                }
-                                                                className='rounded-md text-xs text-red-500 cursor-pointer hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/15 gap-2.5 py-2'
-                                                            >
-                                                                <Trash2 className='h-3.5 w-3.5' />{' '}
-                                                                Delete Endpoint
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                    <ChevronDown
-                                                        className={cn(
-                                                            'h-3.5 w-3.5 text-neutral-400 dark:text-white/25 transition-transform duration-200 cursor-pointer',
-                                                            isExpanded &&
-                                                                'rotate-180',
-                                                        )}
-                                                        onClick={() =>
-                                                            setExpandedFormId(
-                                                                isExpanded
-                                                                    ? null
-                                                                    : form.id,
-                                                            )
-                                                        }
-                                                    />
-                                                </div>
+                                <div className='space-y-6'>
+                                    {/* Flat list for ungrouped forms */}
+                                    {ungroupedForms.length > 0 && (
+                                        <div className='space-y-3'>
+                                            <div className='flex items-center gap-2 px-1'>
+                                                <div className='h-6 w-1 rounded-full bg-neutral-300 dark:bg-white/10' />
+                                                <h3 className='text-[10px] font-bold text-neutral-500 dark:text-white/30 uppercase tracking-[0.2em]'>
+                                                    Ungrouped Forms (
+                                                    {ungroupedForms.length})
+                                                </h3>
                                             </div>
-
-                                            {/* ── EXPANDED DETAIL ── */}
-                                            <div
-                                                className={cn(
-                                                    'overflow-hidden transition-all duration-300',
-                                                    isExpanded
-                                                        ? 'max-h-[400px] opacity-100'
-                                                        : 'max-h-0 opacity-0',
-                                                )}
-                                            >
-                                                <div className='px-4 pb-5 pt-1 border-t border-neutral-200/60 dark:border-white/[0.04] bg-indigo-50/50 dark:bg-indigo-950/10'>
-                                                    <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
-                                                        {/* Details */}
-                                                        <div className='lg:col-span-2 flex flex-col gap-4'>
-                                                            <div>
-                                                                <label className='text-[9px] font-bold uppercase tracking-widest text-neutral-500 dark:text-white/40 block mb-1.5 flex items-center gap-1.5'>
-                                                                    <Terminal className='h-3 w-3' />{' '}
-                                                                    ENDPOINT URL
-                                                                </label>
-                                                                <div className='flex items-center gap-2'>
-                                                                    <div className='flex-1 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black/40 px-3.5 py-2.5 font-mono text-xs text-neutral-600 dark:text-white/70 truncate flex items-center'>
-                                                                        {
-                                                                            endpoint
-                                                                        }
-                                                                    </div>
-                                                                    <Button
-                                                                        size='icon'
-                                                                        className='h-10 w-10 rounded-xl bg-neutral-100 dark:bg-white/5 border border-neutral-200 dark:border-white/10 text-neutral-500 dark:text-white/40 hover:bg-neutral-200 dark:hover:bg-white/15 hover:text-neutral-800 dark:hover:text-white transition-all shrink-0'
-                                                                        onClick={(
-                                                                            e,
-                                                                        ) => {
-                                                                            e.stopPropagation();
-                                                                            copyEndpoint(
-                                                                                form.id,
-                                                                                e,
-                                                                            );
-                                                                        }}
-                                                                    >
-                                                                        {isCopied ? (
-                                                                            <CheckCircle2 className='h-4 w-4 text-emerald-500' />
-                                                                        ) : (
-                                                                            <Copy className='h-4 w-4' />
-                                                                        )}
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-                                                            <div className='grid grid-cols-2 md:grid-cols-4 gap-2.5'>
-                                                                {[
-                                                                    {
-                                                                        label: 'Connector',
-                                                                        value: form.connectorName,
-                                                                        icon: (
-                                                                            <Database className='h-3 w-3 opacity-60' />
-                                                                        ),
-                                                                    },
-                                                                    {
-                                                                        label: 'Schema',
-                                                                        value: `${form.fields?.length || 0} fields`,
-                                                                        icon: (
-                                                                            <Settings2 className='h-3 w-3 opacity-60' />
-                                                                        ),
-                                                                    },
-                                                                    {
-                                                                        label: 'Submissions',
-                                                                        value: form.submissions.toLocaleString(),
-                                                                    },
-                                                                    {
-                                                                        label: 'Form ID',
-                                                                        value: form.id,
-                                                                        mono: true,
-                                                                    },
-                                                                ].map(
-                                                                    ({
-                                                                        label,
-                                                                        value,
-                                                                        icon,
-                                                                        mono,
-                                                                    }) => (
-                                                                        <div
-                                                                            key={
-                                                                                label
-                                                                            }
-                                                                            className='flex flex-col rounded-xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-white/[0.02] p-3'
-                                                                        >
-                                                                            <span className='text-[9px] font-bold tracking-widest uppercase text-neutral-400 dark:text-white/30 mb-1 flex items-center gap-1.5'>
-                                                                                {
-                                                                                    icon
-                                                                                }
-                                                                                {
-                                                                                    label
-                                                                                }
-                                                                            </span>
-                                                                            <span
-                                                                                className={cn(
-                                                                                    'text-xs font-semibold text-neutral-700 dark:text-white/80 truncate',
-                                                                                    mono &&
-                                                                                        'font-mono font-medium',
-                                                                                )}
-                                                                            >
-                                                                                {
-                                                                                    value
-                                                                                }
-                                                                            </span>
-                                                                        </div>
-                                                                    ),
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        {/* Actions */}
-                                                        <div className='flex flex-col gap-2.5 justify-center lg:border-l border-neutral-200 dark:border-white/10 lg:pl-5 mt-2 lg:mt-0'>
-                                                            <Button
-                                                                className='w-full h-10 rounded-xl bg-neutral-100 dark:bg-white/10 hover:bg-neutral-200 dark:hover:bg-white/20 text-neutral-700 dark:text-white font-bold transition-all'
-                                                                onClick={(
-                                                                    e,
-                                                                ) => {
-                                                                    e.stopPropagation();
-                                                                    router.push(
-                                                                        `/dashboard/forms/${form.id}/submissions`,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <Eye className='mr-2 h-4 w-4 opacity-50' />{' '}
-                                                                View Submissions
-                                                            </Button>
-                                                            <Button
-                                                                className='w-full h-10 rounded-xl bg-violet-100 dark:bg-violet-500/15 hover:bg-violet-200 dark:hover:bg-violet-500/25 text-violet-700 dark:text-violet-200 border border-violet-200 dark:border-violet-500/20 font-bold transition-all'
-                                                                onClick={(
-                                                                    e,
-                                                                ) => {
-                                                                    e.stopPropagation();
-                                                                    window.open(
-                                                                        `/api/public/test-form/${form.id}`,
-                                                                        '_blank',
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <ExternalLink className='mr-2 h-4 w-4 opacity-50' />{' '}
-                                                                Test Endpoint
-                                                            </Button>
-                                                        </div>
-                                                    </div>
+                                            <DroppableSection id='ungrouped-container'>
+                                                <div className='rounded-xl border border-indigo-200/60 dark:border-indigo-500/10 bg-indigo-50/50 dark:bg-indigo-950/10 backdrop-blur-sm overflow-hidden min-h-[40px]'>
+                                                    <AnimatePresence mode='popLayout'>
+                                                        {ungroupedForms.map(
+                                                            (form) => (
+                                                                <DraggableRow
+                                                                    key={form.id}
+                                                                    form={form}
+                                                                >
+                                                                    {(props: any) =>
+                                                                        renderFormRow(
+                                                                            form,
+                                                                            false,
+                                                                            props.dragAttributes,
+                                                                            props.dragListeners,
+                                                                        )
+                                                                    }
+                                                                </DraggableRow>
+                                                            ),
+                                                        )}
+                                                    </AnimatePresence>
                                                 </div>
-                                            </div>
+                                            </DroppableSection>
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                    )}
+
+                                    {/* Accordion for grouped forms */}
+                                    {sortedGroupNames.length > 0 && (
+                                        <Accordion
+                                            type='multiple'
+                                            defaultValue={sortedGroupNames}
+                                            className='space-y-4'
+                                        >
+                                            {sortedGroupNames.map(
+                                                (groupName) => (
+                                                    <AccordionItem
+                                                        key={groupName}
+                                                        value={groupName}
+                                                        className='border border-indigo-200/60 dark:border-indigo-500/10 bg-indigo-50/50 dark:bg-indigo-950/10 backdrop-blur-sm rounded-xl overflow-hidden'
+                                                    >
+                                                        <DroppableSection
+                                                            id={`group-${groupName}`}
+                                                        >
+                                                            <AccordionTrigger className='px-4 py-3 hover:no-underline group/trigger data-[state=open]:border-b data-[state=open]:border-indigo-200/60 dark:data-[state=open]:border-indigo-500/10'>
+                                                                <div className='flex items-center gap-3'>
+                                                                    <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500 group-hover/trigger:bg-indigo-500 group-hover/trigger:text-white transition-colors'>
+                                                                        <Folder className='h-4 w-4' />
+                                                                    </div>
+                                                                    <div className='text-left'>
+                                                                        <h3 className='text-sm font-bold text-neutral-700 dark:text-white/90'>
+                                                                            {
+                                                                                groupName
+                                                                            }
+                                                                        </h3>
+                                                                        <p className='text-[10px] text-neutral-500 uppercase tracking-wider'>
+                                                                            {
+                                                                                groupedForms[
+                                                                                    groupName
+                                                                                ].length
+                                                                            }{' '}
+                                                                            Forms
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </AccordionTrigger>
+                                                        <AccordionContent className='p-0 min-h-[40px]'>
+                                                            <AnimatePresence mode='popLayout'>
+                                                                {groupedForms[
+                                                                    groupName
+                                                                ].map((form) => (
+                                                                    <DraggableRow
+                                                                        key={
+                                                                            form.id
+                                                                        }
+                                                                        form={
+                                                                            form
+                                                                        }
+                                                                    >
+                                                                        {(props: any) =>
+                                                                            renderFormRow(
+                                                                                form,
+                                                                                false,
+                                                                                props.dragAttributes,
+                                                                                props.dragListeners,
+                                                                            )
+                                                                        }
+                                                                    </DraggableRow>
+                                                                ))}
+                                                            </AnimatePresence>
+                                                        </AccordionContent>
+                                                        </DroppableSection>
+                                                    </AccordionItem>
+                                                ),
+                                            )}
+                                        </Accordion>
+                                    )}
+                                </div>
                         )}
                     </TabsContent>
 
@@ -1175,6 +1662,156 @@ export default function FormsClient({
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {/* ── BULK ACTIONS FLOATING BAR ── */}
+            <AnimatePresence>
+                {isSelectionMode && selectedFormIds.size > 0 && (
+                    <motion.div
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 100, opacity: 0 }}
+                        className='fixed bottom-8 left-1/2 -translate-x-1/2 z-50'
+                    >
+                        <div className='bg-zinc-900/90 dark:bg-zinc-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-6 min-w-[500px]'>
+                            <div className='flex items-center gap-2'>
+                                <Badge className='bg-violet-500 text-white border-none px-2 py-0.5 rounded-md'>
+                                    {selectedFormIds.size}
+                                </Badge>
+                                <span className='text-sm font-medium text-white/70'>
+                                    Forms selected
+                                </span>
+                            </div>
+                            <div className='h-8 w-px bg-white/10' />
+                            <div className='flex items-center gap-3'>
+                                <Button
+                                    size='sm'
+                                    className='bg-violet-600 hover:bg-violet-500 text-white rounded-xl h-10 px-6 font-bold shadow-lg shadow-violet-500/20 transition-all'
+                                    onClick={() => setIsGroupDialogOpen(true)}
+                                >
+                                    <FolderPlus className='mr-2 h-4 w-4' />
+                                    {Array.from(selectedFormIds).every(
+                                        (id) =>
+                                            !forms.find((f) => f.id === id)
+                                                ?.group,
+                                    )
+                                        ? 'Move to Group'
+                                        : 'Change Group'}
+                                </Button>
+
+                                {Array.from(selectedFormIds).some(
+                                    (id) =>
+                                        forms.find((f) => f.id === id)?.group,
+                                ) && (
+                                    <Button
+                                        size='sm'
+                                        variant='ghost'
+                                        className='text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl h-10 px-4 transition-all'
+                                        onClick={handleBulkRemoveFromGroup}
+                                    >
+                                        <FolderMinus className='mr-2 h-4 w-4' />
+                                        Remove from Groups
+                                    </Button>
+                                )}
+
+                                <Button
+                                    size='sm'
+                                    variant='ghost'
+                                    className='text-white/40 hover:text-white hover:bg-white/5 rounded-xl h-10 px-4'
+                                    onClick={() => setSelectedFormIds(new Set())}
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ── GROUP DIALOG ── */}
+            <Dialog
+                open={isGroupDialogOpen}
+                onOpenChange={setIsGroupDialogOpen}
+            >
+                <DialogContent className='bg-zinc-950 border-white/10 rounded-2xl sm:max-w-[400px]'>
+                    <DialogHeader>
+                        <DialogTitle className='text-white'>
+                            Move to Group
+                        </DialogTitle>
+                        <DialogDescription className='text-neutral-500'>
+                            Enter a group name to organize these forms. Leave
+                            empty to ungroup.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className='space-y-4 py-4'>
+                        <div className='space-y-3'>
+                            <label className='text-[10px] font-bold uppercase tracking-widest text-neutral-500'>
+                                Group Name
+                            </label>
+                            <Input
+                                value={newGroupName}
+                                onChange={(e) =>
+                                    setNewGroupName(e.target.value)
+                                }
+                                placeholder='e.g. Support, Auth, Onboarding...'
+                                className='bg-white/5 border-white/10 text-white placeholder:text-neutral-600 h-11'
+                                autoFocus
+                            />
+                        </div>
+
+                        {sortedGroupNames.length > 0 && (
+                            <div className='space-y-3'>
+                                <label className='text-[10px] font-bold uppercase tracking-widest text-neutral-500'>
+                                    Existing Groups
+                                </label>
+                                <div className='flex flex-wrap gap-2 max-h-[120px] overflow-y-auto pr-2 custom-scrollbar'>
+                                    {sortedGroupNames.map((name) => (
+                                        <button
+                                            key={name}
+                                            type='button'
+                                            onClick={() => setNewGroupName(name)}
+                                            className={cn(
+                                                'px-3 py-1.5 rounded-lg border text-xs transition-all flex items-center gap-2',
+                                                newGroupName === name
+                                                    ? 'bg-violet-500 border-violet-500 text-white shadow-lg shadow-violet-500/20'
+                                                    : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 hover:border-white/20',
+                                            )}
+                                        >
+                                            <Folder className='h-3 w-3' />
+                                            {name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div className='flex justify-end gap-3'>
+                        <Button
+                            variant='ghost'
+                            className='text-neutral-400 hover:text-white'
+                            onClick={() => setIsGroupDialogOpen(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            className='bg-violet-600 hover:bg-violet-500 text-white font-bold px-6'
+                            onClick={handleMoveToGroup}
+                        >
+                            Confirm
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+            <DragOverlay dropAnimation={null}>
+                {activeDragId ? (
+                    <div className='w-full max-w-[800px] opacity-80'>
+                        {renderFormRow(
+                            forms.find((f) => f.id === activeDragId)!,
+                            true,
+                        )}
+                    </div>
+                ) : null}
+            </DragOverlay>
+            </DndContext>
         </div>
     );
 }

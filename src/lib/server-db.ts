@@ -60,6 +60,7 @@ export interface RoutingConfig {
 export interface Form {
   id: string; // Slug/ID e.g. "contact-us"
   name: string;
+  group?: string; // e.g. "Support", "Auth"
   connectorId: string;
   targetDatabase?: string; // e.g. "main", "backup"
   routing?: RoutingConfig;
@@ -240,25 +241,26 @@ export async function getConnectors(userId?: string): Promise<Connector[]> {
 
 
 // --- Forms ---
-export async function createForm(connectorId: string, name: string, fields: FormField[], userId?: string, targetDatabase?: string, routing?: RoutingConfig): Promise<Form> {
+export async function createForm(connectorId: string, name: string, fields: FormField[], userId?: string, targetDatabase?: string, routing?: RoutingConfig, group?: string): Promise<Form> {
   const db = await getDB();
-
+ 
   if (!userId) {
     throw new Error("UserId is required to create a form");
   }
-
+ 
   // Simple slugify for ID
   const baseId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   let id = baseId;
   let counter = 1;
-
+ 
   while (await db.collection('user_forms').findOne({ "forms.id": id })) {
     id = `${baseId}-${counter++}`;
   }
-
+ 
   const newForm: Form = {
     id,
     name,
+    group,
     connectorId,
     targetDatabase,
     routing,
@@ -268,13 +270,13 @@ export async function createForm(connectorId: string, name: string, fields: Form
     userId,
     is_deleted: false
   };
-
+ 
   await db.collection<UserFormsDocument>('user_forms').updateOne(
     { userId },
     { $push: { forms: newForm } },
     { upsert: true }
   );
-
+ 
   return newForm;
 }
 
