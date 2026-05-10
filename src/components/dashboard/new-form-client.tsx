@@ -21,6 +21,7 @@ import {
     Shield,
     RotateCcw,
     Link2,
+    Folders,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -430,6 +431,7 @@ export default function NewFormClient({
     initialData,
 }: NewFormClientProps) {
     const [formName, setFormName] = useState(initialData?.name || '');
+    const [group, setGroup] = useState(initialData?.group || '');
     const [tempName, setTempName] = useState('');
     const [connector, setConnector] = useState(initialData?.connectorId || '');
     const [targetDb, setTargetDb] = useState(
@@ -593,6 +595,7 @@ export default function NewFormClient({
         const formData = new FormData();
         formData.append('name', formName);
         formData.append('connectorId', connector);
+        if (group) formData.append('group', group);
         if (targetDb) formData.append('targetDatabase', targetDb);
         const simplifiedFields = fields.map((f) => ({
             name: f.label,
@@ -659,6 +662,7 @@ export default function NewFormClient({
 
     const handleReset = () => {
         setFormName('');
+        setGroup('');
         setTempName('');
         setFields([
             {
@@ -1168,16 +1172,40 @@ CLOUDINARY_URL=cloudinary://...`}
                                                 </p>
                                             </div>
                                             <div className='space-y-4 bg-white/5 p-4 rounded-xl border border-white/5'>
-                                                <div className='space-y-2'>
-                                                    <Label className='text-xs text-neutral-300'>
-                                                        Target Connector
-                                                    </Label>
-                                                    <Select
-                                                        value={connector}
-                                                        onValueChange={
-                                                            setConnector
-                                                        }
-                                                    >
+                                                 <div className='space-y-2'>
+                                                     <Label className='text-xs text-neutral-300'>
+                                                         Form Group (Optional)
+                                                     </Label>
+                                                     <div className='relative'>
+                                                         <Folders className='absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500' />
+                                                         <Input
+                                                             value={group}
+                                                             onChange={(e) =>
+                                                                 setGroup(
+                                                                     e.target
+                                                                         .value,
+                                                                 )
+                                                             }
+                                                             placeholder='e.g. Support, Auth, Onboarding...'
+                                                             className='h-9 pl-9 bg-[#0A0A0F] border-white/10 text-xs text-white placeholder:text-neutral-600 focus:ring-violet-500/40'
+                                                         />
+                                                     </div>
+                                                     <p className='text-[10px] text-neutral-500'>
+                                                         Group similar forms
+                                                         together in your
+                                                         dashboard.
+                                                     </p>
+                                                 </div>
+                                                 <div className='space-y-2'>
+                                                     <Label className='text-xs text-neutral-300'>
+                                                         Target Connector
+                                                     </Label>
+                                                     <Select
+                                                         value={connector}
+                                                         onValueChange={
+                                                             setConnector
+                                                         }
+                                                     >
                                                         <SelectTrigger className='bg-[#0A0A0F] border-white/10 text-white'>
                                                             <SelectValue placeholder='Choose target connector...' />
                                                         </SelectTrigger>
