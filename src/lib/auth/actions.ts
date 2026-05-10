@@ -132,15 +132,40 @@ export async function login(prevState: any, formData: FormData): Promise<AuthSta
 }
 
 export async function logout(prevState: any, formData: FormData): Promise<AuthState> {
-    (await cookies()).delete('token');
-    (await cookies()).delete('postpipe_auth');
+    const cookieStore = await cookies();
+    const isProd = process.env.NODE_ENV === 'production';
+    
+    cookieStore.set('token', '', {
+        maxAge: 0,
+        path: '/',
+        ...(isProd && { domain: '.postpipe.in' }),
+    });
+    
+    cookieStore.set('postpipe_auth', '', {
+        maxAge: 0,
+        path: '/',
+        ...(isProd && { domain: '.postpipe.in' }),
+    });
+    
     return { success: true, message: 'Logged out successfully' };
 }
 
 export async function signOut() {
     'use server';
-    (await cookies()).delete('token');
-    (await cookies()).delete('postpipe_auth');
+    const cookieStore = await cookies();
+    const isProd = process.env.NODE_ENV === 'production';
+    
+    cookieStore.set('token', '', {
+        maxAge: 0,
+        path: '/',
+        ...(isProd && { domain: '.postpipe.in' }),
+    });
+    
+    cookieStore.set('postpipe_auth', '', {
+        maxAge: 0,
+        path: '/',
+        ...(isProd && { domain: '.postpipe.in' }),
+    });
 }
 
 export async function forgotPassword(prevState: any, formData: FormData): Promise<AuthState> {
