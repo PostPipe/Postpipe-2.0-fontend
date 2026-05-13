@@ -226,7 +226,12 @@ export async function getAuthPresetsAction() {
     try {
         const dbModule = await import('../../lib/server-db');
         const presets = await dbModule.getAuthPresets(session.userId);
-        return presets;
+        // Serialize: convert any MongoDB ObjectId/_id to strings so Next.js
+        // can safely pass these from a Server Component to a Client Component.
+        return presets.map((p: any) => ({
+            ...p,
+            _id: p._id?.toString(),
+        }));
     } catch (e) {
         console.error("Failed to fetch Auth Presets:", e);
         return [];
