@@ -98,6 +98,7 @@ import {
     toggleFormStatusAction,
     deleteAuthPresetAction,
     bulkUpdateFormGroupsAction,
+    bulkDeleteFormsAction,
 } from '@/app/actions/dashboard';
 import IsoLevelWarp from '@/components/ui/isometric-wave-grid-background';
 import { FormSearchBar } from '@/components/ui/animated-search-bar';
@@ -215,6 +216,7 @@ export default function FormsClient({
     const [isSelectionMode, setIsSelectionMode] = React.useState(false);
     const [newGroupName, setNewGroupName] = React.useState('');
     const [isGroupDialogOpen, setIsGroupDialogOpen] = React.useState(false);
+    const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false);
     const [expandedFormId, setExpandedFormId] = React.useState<string | null>(
         null,
     );
@@ -264,11 +266,32 @@ export default function FormsClient({
                     else lastSub = `${d}d ago`;
                 }
             }
+            let connectorNameStr = f.connectorName || 'Default Connector';
+            if (f.targetDatabase) {
+                if (typeof f.targetDatabase === 'string') {
+                    if (f.targetDatabase.startsWith('{') && f.targetDatabase.endsWith('}')) {
+                        try {
+                            const parsed = JSON.parse(f.targetDatabase);
+                            if (parsed.dbName) {
+                                connectorNameStr = parsed.dbName;
+                            } else {
+                                connectorNameStr = f.targetDatabase;
+                            }
+                        } catch (e) {
+                            connectorNameStr = f.targetDatabase;
+                        }
+                    } else {
+                        connectorNameStr = f.targetDatabase;
+                    }
+                } else if (typeof f.targetDatabase === 'object' && f.targetDatabase.dbName) {
+                    connectorNameStr = f.targetDatabase.dbName;
+                }
+            }
+
             return {
                 id: f.id,
                 name: f.name,
-                connectorName:
-                    f.targetDatabase || f.connectorName || 'Default Connector',
+                connectorName: connectorNameStr,
                 connectorId: f.connectorId,
                 submissions: subCount,
                 lastSubmission: lastSub,
@@ -493,6 +516,30 @@ export default function FormsClient({
             toast({
                 title: 'Error',
                 description: 'Failed to group forms',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedFormIds.size === 0) return;
+
+        const formIds = Array.from(selectedFormIds);
+        try {
+            await bulkDeleteFormsAction(formIds);
+
+            // Update local state
+            setForms((prev) => prev.filter((f) => !formIds.includes(f.id)));
+
+            setSelectedFormIds(new Set());
+            setIsSelectionMode(false);
+            setIsBulkDeleteDialogOpen(false);
+            toast({ title: 'Forms deleted successfully' });
+            router.refresh();
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: 'Failed to delete forms',
                 variant: 'destructive',
             });
         }
@@ -1018,6 +1065,16 @@ export default function FormsClient({
                                     {/* Actions */}
                                     <div className='flex flex-col gap-2.5 justify-center lg:border-l border-neutral-200 dark:border-white/10 lg:pl-5 mt-2 lg:mt-0'>
                                         <Button
+                                            className='w-full h-10 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold transition-all'
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                router.push(`/dashboard/forms/${form.id}/submissions`);
+                                            }}
+                                        >
+                                            <Eye className='mr-2 h-4 w-4' />{' '}
+                                            View Submissions
+                                        </Button>
+                                        <Button
                                             className='w-full h-10 rounded-xl bg-neutral-100 dark:bg-white/10 hover:bg-neutral-200 dark:hover:bg-white/20 text-neutral-700 dark:text-white font-bold transition-all'
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -1294,18 +1351,43 @@ export default function FormsClient({
                                         ? 'Cancel Selection'
                                         : 'Group Forms'}
                                 </Button>
+                                {!isSelectionMode && (
+                                    <Button
+                                        variant='outline'
+                                        size='sm'
+                                        className='h-10 rounded-lg px-4 text-xs font-semibold transition-all bg-muted border-border text-muted-foreground hover:bg-accent ml-2'
+                                        onClick={() => {
+                                            setIsSelectionMode(true);
+                                            setSelectedFormIds(new Set());
+                                        }}
+                                    >
+                                        <Trash2 className='mr-2 h-3.5 w-3.5' />
+                                        Bulk Delete
+                                    </Button>
+                                )}
                                 {isSelectionMode &&
                                     selectedFormIds.size > 0 && (
-                                        <Button
-                                            size='sm'
-                                            className='h-10 rounded-lg px-4 text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 transition-all animate-in fade-in slide-in-from-left-2'
-                                            onClick={() =>
-                                                setIsGroupDialogOpen(true)
-                                            }
-                                        >
-                                            Finalize Grouping (
-                                            {selectedFormIds.size})
-                                        </Button>
+                                        <>
+                                            <Button
+                                                size='sm'
+                                                className='h-10 rounded-lg px-4 text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 transition-all animate-in fade-in slide-in-from-left-2'
+                                                onClick={() =>
+                                                    setIsGroupDialogOpen(true)
+                                                }
+                                            >
+                                                Finalize Grouping (
+                                                {selectedFormIds.size})
+                                            </Button>
+                                            <Button
+                                                size='sm'
+                                                className='h-10 rounded-lg px-4 text-xs font-bold bg-red-600 text-white hover:bg-red-500 shadow-lg shadow-red-500/20 transition-all animate-in fade-in slide-in-from-left-2 ml-2'
+                                                onClick={() => setIsBulkDeleteDialogOpen(true)}
+                                            >
+                                                <Trash2 className='mr-2 h-3.5 w-3.5' />
+                                                Delete (
+                                                {selectedFormIds.size})
+                                            </Button>
+                                        </>
                                     )}
                             </div>
                         </div>
@@ -1801,6 +1883,34 @@ export default function FormsClient({
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog
+                open={isBulkDeleteDialogOpen}
+                onOpenChange={setIsBulkDeleteDialogOpen}
+            >
+                <AlertDialogContent className='bg-zinc-950 border-white/10 rounded-2xl'>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className='text-white'>
+                            Are you absolutely sure?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className='text-neutral-500'>
+                            This action cannot be undone. This will permanently delete the {selectedFormIds.size} selected forms.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className='text-neutral-400 hover:text-white bg-transparent border-white/10 hover:bg-white/5'>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleBulkDelete}
+                            className='bg-red-600 hover:bg-red-500 text-white font-bold'
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <DragOverlay dropAnimation={null}>
                 {activeDragId ? (
                     <div className='w-full max-w-[800px] opacity-80'>
