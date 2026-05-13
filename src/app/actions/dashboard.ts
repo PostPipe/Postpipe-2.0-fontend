@@ -163,6 +163,22 @@ export async function bulkUpdateFormGroupsAction(formIds: string[], groupName: s
   return { success: true };
 }
 
+export async function bulkDeleteFormsAction(formIds: string[]) {
+  const session = await getSession();
+  if (!session || !session.userId) throw new Error("Unauthorized");
+
+  const dbModule = await import('../../lib/server-db');
+  
+  await Promise.all(formIds.map(async (id) => {
+    const form = await dbModule.getForm(id);
+    if (form && form.userId === session.userId) {
+      await dbModule.deleteForm(id);
+    }
+  }));
+
+  return { success: true };
+}
+
 export async function deleteConnectorAction(id: string) {
   const session = await getSession();
   if (!session || !session.userId) {
