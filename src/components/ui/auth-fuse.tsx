@@ -164,7 +164,12 @@ export interface PasswordInputProps extends React.InputHTMLAttributes<HTMLInputE
 }
 const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
     ({ className, label, labelDescription, ...props }, ref) => {
-        const id = useId();
+        const reactId = useId();
+        const [mounted, setMounted] = useState(false);
+        useEffect(() => {
+            setMounted(true);
+        }, []);
+        const id = mounted ? reactId : "password-field";
         const [showPassword, setShowPassword] = useState(false);
         const togglePasswordVisibility = () => setShowPassword((prev) => !prev);
         return (

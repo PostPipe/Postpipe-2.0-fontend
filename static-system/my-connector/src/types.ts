@@ -44,6 +44,13 @@ export interface DatabaseAdapter {
   updateUserPassword(userId: string, newPasswordHash: string, context?: any): Promise<void>;
   verifyUserEmail(userId: string, context?: any): Promise<void>;
   updateUserOtp(userId: string, otp: string, expiresAt: Date, context?: any): Promise<void>;
+
+  // --- RBAC Adapter Methods ---
+  findUserByField?(table: string, field: string, value: string, context?: any): Promise<any>;
+  insertRecord?(table: string, data: Record<string, any>, context?: any): Promise<any>;
+  updateRecord?(table: string, filter: Record<string, any>, data: Record<string, any>, context?: any): Promise<any>;
+  deleteRecord?(table: string, filter: Record<string, any>, context?: any): Promise<boolean>;
+  queryRecords?(table: string, filter?: Record<string, any>, options?: { limit?: number; offset?: number }, context?: any): Promise<any[]>;
 }
 
 export interface QueryOptions {
