@@ -12,7 +12,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { RainbowButton } from '@/components/ui/rainbow-button';
 import AuthPresetGenerator from './auth-preset-generator';
-import RBACSetup from './rbac-setup';
+import RBACSetupWizard from '../rbac/RBACSetupWizard';
+import RBACDetails from '../rbac/RBACDetails';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -91,6 +92,7 @@ import {
     Square,
     GripVertical,
 } from 'lucide-react';
+import { generateSnippets } from '@/lib/snippet-generator';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -101,8 +103,12 @@ import {
     deleteAuthPresetAction,
     bulkUpdateFormGroupsAction,
     bulkDeleteFormsAction,
+    createSystemAction,
+    deleteSystemAction,
+    deleteRBACSystemAction,
+    updateRBACSystemAction,
 } from '@/app/actions/dashboard';
-import { createRBACSystemAction, deleteRBACSystemAction } from '@/app/actions/rbac';
+
 import IsoLevelWarp from '@/components/ui/isometric-wave-grid-background';
 import { FormSearchBar } from '@/components/ui/animated-search-bar';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -129,13 +135,14 @@ type Form = {
     lastSubmission: string;
     status: 'Live' | 'Paused';
     fields: any[];
+    readToken?: string;
 };
 
 interface FormsClientProps {
     initialForms: any[];
     initialPresets?: any[];
     initialConnectors?: any[];
-    initialRBACSystems?: any[];
+    initialSystems?: any[];
 }
 
 const DraggableRow = ({
@@ -200,21 +207,22 @@ const DroppableSection = ({
     );
 };
 
-export default function FormsClient({
-    initialForms = [],
-    initialPresets = [],
-    initialConnectors = [],
-    initialRBACSystems = [],
-}: FormsClientProps) {
+export default function FormsClient(props: FormsClientProps) {
+    const { initialForms = [], initialPresets = [] } = props;
     const router = useRouter();
     const [isCreatingPreset, setIsCreatingPreset] = React.useState(false);
     const [editingPreset, setEditingPreset] = React.useState<any | null>(null);
     const [presets, setPresets] = React.useState<any[]>(initialPresets || []);
-    const [rbacSystems, setRbacSystems] = React.useState<any[]>(initialRBACSystems || []);
-    const [editingRBACSystem, setEditingRBACSystem] = React.useState<any | null>(null);
+    const [initialConnectors, setInitialConnectors] = React.useState<any[]>(props.initialConnectors || []);
+    const [initialSystems, setInitialSystems] = React.useState<any[]>(props.initialSystems || []);
+    
+    // RBAC State
     const [isCreatingRBAC, setIsCreatingRBAC] = React.useState(false);
-    const [newRBACName, setNewRBACName] = React.useState('');
-    const [newRBACConnectorId, setNewRBACConnectorId] = React.useState(initialConnectors?.[0]?.id || '');
+    const [editingRBAC, setEditingRBAC] = React.useState<any | null>(null);
+    const [deletingRBACId, setDeletingRBACId] = React.useState<string | null>(null);
+    const [expandedRBACId, setExpandedRBACId] = React.useState<string | null>(null);
+    const RBACSystems = initialSystems.filter((s: any) => s.type === 'rbac');
+
     const [searchQuery, setSearchQuery] = React.useState('');
     const [statusFilter, setStatusFilter] = React.useState('all');
     const [dbFilter, setDbFilter] = React.useState('all');
@@ -227,6 +235,63 @@ export default function FormsClient({
     const [newGroupName, setNewGroupName] = React.useState('');
     const [isGroupDialogOpen, setIsGroupDialogOpen] = React.useState(false);
     const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false);
+
+    const handleDeleteRBACSystem = async (id: string) => {
+        try {
+            const res = await deleteRBACSystemAction(id);
+            if (res.success) {
+                setInitialSystems(prev => prev.filter(s => s.id !== id));
+                setDeletingRBACId(null);
+                toast({ title: 'RBAC System deleted successfully' });
+            } else {
+                toast({ title: 'Error deleting system', variant: 'destructive' });
+            }
+        } catch (e: any) {
+            toast({ title: 'Error', description: e.message, variant: 'destructive' });
+        }
+    };
+
+    const handleUpdateRBACSystem = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingRBAC) return;
+        const form = new FormData(e.target as HTMLFormElement);
+        const name = form.get('name') as string;
+        const connectorId = form.get('connectorId') as string;
+        const targetDatabase = form.get('targetDatabase') as string;
+        const tableName = form.get('tableName') as string;
+        const rolesCol = form.get('rolesCol') as string;
+        const emailCol = form.get('emailCol') as string;
+        const passwordCol = form.get('passwordCol') as string;
+        
+        try {
+            const res = await updateRBACSystemAction(editingRBAC.id, {
+                name,
+                templateId: connectorId,
+                settings: {
+                    ...editingRBAC.settings,
+                    targetDatabase,
+                    tableName,
+                    rolesCol,
+                    emailCol,
+                    passwordCol
+                }
+            });
+            if (res.success) {
+                setInitialSystems(prev => prev.map(s => s.id === editingRBAC.id ? {
+                    ...s,
+                    name,
+                    templateId: connectorId,
+                    settings: { ...s.settings, targetDatabase, tableName, rolesCol, emailCol, passwordCol }
+                } : s));
+                setEditingRBAC(null);
+                toast({ title: 'System updated successfully' });
+            } else {
+                toast({ title: 'Error updating system', variant: 'destructive' });
+            }
+        } catch (e: any) {
+            toast({ title: 'Error', description: e.message, variant: 'destructive' });
+        }
+    };
     const [expandedFormId, setExpandedFormId] = React.useState<string | null>(
         null,
     );
@@ -251,10 +316,6 @@ export default function FormsClient({
     React.useEffect(() => {
         setPresets(initialPresets || []);
     }, [initialPresets]);
-
-    React.useEffect(() => {
-        setRbacSystems(initialRBACSystems || []);
-    }, [initialRBACSystems]);
 
     const mapForms = (data: any[]): Form[] =>
         data.map((f: any) => {
@@ -312,6 +373,7 @@ export default function FormsClient({
                 status: f.status || 'Live',
                 group: f.group,
                 fields: f.fields || [],
+                readToken: f.readToken,
             };
         });
 
@@ -459,33 +521,6 @@ export default function FormsClient({
         }
     };
 
-    const handleCreateRBACSystem = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newRBACName.trim() || !newRBACConnectorId) return;
-        try {
-            const sys = await createRBACSystemAction(newRBACName, newRBACConnectorId);
-            setRbacSystems(prev => [...prev, sys]);
-            setIsCreatingRBAC(false);
-            setNewRBACName('');
-            toast({ title: 'RBAC System created' });
-            router.refresh();
-        } catch (err: any) {
-            toast({ title: 'Error', description: err.message, variant: 'destructive' });
-        }
-    };
-
-    const handleDeleteRBACSystem = async (id: string) => {
-        if (!confirm('Delete this RBAC System? This cannot be undone.')) return;
-        try {
-            await deleteRBACSystemAction(id);
-            setRbacSystems(prev => prev.filter(s => s.id !== id));
-            toast({ title: 'RBAC System deleted' });
-            router.refresh();
-        } catch {
-            toast({ title: 'Failed to delete system', variant: 'destructive' });
-        }
-    };
-
     const resendVerification = async (id: string) => {
         toast({
             title: 'Verification emails queued',
@@ -523,12 +558,14 @@ export default function FormsClient({
         if (e) e.stopPropagation();
         const form = forms.find((f) => f.id === id);
         if (!form) return;
-        const html = `<form action="${getEndpointUrl(id)}" method="POST">\n${form.fields
-            .map(
-                (f: any) =>
-                    `  <label>${f.name}</label>\n  <input type="${f.type}" name="${f.name}" />`,
-            )
-            .join('\n')}\n  <button type="submit">Submit</button>\n</form>`;
+        const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        const { html } = generateSnippets(
+            form.id,
+            form.name,
+            form.fields || [],
+            appUrl,
+            (form as any).connectorUrl || ''
+        );
         copyToClipboard(html, 'HTML embed code copied!', e);
     };
 
@@ -1277,14 +1314,13 @@ export default function FormsClient({
                                 value='presets'
                                 className='rounded-lg text-xs font-semibold data-[state=active]:bg-background dark:data-[state=active]:bg-white/10 data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm text-muted-foreground px-4 h-8 transition-all'
                             >
-                                <Shield className='mr-2 h-3.5 w-3.5' /> Auth
-                                Presets
+                                <Shield className='mr-2 h-3.5 w-3.5' /> Auth Presets
                             </TabsTrigger>
                             <TabsTrigger
-                                value='rbac'
+                                value='RBAC'
                                 className='rounded-lg text-xs font-semibold data-[state=active]:bg-background dark:data-[state=active]:bg-white/10 data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm text-muted-foreground px-4 h-8 transition-all'
                             >
-                                <ShieldAlert className='mr-2 h-3.5 w-3.5' /> RBAC System
+                                <ShieldAlert className='mr-2 h-3.5 w-3.5' /> RBAC Systems
                             </TabsTrigger>
                         </TabsList>
                     </div>
@@ -1790,139 +1826,127 @@ export default function FormsClient({
                             </div>
                         )}
                     </TabsContent>
-                    <TabsContent value='rbac' className='mt-0'>
-                        {editingRBACSystem ? (
-                            <RBACSetup 
-                                system={editingRBACSystem} 
-                                onBack={() => {
-                                    setEditingRBACSystem(null);
-                                    router.refresh();
-                                }}
-                            />
-                        ) : (
-                            <div className='flex flex-col gap-6'>
-                                <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 dark:border-white/[0.08] pb-4'>
-                                    <div>
-                                        <h2 className='text-base font-bold text-neutral-800 dark:text-white/80'>
-                                            RBAC Systems
-                                        </h2>
-                                        <p className='text-xs text-neutral-500 dark:text-white/30 mt-1'>
-                                            Reusable role-based access control configurations.
-                                        </p>
-                                    </div>
-                                    <Dialog open={isCreatingRBAC} onOpenChange={setIsCreatingRBAC}>
-                                        <DialogTrigger asChild>
-                                            <RainbowButton className='h-9 rounded-lg px-5 text-xs font-semibold'>
-                                                <Plus className='mr-2 h-3.5 w-3.5' />{' '}
-                                                New RBAC System
-                                            </RainbowButton>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-[425px] bg-white dark:bg-zinc-950 border border-neutral-200 dark:border-white/10 rounded-2xl">
-                                            <DialogHeader>
-                                                <DialogTitle className="text-lg font-bold text-neutral-800 dark:text-white">Create RBAC System</DialogTitle>
-                                                <DialogDescription className="text-xs text-neutral-500 dark:text-white/40">
-                                                    Give your RBAC system a name and assign it to a connector.
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <form onSubmit={handleCreateRBACSystem} className="flex flex-col gap-4 mt-4">
-                                                <div>
-                                                    <label className="text-xs font-semibold text-neutral-700 dark:text-white/70 mb-1.5 block">Name</label>
-                                                    <Input 
-                                                        value={newRBACName} 
-                                                        onChange={e => setNewRBACName(e.target.value)}
-                                                        placeholder="e.g. Employee Portal RBAC"
-                                                        className="h-10 rounded-lg text-sm bg-neutral-50 dark:bg-zinc-900 border-neutral-200 dark:border-white/10"
-                                                        required
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-semibold text-neutral-700 dark:text-white/70 mb-1.5 block">Target Connector</label>
-                                                    <Select value={newRBACConnectorId} onValueChange={setNewRBACConnectorId}>
-                                                        <SelectTrigger className="h-10 rounded-lg text-sm bg-neutral-50 dark:bg-zinc-900 border-neutral-200 dark:border-white/10">
-                                                            <SelectValue placeholder="Select Connector" />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-zinc-900">
-                                                            {initialConnectors?.map(c => (
-                                                                <SelectItem key={c.id} value={c.id} className="text-sm">{c.name}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="flex justify-end gap-2 mt-2">
-                                                    <Button type="button" variant="ghost" onClick={() => setIsCreatingRBAC(false)} className="h-9 text-xs rounded-lg text-neutral-500 hover:text-neutral-700 dark:text-white/50 dark:hover:text-white">Cancel</Button>
-                                                    <Button type="submit" className="h-9 text-xs font-bold rounded-lg bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/20">Create System</Button>
-                                                </div>
-                                            </form>
-                                        </DialogContent>
-                                    </Dialog>
-                                </div>
 
-                                {rbacSystems.length === 0 ? (
-                                    <div className='flex flex-col items-center justify-center gap-4 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50/50 dark:bg-zinc-950/40 py-20 text-center'>
-                                        <div className='flex h-16 w-16 items-center justify-center rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-white/[0.05]'>
-                                            <Shield className='h-8 w-8 text-neutral-400 dark:text-white/20' />
+                    {/* ── RBAC Systems tab ── */}
+                    <TabsContent value='RBAC' className='space-y-5 mt-0'>
+                        {!isCreatingRBAC ? (
+                            <div className='space-y-4'>
+                                <div className='flex items-center justify-between mb-2'>
+                                    <h3 className='text-lg font-semibold text-neutral-900 dark:text-white flex items-center gap-2'>
+                                        <ShieldAlert className='w-5 h-5 text-violet-500' />
+                                        Native RBAC Systems
+                                    </h3>
+                                    <Button
+                                        onClick={() => setIsCreatingRBAC(true)}
+                                        className='bg-violet-600 hover:bg-violet-500 text-white shadow-md'
+                                    >
+                                        <Plus className='w-4 h-4 mr-2' /> Create RBAC System
+                                    </Button>
+                                </div>
+                                <p className='text-sm text-neutral-500 dark:text-neutral-400'>
+                                    Role-Based Access Control Systems automatically attach roles and permissions to your authenticating users.
+                                </p>
+                                
+                                <div className='grid gap-4 mt-4'>
+                                    {RBACSystems.length === 0 ? (
+                                        <div className='p-8 text-center border border-dashed border-neutral-300 dark:border-white/10 rounded-xl bg-neutral-50/50 dark:bg-white/[0.02]'>
+                                            <ShieldAlert className='w-12 h-12 text-neutral-400 mx-auto mb-3 opacity-50' />
+                                            <h4 className='text-neutral-700 dark:text-neutral-300 font-medium'>No RBAC Systems Found</h4>
+                                            <p className='text-sm text-neutral-500 mt-1'>Create one to manage roles and permissions dynamically.</p>
                                         </div>
-                                        <div>
-                                            <p className='text-base font-semibold text-neutral-600 dark:text-white/50'>
-                                                No RBAC systems configured
-                                            </p>
-                                            <p className='mt-1 text-sm text-neutral-400 dark:text-white/30'>
-                                                Create an RBAC system to manage roles and permissions.
-                                            </p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'>
-                                        {rbacSystems.map((sys) => {
-                                            const connector = initialConnectors?.find(c => c.id === sys.connectorId);
+                                    ) : (
+                                        RBACSystems.map((sys: any) => {
+                                            const isExpanded = expandedRBACId === sys.id;
                                             return (
-                                            <div
-                                                key={sys.id}
-                                                className='group relative rounded-lg border border-neutral-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.05] hover:bg-neutral-50 dark:hover:bg-white/10 hover:border-neutral-300 dark:hover:border-white/[0.15] transition-all p-5 flex flex-col gap-4'
-                                            >
-                                                <div className='flex items-start justify-between gap-4'>
-                                                    <div className='min-w-0'>
-                                                        <h3 className='font-bold text-sm text-neutral-800 dark:text-white/80 truncate'>
-                                                            {sys.name}
-                                                        </h3>
-                                                        <code className='text-[10px] text-neutral-400 dark:text-white/[0.25] mt-1 font-mono block'>
-                                                            ID: {sys.id?.slice(0, 16)}…
-                                                        </code>
+                                            <div key={sys.id} className='rounded-xl border border-neutral-200 dark:border-white/10 bg-white/50 dark:bg-white/[0.03] backdrop-blur-md overflow-hidden'>
+                                                <div 
+                                                    className='p-5 flex items-center justify-between cursor-pointer hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors'
+                                                    onClick={() => setExpandedRBACId(isExpanded ? null : sys.id)}
+                                                >
+                                                    <div className='flex items-center gap-4'>
+                                                        <div className='w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center'>
+                                                            <ShieldAlert className='w-5 h-5 text-violet-400' />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className='text-sm font-semibold text-neutral-900 dark:text-white'>{sys.name}</h4>
+                                                            <p className='text-xs text-neutral-500 mt-0.5 font-mono'>System ID: {sys.id}</p>
+                                                        </div>
                                                     </div>
-                                                    <Badge className='text-[10px] bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-500/25 border rounded-lg px-2 shrink-0 max-w-[100px] truncate'>
-                                                        {connector?.name || 'Unknown'}
-                                                    </Badge>
+                                                    <div className='flex items-center gap-4' onClick={e => e.stopPropagation()}>
+                                                        <div className='flex flex-col items-end gap-1'>
+                                                            <Badge variant="outline" className='bg-green-500/10 text-green-500 border-green-500/20'>
+                                                                Active
+                                                            </Badge>
+                                                            <span className='text-[10px] text-neutral-500 uppercase tracking-wider font-semibold'>
+                                                                Connected Forms: {sys.settings?.rolesFormId} / {sys.settings?.permissionsFormId}
+                                                            </span>
+                                                        </div>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant='ghost' size='icon' className='h-8 w-8 rounded-md'>
+                                                                    <MoreHorizontal className='h-4 w-4' />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align='end' className='w-48'>
+                                                                <DropdownMenuItem
+                                                                    onSelect={() => {
+                                                                        setTimeout(() => setEditingRBAC(sys), 0);
+                                                                    }}
+                                                                    className='gap-2'
+                                                                >
+                                                                    <Edit className='h-4 w-4' /> Edit Settings
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onSelect={() => {
+                                                                        setTimeout(() => setDeletingRBACId(sys.id), 0);
+                                                                    }}
+                                                                    className='gap-2 text-red-500 focus:bg-red-500/10 focus:text-red-600 cursor-pointer'
+                                                                >
+                                                                    <Trash2 className='h-4 w-4' /> Delete System
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                        <ChevronDown
+                                                            className={cn(
+                                                                'h-4 w-4 text-neutral-400 transition-transform duration-200 cursor-pointer',
+                                                                isExpanded && 'rotate-180'
+                                                            )}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setExpandedRBACId(isExpanded ? null : sys.id);
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className='flex flex-wrap gap-1.5'>
-                                                    <span className='rounded-lg bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[10px] px-2 py-0.5 font-semibold'>
-                                                        {sys.state?.roles?.length || 0} Roles
-                                                    </span>
-                                                    <span className='rounded-lg bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] px-2 py-0.5 font-semibold'>
-                                                        {sys.state?.permissions?.length || 0} Permissions
-                                                    </span>
-                                                </div>
-                                                <div className='flex gap-2 mt-auto pt-3 border-t border-neutral-200 dark:border-white/[0.06]'>
-                                                    <Button
-                                                        variant='ghost'
-                                                        size='sm'
-                                                        className='h-8 text-xs text-neutral-500 dark:text-white/50 hover:text-neutral-800 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/[0.08] rounded-lg gap-1.5'
-                                                        onClick={() => setEditingRBACSystem(sys)}
-                                                    >
-                                                        <Edit className='h-3.5 w-3.5' /> Edit
-                                                    </Button>
-                                                    <Button
-                                                        variant='ghost'
-                                                        size='sm'
-                                                        className='h-8 text-xs text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg gap-1.5 ml-auto'
-                                                        onClick={() => handleDeleteRBACSystem(sys.id)}
-                                                    >
-                                                        <Trash2 className='h-3.5 w-3.5' /> Delete
-                                                    </Button>
-                                                </div>
+                                                <AnimatePresence>
+                                                    {isExpanded && (
+                                                        <motion.div
+                                                            initial={{ height: 0, opacity: 0 }}
+                                                            animate={{ height: 'auto', opacity: 1 }}
+                                                            exit={{ height: 0, opacity: 0 }}
+                                                            className='overflow-hidden'
+                                                        >
+                                                            <RBACDetails system={sys} forms={forms} />
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
                                             </div>
-                                        )})}
-                                    </div>
-                                )}
+                                        )})
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className='max-w-2xl mx-auto'>
+                                <RBACSetupWizard
+                                    connectors={initialConnectors}
+                                    forms={forms}
+                                    onCancel={() => setIsCreatingRBAC(false)}
+                                    onSuccess={() => {
+                                        setIsCreatingRBAC(false);
+                                        router.refresh();
+                                    }}
+                                />
                             </div>
                         )}
                     </TabsContent>
@@ -2094,6 +2118,112 @@ export default function FormsClient({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* RBAC Edit Dialog */}
+            <Dialog open={!!editingRBAC} onOpenChange={(open) => !open && setEditingRBAC(null)}>
+                <DialogContent className='bg-zinc-950 border-white/10 rounded-2xl'>
+                    <DialogHeader>
+                        <DialogTitle className='text-white'>Edit RBAC System</DialogTitle>
+                        <DialogDescription className='text-neutral-500'>
+                            Update the database details for {editingRBAC?.name}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {editingRBAC && (
+                        <form onSubmit={handleUpdateRBACSystem} className='space-y-4 pt-4'>
+                            <div className='space-y-2'>
+                                <label className='text-sm font-medium text-white'>System Name</label>
+                                <Input 
+                                    name='name' 
+                                    defaultValue={editingRBAC.name}
+                                    className='bg-black/50 border-white/10 text-white' 
+                                    required 
+                                />
+                            </div>
+                            <div className='space-y-2'>
+                                <label className='text-sm font-medium text-white'>Connector</label>
+                                <Select name='connectorId' defaultValue={editingRBAC.templateId}>
+                                    <SelectTrigger className='bg-black/50 border-white/10 text-white'>
+                                        <SelectValue placeholder='Select connector' />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {initialConnectors.map((c: any) => (
+                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className='space-y-2'>
+                                <label className='text-sm font-medium text-white'>Target Database (Optional)</label>
+                                <Input 
+                                    name='targetDatabase' 
+                                    defaultValue={editingRBAC.settings?.targetDatabase || ''}
+                                    className='bg-black/50 border-white/10 text-white font-mono' 
+                                />
+                            </div>
+                            <div className='space-y-2'>
+                                <label className='text-sm font-medium text-white'>Users Table/Collection Name</label>
+                                <Input 
+                                    name='tableName' 
+                                    defaultValue={editingRBAC.settings?.tableName || ''}
+                                    className='bg-black/50 border-white/10 text-white font-mono' 
+                                />
+                            </div>
+                            <div className='grid grid-cols-3 gap-3'>
+                                <div className='space-y-2'>
+                                    <label className='text-sm font-medium text-white'>Roles Col</label>
+                                    <Input 
+                                        name='rolesCol' 
+                                        defaultValue={editingRBAC.settings?.rolesCol || ''}
+                                        className='bg-black/50 border-white/10 text-white font-mono text-xs' 
+                                    />
+                                </div>
+                                <div className='space-y-2'>
+                                    <label className='text-sm font-medium text-white'>Email Col</label>
+                                    <Input 
+                                        name='emailCol' 
+                                        defaultValue={editingRBAC.settings?.emailCol || ''}
+                                        className='bg-black/50 border-white/10 text-white font-mono text-xs' 
+                                    />
+                                </div>
+                                <div className='space-y-2'>
+                                    <label className='text-sm font-medium text-white'>Password Col</label>
+                                    <Input 
+                                        name='passwordCol' 
+                                        defaultValue={editingRBAC.settings?.passwordCol || ''}
+                                        className='bg-black/50 border-white/10 text-white font-mono text-xs' 
+                                    />
+                                </div>
+                            </div>
+                            <div className='flex justify-end gap-3 pt-4'>
+                                <Button type='button' variant='ghost' onClick={() => setEditingRBAC(null)} className='text-neutral-400 hover:text-white'>Cancel</Button>
+                                <Button type='submit' className='bg-violet-600 hover:bg-violet-500 text-white'>Save Changes</Button>
+                            </div>
+                        </form>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* RBAC Delete Dialog */}
+            <AlertDialog open={!!deletingRBACId} onOpenChange={(open) => !open && setDeletingRBACId(null)}>
+                <AlertDialogContent className='bg-zinc-950 border-white/10 rounded-2xl'>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className='text-white'>Delete RBAC System</AlertDialogTitle>
+                        <AlertDialogDescription className='text-neutral-500'>
+                            Are you sure you want to delete this RBAC system? Your database roles and permissions schemas will remain intact, but Postpipe will no longer manage them via this system.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className='text-neutral-400 hover:text-white bg-transparent border-white/10 hover:bg-white/5'>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => deletingRBACId && handleDeleteRBACSystem(deletingRBACId)}
+                            className='bg-red-600 hover:bg-red-500 text-white'
+                        >
+                            Delete System
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
 
             <DragOverlay dropAnimation={null}>
                 {activeDragId ? (

@@ -103,6 +103,8 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
     }, [id, debouncedSearch, dateFilter, showDeleted]);
 
     const handleUpdate = async (submissionId: string) => {
+        // ... (existing handleUpdate code, omitting since I'm just adding a calculation before return)
+
         const originalRecord = submissions.find(s => (s.submissionId || s.id) === submissionId);
         const dataObj = originalRecord?.data || originalRecord || {};
         
@@ -286,6 +288,22 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
         toast({ title: "Copied", description: `${label} copied to clipboard.` });
     };
 
+    const schemaKeys = schema.flatMap(col => [
+        col.label, col.id, col.name,
+        (col.label || '').toLowerCase(), (col.name || '').toLowerCase(), (col.id || '').toLowerCase()
+    ].filter(Boolean));
+
+    const extraKeys = new Set<string>();
+    submissions.forEach((sub: any) => {
+        const dataObj = sub.data || sub || {};
+        Object.keys(dataObj).forEach(k => {
+            if (!schemaKeys.includes(k) && !schemaKeys.includes(k.toLowerCase()) && k !== '_id' && k !== 'id' && k !== 'timestamp' && k !== 'submissionId' && k !== 'formId') {
+                extraKeys.add(k);
+            }
+        });
+    });
+    const extraKeysArray = Array.from(extraKeys);
+
     return (
         <div className="flex flex-col gap-8 max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
             <div className="flex items-center gap-4">
@@ -438,11 +456,16 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                             <TableHead className="w-[180px] text-xs font-semibold tracking-wider text-neutral-400">Submission ID</TableHead>
                             <TableHead className="w-[180px] text-xs font-semibold tracking-wider text-neutral-400">Timestamp</TableHead>
                             {schema.map((col, idx) => (
-                                <TableHead key={col.id || col.label || idx} className="text-xs font-semibold tracking-wider text-neutral-400 whitespace-nowrap">
-                                    {col.label}
+                                <TableHead key={col.id || col.name || col.label || idx} className="text-xs font-semibold tracking-wider text-neutral-400 whitespace-nowrap">
+                                    {col.name || col.label}
                                 </TableHead>
                             ))}
-                            {schema.length === 0 && <TableHead>Payload Data</TableHead>}
+                            {extraKeysArray.map(k => (
+                                <TableHead key={`extra-${k}`} className="text-xs font-semibold tracking-wider text-neutral-400 whitespace-nowrap">
+                                    {k}
+                                </TableHead>
+                            ))}
+                            {schema.length === 0 && extraKeysArray.length === 0 && <TableHead>Payload Data</TableHead>}
                             <TableHead className="w-[120px] text-xs font-semibold tracking-wider text-neutral-400 text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -511,7 +534,17 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                                     );
                                 })}
 
-                                {schema.length === 0 && (
+                                {extraKeysArray.map(k => {
+                                    const dataObj = sub.data || sub || {};
+                                    const val = dataObj[k];
+                                    return (
+                                        <TableCell key={`extra-${k}`} className="align-top py-4">
+                                            {typeof val === 'object' ? JSON.stringify(val) : String(val ?? '')}
+                                        </TableCell>
+                                    );
+                                })}
+
+                                {schema.length === 0 && extraKeysArray.length === 0 && (
                                     <TableCell className="align-top py-4">
                                         <pre className="text-[10px] bg-black/40 p-2 rounded-md border border-white/5 overflow-x-auto max-w-[300px] scrollbar-thin">
                                             {JSON.stringify(sub.data || sub, null, 2)}

@@ -52,8 +52,8 @@ export class PostgresAdapter implements DatabaseAdapter {
         return uri;
     }
 
-    private getTableName(alias?: string, dbName?: string): string {
-        const nameToUse = dbName || alias;
+    private getTableName(alias?: string, dbName?: string, formName?: string): string {
+        const nameToUse = formName || dbName || alias;
         
         const thermalKeys = ['url', 'uri', 'postgres', 'postgresql', 'database'];
         const isTechnical = nameToUse && thermalKeys.some(key => nameToUse.toLowerCase().includes(key));
@@ -98,12 +98,11 @@ export class PostgresAdapter implements DatabaseAdapter {
         }
 
         const pool = await poolPromise;
-        await this.ensureTable(pool, alias, dbName);
         return pool;
     }
 
-    private async ensureTable(pool: Pool, alias?: string, dbName?: string) {
-        const tableName = this.getTableName(alias, dbName);
+    private async ensureTable(pool: Pool, alias?: string, dbName?: string, formName?: string) {
+        const tableName = this.getTableName(alias, dbName, formName);
         const authTableName = tableName.replace(/[^.]+$/, 'postpipe_users');
         
         // 1. Ensure Submissions Table
@@ -201,6 +200,8 @@ export class PostgresAdapter implements DatabaseAdapter {
         }
 
         const pool = await this.getPool(connectionString, alias, dbName);
+        const formName = submission.formName || submission.formId;
+        await this.ensureTable(pool, alias, dbName, formName);
         
         // ARCHITECT LEVEL OPTIMIZATION: Payload Sanitization
         const { 
@@ -212,7 +213,7 @@ export class PostgresAdapter implements DatabaseAdapter {
         delete cleanData.targetDatabase;
         delete cleanData.targetDb;
 
-        const tableName = this.getTableName(alias, dbName);
+        const tableName = this.getTableName(alias, dbName, formName);
 
         const query = `
             INSERT INTO ${tableName} (form_id, submission_id, data, timestamp)
@@ -237,7 +238,9 @@ export class PostgresAdapter implements DatabaseAdapter {
         if (!connectionString) throw new Error("[PostgresAdapter] Cannot query: No connection string.");
 
         const pool = await this.getPool(connectionString, alias, dbName);
-        const tableName = this.getTableName(alias, dbName);
+        const formName = options?.formName || formId;
+        await this.ensureTable(pool, alias, dbName, formName);
+        const tableName = this.getTableName(alias, dbName, formName);
 
         // Pagination
         const limit = options?.limit || 50;
@@ -303,7 +306,9 @@ export class PostgresAdapter implements DatabaseAdapter {
         if (!connectionString) throw new Error("[PostgresAdapter] Cannot update: No connection string.");
 
         const pool = await this.getPool(connectionString, alias, dbName);
-        const tableName = this.getTableName(alias, dbName);
+        const formName = options?.formName || formId;
+        await this.ensureTable(pool, alias, dbName, formName);
+        const tableName = this.getTableName(alias, dbName, formName);
 
         // Use JSONB || to merge only the provided fields — true partial update
         // We ensure we merge directly into the data column
@@ -329,7 +334,9 @@ export class PostgresAdapter implements DatabaseAdapter {
         if (!connectionString) throw new Error("[PostgresAdapter] Cannot delete: No connection string.");
 
         const pool = await this.getPool(connectionString, alias, dbName);
-        const tableName = this.getTableName(alias, dbName);
+        const formName = options?.formName || formId;
+        await this.ensureTable(pool, alias, dbName, formName);
+        const tableName = this.getTableName(alias, dbName, formName);
 
         if (hard) {
             const result = await pool.query(
@@ -414,8 +421,76 @@ export class PostgresAdapter implements DatabaseAdapter {
         const authTableName = this.getTableName(context?.targetDatabase).replace(/[^.]+$/, 'postpipe_users');
         await pool.query(`UPDATE ${authTableName} SET otp_code = $1, otp_expires_at = $2 WHERE id = $3`, [otp, expiresAt, userId]);
     }
+    async initRBACSchema(tableName: string, rolesCol: string, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) throw new Error("Missing PostgreSQL connection string");
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const safeTableName = tableName.replace(/[^a-zA-Z0-9_.]/g, '');
+        const safeRolesCol = rolesCol.replace(/[^a-zA-Z0-9_]/g, '');
 
-    async disconnect() {
+        console.log(`[PostgresAdapter] Altering table ${safeTableName} to add RBAC column ${safeRolesCol}`);
+        // Add column if it doesn't exist
+        await pool.query(`
+            ALTER TABLE ${safeTableName} 
+            ADD COLUMN IF NOT EXISTS ${safeRolesCol} VARCHAR(255) DEFAULT 'unassigned';
+        `);
+
+        // Set existing nulls to unassigned
+        await pool.query(`
+            UPDATE ${safeTableName} 
+            SET ${safeRolesCol} = 'unassigned' 
+            WHERE ${safeRolesCol} IS NULL;
+        `);
+    }
+
+    async addRBSCSchemaToTable(tableName: string, rolesCol: string, context?: any) {
+        return this.initRBACSchema(tableName, rolesCol, context);
+    }
+
+    async verifyRBACLogin(tableName: string, emailCol: string, passwordCol: string, rolesCol: string, email: string, password: string, context?: any): Promise<any> {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) throw new Error("Missing PostgreSQL connection string");
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+
+        const safeTableName = tableName.replace(/[^a-zA-Z0-9_.]/g, '');
+        const safeEmailCol = emailCol.replace(/[^a-zA-Z0-9_]/g, '');
+        const safePasswordCol = passwordCol.replace(/[^a-zA-Z0-9_]/g, '');
+        const safeRolesCol = rolesCol.replace(/[^a-zA-Z0-9_]/g, '');
+
+        const result = await pool.query(`
+            SELECT ${safePasswordCol}, ${safeRolesCol}, * 
+            FROM ${safeTableName} 
+            WHERE ${safeEmailCol} = $1
+        `, [email]);
+
+        if (result.rows.length === 0) return null;
+
+        const user = result.rows[0];
+        const hash = user[safePasswordCol];
+        
+        // Dynamic import of bcryptjs since it's a connector dependency
+        const bcrypt = require('bcryptjs');
+        let isValid = false;
+
+        // In case the user stores passwords in plain text (not recommended, but possible)
+        if (hash === password) {
+            isValid = true;
+        } else if (hash) {
+            try {
+                isValid = await bcrypt.compare(password, hash);
+            } catch (e) {
+                isValid = false;
+            }
+        }
+
+        if (isValid) {
+            return user;
+        }
+        return null;
+    }
+
+  async disconnect() {
         for (const poolPromise of postgresPoolMap.values()) {
             const pool = await poolPromise;
             await pool.end();

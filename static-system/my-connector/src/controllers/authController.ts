@@ -652,3 +652,86 @@ export const getMe = async (req: Request, res: Response) => {
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 };
+
+export const initMasterAdmin = async (req: Request, res: Response) => {
+    try {
+        const { email, targetDatabase, postpipeDashboardUrl } = req.body;
+        
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required.' });
+        }
+
+        const adapter = resolveAdapter(targetDatabase as string);
+        await adapter.connect({ targetDatabase: targetDatabase as string });
+
+        // Generate a secure token
+        const setupToken = jwt.sign(
+            { email, isMasterAdminSetup: true },
+            getSecret(),
+            { expiresIn: '1h' }
+        );
+
+        const setupLink = `${postpipeDashboardUrl || 'http://localhost:3000'}/dashboard/setup-admin?token=${setupToken}&email=${encodeURIComponent(email)}`;
+
+        return res.status(200).json({ 
+            message: 'Setup link generated successfully',
+            setupLink
+        });
+    } catch (error) {
+        console.error('[Auth] initMasterAdmin Error:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+export const setupMasterAdmin = async (req: Request, res: Response) => {
+    try {
+        const { token, password, targetDatabase } = req.body;
+
+        if (!token || !password) {
+            return res.status(400).json({ message: 'Token and password are required.' });
+        }
+
+        let decoded: any;
+        try {
+            decoded = jwt.verify(token, getSecret());
+        } catch (err) {
+            return res.status(401).json({ message: 'Invalid or expired setup token.' });
+        }
+
+        if (!decoded.isMasterAdminSetup || !decoded.email) {
+            return res.status(400).json({ message: 'Invalid token payload.' });
+        }
+
+        const adapter = resolveAdapter(targetDatabase as string);
+        await adapter.connect({ targetDatabase: targetDatabase as string });
+
+        const existingUser = await adapter.findUserByEmail(decoded.email, { targetDatabase: targetDatabase as string });
+        if (existingUser) {
+            return res.status(409).json({ message: 'Admin user already exists.' });
+        }
+
+        const password_hash = await bcrypt.hash(password, 10);
+        
+        const newUser = {
+            id: crypto.randomUUID(),
+            email: decoded.email,
+            name: 'Master Admin',
+            provider: 'email',
+            password_hash,
+            email_verified: true,
+            created_at: new Date().toISOString()
+        };
+
+        await adapter.insertUser(newUser, { targetDatabase: targetDatabase as string });
+
+        const authToken = generateToken(newUser);
+
+        return res.status(200).json({ 
+            message: 'Master Admin setup successful.',
+            token: authToken 
+        });
+    } catch (error) {
+        console.error('[Auth] setupMasterAdmin Error:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+};

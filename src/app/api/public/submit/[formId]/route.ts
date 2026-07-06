@@ -93,6 +93,7 @@ export async function POST(
 
     const payload = {
       formId,
+      formName: form.name,
       submissionId,
       timestamp,
       data,

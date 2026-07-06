@@ -96,3 +96,26 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     }
 }
 
+export async function sendMasterAdminSetupEmail(email: string, link: string) {
+    if (!resend) {
+        console.log(`[DEV MODE] Master Admin Setup Email to ${email}: ${link}`);
+        return;
+    }
+
+    try {
+        await resend.emails.send({
+            from: 'PostPipe <no-reply@postpipe.in>',
+            replyTo: 'no-reply@postpipe.in',
+            to: email,
+            subject: 'Set up your Master Admin Account',
+            html: EmailTemplate(
+                'You created a new RBAC system. Click the button below to securely set your Master Admin password.',
+                link,
+                'Set Master Admin Password'
+            ),
+        });
+    } catch (error) {
+        console.error('Email sending failed:', error);
+    }
+}
+

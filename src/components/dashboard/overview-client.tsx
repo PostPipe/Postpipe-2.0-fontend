@@ -29,6 +29,7 @@ interface OverviewClientProps {
     forms: any[];
     connectors: any[];
     systems: any[];
+    authPresets?: any[];
 }
 
 export default function OverviewClient({ forms, connectors, systems = [] }: OverviewClientProps) {

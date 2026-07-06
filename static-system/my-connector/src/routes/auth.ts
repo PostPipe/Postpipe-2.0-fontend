@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { registerWithEmail, loginWithEmail, handleOAuthInitiation, handleOAuthCallback, logout, forgotPassword, resetPassword, verifyEmail, verifyOtp, resendOtp, getMe } from '../controllers/authController';
+import { registerWithEmail, loginWithEmail, handleOAuthInitiation, handleOAuthCallback, logout, forgotPassword, resetPassword, verifyEmail, verifyOtp, resendOtp, getMe, initMasterAdmin, setupMasterAdmin } from '../controllers/authController';
 
 const router = Router();
 
@@ -13,6 +13,10 @@ router.post('/verify-email', verifyEmail);
 router.post('/verify-otp', verifyOtp);
 router.post('/resend-otp', resendOtp);
 router.get('/me', getMe);
+
+// RBAC Master Admin
+router.post('/init-master-admin', initMasterAdmin);
+router.post('/setup-master-admin', setupMasterAdmin);
 
 // OAuth flows
 router.get('/:provider', handleOAuthInitiation);

@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
         // Fetch from Connector
         const queryParams = new URLSearchParams({
             formId: form.id,
+            formName: form.name || '',
             limit,
             page,
             targetDatabase: target,
@@ -134,7 +135,7 @@ export async function PATCH(req: NextRequest) {
                 'Authorization': `Bearer ${connector.secret}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ formId, patch, targetDatabase: target, databaseConfig })
+            body: JSON.stringify({ formId, formName: form.name || '', patch, targetDatabase: target, databaseConfig })
         });
 
         const result = await res.json();
@@ -180,7 +181,7 @@ export async function DELETE(req: NextRequest) {
                 'Authorization': `Bearer ${connector.secret}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ formId, hard, targetDatabase: target, databaseConfig })
+            body: JSON.stringify({ formId, formName: form.name || '', hard, targetDatabase: target, databaseConfig })
         });
 
         const result = await res.json();

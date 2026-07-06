@@ -1,7 +1,8 @@
 import { FIELD_TYPES } from "@/config/field-types";
 
 interface FormField {
-    label: string;
+    name?: string;
+    label?: string;
     type: string;
     required: boolean;
     options?: string;
@@ -16,26 +17,27 @@ export function generateSnippets(formId: string, name: string, fields: FormField
 
     const renderEmbedField = (f: FormField) => {
         const conf = FIELD_TYPES[f.type] || FIELD_TYPES.text;
+        const safeLabel = f.name || f.label || f.type || 'field';
 
         if (conf.category === 'Media' && (f.type === 'image' || f.type === 'image_array')) {
             const isMultiple = f.type === 'image_array';
             return `  <div class="field-group">
-    <label>${f.label}${f.required ? ' *' : ''}</label>
-    <input type="file" name="${f.label}" accept="image/*" ${isMultiple ? 'multiple ' : ''}${f.required ? 'required' : ''} />
-    <${isMultiple ? 'div' : 'img'} id="preview-${f.label}" style="display:${isMultiple ? 'flex' : 'none'};${isMultiple ? 'gap:8px;flex-wrap:wrap;' : 'max-width:200px;'}margin-top:8px;${isMultiple ? '' : 'border-radius:6px;'}"${isMultiple ? '' : ' alt="preview"'}></${isMultiple ? 'div' : 'img'}>
+    <label>${safeLabel}${f.required ? ' *' : ''}</label>
+    <input type="file" name="${safeLabel}" accept="image/*" ${isMultiple ? 'multiple ' : ''}${f.required ? 'required' : ''} />
+    <${isMultiple ? 'div' : 'img'} id="preview-${safeLabel}" style="display:${isMultiple ? 'flex' : 'none'};${isMultiple ? 'gap:8px;flex-wrap:wrap;' : 'max-width:200px;'}margin-top:8px;${isMultiple ? '' : 'border-radius:6px;'}"${isMultiple ? '' : ' alt="preview"'}></${isMultiple ? 'div' : 'img'}>
   </div>`;
         }
         if (conf.category === 'Boolean') {
             return `  <div class="field-group" style="display:flex;align-items:center;gap:8px;">
-    <input type="checkbox" name="${f.label}" id="${f.label}" ${f.required ? 'required' : ''} />
-    <label for="${f.label}">${f.label}${f.required ? ' *' : ''}</label>
+    <input type="checkbox" name="${safeLabel}" id="${safeLabel}" ${f.required ? 'required' : ''} />
+    <label for="${safeLabel}">${safeLabel}${f.required ? ' *' : ''}</label>
   </div>`;
         }
         if (conf.category === 'Selection' && f.type === 'enum') {
             const options = String(f.options || "").split(',').map(o => o.trim()).filter(Boolean);
             return `  <div class="field-group">
-    <label>${f.label}${f.required ? ' *' : ''}</label>
-    <select name="${f.label}" ${f.required ? 'required' : ''}>
+    <label>${safeLabel}${f.required ? ' *' : ''}</label>
+    <select name="${safeLabel}" ${f.required ? 'required' : ''}>
       <option value="">Select an option</option>
 ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
     </select>
@@ -54,27 +56,29 @@ ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
 
         if (f.type === 'uuid' || f.type === 'foreign_key' || f.type === 'reference') {
           return `  <div class="field-group">
-    <label>${f.label}${f.required ? ' *' : ''}</label>
-    <select name="${f.label}" ${f.required ? 'required' : ''} data-pp-reference="${f.reference?.collection || ''}" data-pp-display="${f.reference?.displayField || 'name'}">
-      <option value="">Select ${f.label.toLowerCase()}...</option>
+    <label>${safeLabel}${f.required ? ' *' : ''}</label>
+    <select name="${safeLabel}" ${f.required ? 'required' : ''} data-pp-reference="${f.reference?.collection || ''}" data-pp-display="${f.reference?.displayField || 'name'}">
+      <option value="">Select ${safeLabel.toLowerCase()}...</option>
     </select>
   </div>`;
         }
 
         return `  <div class="field-group">
-    <label>${f.label}${f.required ? ' *' : ''}${f.type === 'list' || f.type === 'array' ? ' (comma-separated)' : ''}</label>
-    <${isTextarea ? 'textarea' : `input type="${inputType}"${step}`} name="${f.label}" ${f.required ? 'required' : ''}></${isTextarea ? 'textarea' : 'input'}>
+    <label>${safeLabel}${f.required ? ' *' : ''}${f.type === 'list' || f.type === 'array' ? ' (comma-separated)' : ''}</label>
+    <${isTextarea ? 'textarea' : `input type="${inputType}"${step}`} name="${safeLabel}" ${f.required ? 'required' : ''}></${isTextarea ? 'textarea' : 'input'}>
   </div>`;
     };
 
-    const hasImageFields = fields.some(f => f.type === 'image' || f.type === 'image_array');
-    const referenceFields = fields.filter(f => f.type === 'uuid' || f.type === 'foreign_key' || f.type === 'reference');
-    const hasReferenceFields = referenceFields.length > 0;
+    const hasImageFields = fields.some(f => FIELD_TYPES[f.type]?.category === 'Media' && (f.type === 'image' || f.type === 'image_array'));
+    const hasReferenceFields = fields.some(f => f.type === 'uuid' || f.type === 'foreign_key' || f.type === 'reference');
+    const hasBooleanFields = fields.some(f => FIELD_TYPES[f.type]?.category === 'Boolean');
 
-    const referenceFetchScript = hasReferenceFields ? `
+    const referenceScript = hasReferenceFields ? `
 <script>
   (function() {
-    var selects = document.querySelectorAll('select[data-pp-reference]');
+    var form = document.getElementById('pp-form-${formId}');
+    if (!form) return;
+    var selects = form.querySelectorAll('select[data-pp-reference]');
     selects.forEach(function(sel) {
       var col = sel.getAttribute('data-pp-reference');
       var display = sel.getAttribute('data-pp-display');
@@ -96,12 +100,13 @@ ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
   })();
 </script>` : '';
 
-    const imageUploadScript = (hasImageFields || hasReferenceFields) ? `
+    const imageUploadScript = (hasImageFields || hasReferenceFields || hasBooleanFields) ? `
 <script>
-  document.getElementById('pp-form').addEventListener('submit', async function(e) {
+  document.getElementById('pp-form-${formId}').addEventListener('submit', async function(e) {
     if (this.getAttribute('method') === 'POST' && !this.id) return; // skip if simple POST
     e.preventDefault();
-    var btn = document.getElementById('pp-submit-btn');
+    var btn = this.querySelector('button[type="submit"]');
+    var originalBtnText = btn.textContent;
     btn.disabled = true; btn.textContent = 'Processing...';
     var data = {}; var errors = [];
     var uploads = Array.from(this.querySelectorAll('input,textarea,select')).map(async function(input) {
@@ -151,14 +156,17 @@ ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
       }
     });
     await Promise.all(uploads);
-    if (errors.length) { alert('Upload failed:\\n' + errors.join('\\n')); btn.disabled=false; btn.textContent='Submit Form'; return; }
+    if (errors.length) { alert('Upload failed:\\n' + errors.join('\\n')); btn.disabled=false; btn.textContent=originalBtnText; return; }
     btn.textContent = 'Submitting...';
     try {
       var res = await fetch('${embedUrl}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
-      if (res.ok) { btn.textContent='✓ Submitted!'; document.getElementById('pp-form').reset(); document.querySelectorAll('[id^="preview-"]').forEach(function(el){if(el.tagName.toLowerCase()==='img'){el.src='';el.style.display='none';}else{el.innerHTML='';}}); }
-      else { var err=await res.json(); alert('Submission failed: '+(err.error||res.statusText)); btn.disabled=false; btn.textContent='Submit Form'; }
-    } catch(e) { alert('Network error: '+e.message); btn.disabled=false; btn.textContent='Submit Form'; }
+      if (res.ok) { btn.textContent='✓ Submitted!'; document.getElementById('pp-form-${formId}').reset(); document.querySelectorAll('[id^="preview-"]').forEach(function(el){if(el.tagName.toLowerCase()==='img'){el.src='';el.style.display='none';}else{el.innerHTML='';}}); setTimeout(function() { btn.textContent=originalBtnText; btn.disabled=false; }, 2000); }
+      else { var err=await res.json(); alert('Submission failed: '+(err.error||res.statusText)); btn.disabled=false; btn.textContent=originalBtnText; }
+    } catch(err) {
+      alert('Network error'); btn.disabled=false; btn.textContent=originalBtnText;
+    }
   });
+
   document.querySelectorAll('input[type="file"]').forEach(function(input) {
     input.addEventListener('change', function() {
       var p = document.getElementById('preview-'+input.name);
@@ -180,11 +188,37 @@ ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
   });
 </script>` : '';
 
-    const html = `<!-- Postpipe Cosmic Embed -->
-<form id="pp-form" action="${embedUrl}" method="POST" class="postpipe-form">
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${name}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; background: #fafafa; }
+    #pp-form-${formId} { max-width: 500px; margin: 0 auto; background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .field-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; color: #374151; }
+    input[type="text"], input[type="email"], input[type="number"], input[type="datetime-local"], select, textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #6366f1; ring: 2px #6366f1; }
+    textarea { min-height: 100px; resize: vertical; }
+    button[type="submit"] { background: #4f46e5; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; width: 100%; transition: background 0.2s; }
+    button[type="submit"]:hover { background: #4338ca; }
+    button[type="submit"]:disabled { opacity: 0.7; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <form id="pp-form-${formId}" action="${embedUrl}" method="POST">
+    <h2 style="margin-top:0;margin-bottom:20px;font-size:18px;color:#111827;">${name}</h2>
 ${fields.map(renderEmbedField).join('\n')}
-  <button type="submit" id="pp-submit-btn" class="submit-btn">Submit Form</button>
-</form>${imageUploadScript}${referenceFetchScript}`;
+    <button type="submit">Submit Form</button>
+  </form>
+${referenceScript}
+${imageUploadScript}
+</body>
+</html>
+`.trim();
 
     const react = `import { useState } from 'react';
 

@@ -39,6 +39,10 @@ export function getAdapter(forcedType?: string): DatabaseAdapter {
   return adapter;
 }
 
+export function getSystemAdapter(): DatabaseAdapter {
+  return getAdapter('mongodb');
+}
+
 class MemoryAdapter implements DatabaseAdapter {
   private store: PostPipeIngestPayload[] = [];
 

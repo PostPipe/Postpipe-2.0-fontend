@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyApiToken } from '@/lib/api-auth';
-import { getConnector } from '@/lib/server-db';
+import { getConnector, getForm } from '@/lib/server-db';
 import { ensureFullUrl } from '@/lib/utils';
 
 export async function GET(
@@ -69,6 +69,12 @@ export async function GET(
         const connectorUrl = ensureFullUrl(connector.url);
         const targetUrl = new URL(`${connectorUrl}/postpipe/data`);
         targetUrl.searchParams.set('formId', formId);
+        
+        const form = await getForm(formId);
+        if (form && form.name) {
+            targetUrl.searchParams.set('formName', form.name);
+        }
+
         targetUrl.searchParams.set('targetDatabase', dbName); // Keep original alias as useful metadata
         targetUrl.searchParams.set('databaseConfig', JSON.stringify(databaseConfig));
         targetUrl.searchParams.set('limit', '100'); // Default limit

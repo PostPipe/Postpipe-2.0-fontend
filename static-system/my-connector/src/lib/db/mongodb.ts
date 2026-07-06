@@ -486,6 +486,60 @@ export class MongoAdapter implements DatabaseAdapter {
     return this.getTargetConfig({ targetDatabase: context?.targetDatabase, databaseConfig: context?.databaseConfig } as any).uri;
   }
 
+  async initRBACSchema(tableName: string, rolesCol: string, context?: any) {
+    const uri = this.resolveConnectionString(context);
+    if (!uri) throw new Error("Missing MongoDB connection string");
+    
+    const targetDbName = context?.targetDatabase || process.env.MONGODB_DB_NAME || 'postpipe';
+    const client = await this.getClient(uri);
+    const db = client.db(targetDbName);
+    const collection = db.collection(tableName);
+    
+    console.log(`[MongoAdapter] Updating collection ${tableName} to ensure RBAC field ${rolesCol}`);
+    await collection.updateMany(
+      { [rolesCol]: { $exists: false } },
+      { $set: { [rolesCol]: 'unassigned' } }
+    );
+  }
+
+  async addRBSCSchemaToCollection(tableName: string, rolesCol: string, context?: any) {
+    return this.initRBACSchema(tableName, rolesCol, context);
+  }
+
+  async verifyRBACLogin(tableName: string, emailCol: string, passwordCol: string, rolesCol: string, email: string, password: string, context?: any): Promise<any> {
+    const uri = this.resolveConnectionString(context);
+    if (!uri) throw new Error("Missing MongoDB connection string");
+    
+    const targetDbName = context?.targetDatabase || process.env.MONGODB_DB_NAME || 'postpipe';
+    const client = await this.getClient(uri);
+    const db = client.db(targetDbName);
+    const collection = db.collection(tableName);
+    
+    const user = await collection.findOne({ [emailCol]: email });
+    if (!user) return null;
+
+    const hash = user[passwordCol];
+    
+    // Dynamic import of bcryptjs since it's a connector dependency
+    const bcrypt = require('bcryptjs');
+    let isValid = false;
+
+    if (hash === password) {
+      isValid = true;
+    } else if (hash) {
+      try {
+        isValid = await bcrypt.compare(password, hash);
+      } catch (e) {
+        isValid = false;
+      }
+    }
+
+    if (isValid) {
+      return user;
+    }
+    return null;
+  }
+
   async disconnect(): Promise<void> {
     // Close all connections
     for (const [uri, clientPromise] of connectionPool.entries()) {

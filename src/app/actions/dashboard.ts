@@ -12,12 +12,20 @@ import {
   updateForm,
   getSystems,
   createSystem,
+  updateSystem,
+  createForm,
+  getRBACSystems,
+  createRBACSystem,
+  updateRBACSystem,
+  deleteRBACSystem,
   deleteAuthPreset,
+  deleteSystem,
   System
 } from '../../lib/server-db';
 import { ensureFullUrl } from '../../lib/utils';
 
 import { getSession } from '../../lib/auth/actions';
+import { sendMasterAdminSetupEmail } from '../../lib/auth/email';
 
 export async function getDashboardData() {
   const session = await getSession();
@@ -27,11 +35,14 @@ export async function getDashboardData() {
   }
 
   // Fetch all data in parallel
-  const [forms, connectors, systems] = await Promise.all([
+  const [forms, connectors, baseSystems, rbacSystems] = await Promise.all([
     getForms(session.userId),
     getConnectors(session.userId),
-    getSystems(session.userId)
+    getSystems(session.userId),
+    getRBACSystems(session.userId)
   ]);
+  
+  const systems = [...baseSystems, ...rbacSystems];
 
   // Create a map for fast O(1) connector lookup
   const connectorMap = new Map(connectors.map(c => [c.id, c]));
@@ -130,7 +141,141 @@ export async function createSystemAction(name: string, type: string, templateId?
   if (!session || !session.userId) throw new Error("Unauthorized");
 
   const system = await createSystem(name, type, templateId, session.userId);
-  return { success: true, systemId: system.id };
+  
+  return {
+    ...system,
+    _id: (system as any)._id?.toString(),
+    id: system.id?.toString(),
+  };
+}
+
+export async function updateSystemAction(id: string, updates: Partial<System>) {
+  const session = await getSession();
+  if (!session || !session.userId) throw new Error("Unauthorized");
+  await updateSystem(id, session.userId, updates);
+
+  return { success: true };
+}
+
+export async function createRBACSystemAction(payload: {
+  name: string;
+  connectorId: string;
+  targetDatabase?: string;
+  tableName: string;
+  rolesCol: string;
+  emailCol: string;
+  passwordCol: string;
+  managedForms?: string[];
+}) {
+  const session = await getSession();
+  if (!session || !session.userId) throw new Error("Unauthorized");
+
+  const { name, connectorId, targetDatabase, tableName, rolesCol, emailCol, passwordCol, managedForms } = payload;
+  const connector = await getConnector(connectorId);
+  if (!connector) throw new Error("Connector not found");
+
+  // Step 1: Create Roles Form
+  const rolesFormName = `Roles`;
+  const rolesFields = [
+    { name: 'name', type: 'text', required: true }
+  ];
+  const rolesForm = await createForm(connectorId, rolesFormName, rolesFields, session.userId, targetDatabase, undefined, name);
+
+  // Step 2: Create Permissions Form
+  const permsFormName = `Permissions`;
+  const permsFields = [
+    { 
+      name: 'role', 
+      type: 'relation', 
+      required: true, 
+      isRelationalSource: false, 
+      reference: { collection: rolesForm.id, displayField: 'name' } 
+    },
+    { name: 'accessible_forms', type: 'list', required: false }
+  ];
+  const permsForm = await createForm(connectorId, permsFormName, permsFields, session.userId, targetDatabase, undefined, name);
+
+  // Step 3: Save RBAC System configuration
+  const system = await createRBACSystem(name, connectorId, session.userId);
+  await updateRBACSystem(system.id, session.userId, {
+    settings: {
+      targetDatabase,
+      tableName,
+      rolesCol,
+      emailCol,
+      passwordCol,
+      rolesFormId: rolesForm.id,
+      permissionsFormId: permsForm.id,
+      managedForms: managedForms || []
+    }
+  });
+
+  // Step 4: Trigger Connector Initialization
+  try {
+    const connectorUrl = ensureFullUrl(connector.url);
+    await fetch(`${connectorUrl}/api/rbac/init`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${connector.secret}`
+      },
+      body: JSON.stringify({
+        tableName,
+        rolesCol,
+        targetDatabase
+      })
+    });
+  } catch (e) {
+    console.warn("Could not reach connector to initialize RBAC schema:", e);
+  }
+
+  // Step 5: Init Master Admin
+  let fallbackSetupLink = null;
+  try {
+    const postpipeDashboardUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const connectorUrl = ensureFullUrl(connector.url);
+    const res = await fetch(`${connectorUrl}/api/auth/init-master-admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${connector.secret}`
+      },
+      body: JSON.stringify({
+        email: session.email,
+        targetDatabase,
+        postpipeDashboardUrl
+      })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (data.setupLink) {
+        await sendMasterAdminSetupEmail(session.email, data.setupLink);
+        // Fallback UI for local development if Resend is not configured on Postpipe
+        if (!process.env.RESEND_API_KEY) {
+          fallbackSetupLink = data.setupLink;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Could not reach connector to initialize master admin:", e);
+  }
+
+  return { success: true, systemId: system.id, fallbackSetupLink };
+}
+
+export async function deleteRBACSystemAction(id: string) {
+  const session = await getSession();
+  if (!session || !session.userId) throw new Error("Unauthorized");
+  await deleteRBACSystem(id, session.userId);
+  return { success: true };
+}
+
+export async function updateRBACSystemAction(id: string, updates: any) {
+  const session = await getSession();
+  if (!session || !session.userId) throw new Error("Unauthorized");
+  await updateRBACSystem(id, session.userId, updates);
+  return { success: true };
 }
 
 export async function deleteFormAction(id: string) {
@@ -233,4 +378,22 @@ export async function getFormsAction() {
       type: field.type,
     })),
   }));
+}
+
+export async function deleteSystemAction(id: string) {
+  const session = await getSession();
+  if (!session || !session.userId) throw new Error("Unauthorized");
+  
+  const dbModule = await import('../../lib/server-db');
+  await dbModule.deleteSystem(id, session.userId);
+  return { success: true };
+}
+
+export async function updateRBACSystemSettingsAction(systemId: string, updates: any) {
+  const session = await getSession();
+  if (!session || !session.userId) throw new Error("Unauthorized");
+  
+  const dbModule = await import('../../lib/server-db');
+  await dbModule.updateRBACSystem(systemId, session.userId, updates);
+  return { success: true };
 }

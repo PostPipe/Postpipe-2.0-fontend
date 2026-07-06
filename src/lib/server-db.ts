@@ -88,6 +88,7 @@ export interface System {
   type: string; // e.g. "Auth", "E-commerce"
   templateId?: string;
   createdAt: string;
+  settings?: any;
 }
 
 export interface UserSystemsDocument {
@@ -483,11 +484,11 @@ export async function createSystem(name: string, type: string, templateId?: stri
   if (templateId) {
     const existingDoc = await db.collection<UserSystemsDocument>('user_systems').findOne({
       userId,
-      "systems.templateId": templateId
+      systems: { $elemMatch: { templateId, type } }
     });
 
     if (existingDoc && existingDoc.systems) {
-      const existingSystem = existingDoc.systems.find(s => s.templateId === templateId);
+      const existingSystem = existingDoc.systems.find(s => s.templateId === templateId && s.type === type);
       if (existingSystem) return existingSystem; // Return existing instead of creating new
     }
   }
@@ -514,9 +515,89 @@ export async function getSystems(userId?: string): Promise<System[]> {
   if (!userId) return [];
 
   const res = await db.collection<UserSystemsDocument>('user_systems').findOne({ userId });
-  return res?.systems || [];
+  if (res && res.systems) {
+    return res.systems;
+  }
+  return [];
 }
 
+export async function updateSystem(id: string, userId: string, updates: Partial<System>): Promise<void> {
+  const db = await getDB();
+  
+  // Create update object with $set
+  const updateObj: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    updateObj[`systems.$.${key}`] = value;
+  }
+
+  await db.collection<UserSystemsDocument>('user_systems').updateOne(
+    { userId, "systems.id": id },
+    { $set: updateObj }
+  );
+}
+
+export async function deleteSystem(id: string, userId: string): Promise<void> {
+  const db = await getDB();
+  await db.collection<UserSystemsDocument>('user_systems').updateOne(
+    { userId },
+    { $pull: { systems: { id } } }
+  );
+}
+
+// --- RBAC Systems ---
+export async function createRBACSystem(name: string, templateId?: string, userId?: string): Promise<System> {
+  const db = await getDB();
+  if (!userId) throw new Error("UserId required");
+
+  const newSystem: System = {
+    id: `rbac_${Math.random().toString(36).substr(2, 9)}`,
+    name,
+    type: 'rbac',
+    templateId,
+    createdAt: new Date().toISOString()
+  };
+
+  await db.collection<UserSystemsDocument>('user_rbac_systems').updateOne(
+    { userId },
+    { $push: { systems: newSystem } },
+    { upsert: true }
+  );
+
+  return newSystem;
+}
+
+export async function getRBACSystems(userId?: string): Promise<System[]> {
+  const db = await getDB();
+  if (!userId) return [];
+
+  const res = await db.collection<UserSystemsDocument>('user_rbac_systems').findOne({ userId });
+  if (res && res.systems) {
+    return res.systems;
+  }
+  return [];
+}
+
+export async function updateRBACSystem(id: string, userId: string, updates: Partial<System>): Promise<void> {
+  const db = await getDB();
+  
+  const updateObj: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    updateObj[`systems.$.${key}`] = value;
+  }
+
+  await db.collection<UserSystemsDocument>('user_rbac_systems').updateOne(
+    { userId, "systems.id": id },
+    { $set: updateObj }
+  );
+}
+
+export async function deleteRBACSystem(id: string, userId: string): Promise<void> {
+  const db = await getDB();
+  await db.collection<UserSystemsDocument>('user_rbac_systems').updateOne(
+    { userId },
+    { $pull: { systems: { id } } }
+  );
+}
 // --- Usage Stats ---
 export async function getUserUsageStats(userId: string) {
   const db = await getDB();
@@ -582,145 +663,3 @@ export async function getUserConfigByConnectorId(connectorId: string): Promise<a
   return res?.databaseConfig || null;
 }
 
-// --- RBAC Storage (User Level per Connector) ---
-export interface UserRBACDocument {
-  userId: string;
-  connectorId: string;
-  state: {
-    roles: any[];
-    permissions: any[];
-    users: any[];
-  };
-  updatedAt: string;
-}
-
-export async function getRBACState(userId: string, connectorId: string): Promise<any | null> {
-  const db = await getDB();
-  
-  // Try new RBAC systems first
-  const newSysDoc = await db.collection<UserRBACSystemsDocument>('user_rbac_systems').findOne({ userId });
-  if (newSysDoc?.systems) {
-    const sys = newSysDoc.systems.find(s => s.connectorId === connectorId);
-    if (sys) return sys.state;
-  }
-
-  // Fallback to legacy configs
-  const res = await db.collection<UserRBACDocument>('user_rbac_configs').findOne({
-    userId,
-    connectorId
-  });
-  return res?.state || null;
-}
-
-export async function saveRBACState(userId: string, connectorId: string, state: any): Promise<void> {
-  const db = await getDB();
-  await db.collection<UserRBACDocument>('user_rbac_configs').updateOne(
-    { userId, connectorId },
-    { 
-      $set: { 
-        state,
-        updatedAt: new Date().toISOString()
-      } 
-    },
-    { upsert: true }
-  );
-}
-
-export interface RBACSystem {
-  id: string;
-  name: string;
-  connectorId: string;
-  databaseType: 'postgres' | 'mongodb' | 'mysql';
-  schemaMapping?: {
-    usersTable: string;
-    rolesTable: string;
-    permissionsTable: string;
-    userRolesTable: string;
-    rolePermissionsTable: string;
-    fields: {
-      userId: string;
-      email: string;
-      passwordHash: string;
-      roleName: string;
-      roleId: string;
-      permissionAction: string;
-      permissionId: string;
-    };
-  };
-  jwtConfig?: {
-    encryptedSecret: string;
-    accessTokenExpiry: string;
-    refreshTokenExpiry: string;
-    hashingRounds: number;
-  };
-  state?: {
-    roles: any[];
-    permissions: any[];
-    users: any[];
-  };
-  createdAt: string;
-  updatedAt?: string;
-}
-
-export interface UserRBACSystemsDocument {
-  userId: string;
-  systems: RBACSystem[];
-}
-
-export async function createRBACSystem(userId: string, name: string, connectorId: string, databaseType: 'postgres' | 'mongodb' | 'mysql' = 'postgres'): Promise<RBACSystem> {
-  const db = await getDB();
-  const newSystem: RBACSystem = {
-    id: `rbac_${Math.random().toString(36).substr(2, 9)}`,
-    name,
-    connectorId,
-    databaseType,
-    state: { roles: [], permissions: [], users: [] },
-    createdAt: new Date().toISOString()
-  };
-
-  await db.collection<UserRBACSystemsDocument>('user_rbac_systems').updateOne(
-    { userId },
-    { $push: { systems: newSystem } },
-    { upsert: true }
-  );
-
-  return newSystem;
-}
-
-export async function getRBACSystems(userId: string): Promise<RBACSystem[]> {
-  const db = await getDB();
-  const doc = await db.collection<UserRBACSystemsDocument>('user_rbac_systems').findOne({ userId });
-  return doc?.systems || [];
-}
-
-export async function updateRBACSystem(userId: string, systemId: string, updates: any): Promise<void> {
-  const db = await getDB();
-  const setOps: Record<string, any> = {
-    "systems.$.updatedAt": new Date().toISOString()
-  };
-
-  // If updates has roles or permissions, we are updating the state key
-  if (updates.roles !== undefined || updates.permissions !== undefined) {
-    setOps["systems.$.state"] = updates;
-  } else {
-    // We are updating the top-level configuration keys
-    for (const [key, value] of Object.entries(updates)) {
-      if (value !== undefined) {
-        setOps[`systems.$.${key}`] = value;
-      }
-    }
-  }
-
-  await db.collection<UserRBACSystemsDocument>('user_rbac_systems').updateOne(
-    { userId, "systems.id": systemId },
-    { $set: setOps }
-  );
-}
-
-export async function deleteRBACSystem(userId: string, systemId: string): Promise<void> {
-  const db = await getDB();
-  await db.collection<UserRBACSystemsDocument>('user_rbac_systems').updateOne(
-    { userId },
-    { $pull: { systems: { id: systemId } } }
-  );
-}

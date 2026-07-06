@@ -9,16 +9,17 @@ export const metadata: Metadata = {
 
 import { getDashboardData } from '@/app/actions/dashboard';
 import { getAuthPresetsAction } from '@/app/actions/builder';
-import { getRBACSystemsAction } from '@/app/actions/rbac';
 
 export default async function FormsPage() {
-  const { forms, connectors } = await getDashboardData();
+  const { forms, connectors, systems } = await getDashboardData();
   const presets = await getAuthPresetsAction();
-  const rbacSystems = await getRBACSystemsAction();
+  
+
+
   
   return (
     <Suspense fallback={<DashboardSkeleton />}>
-      <FormsClient initialForms={forms} initialPresets={presets} initialConnectors={connectors} initialRBACSystems={rbacSystems} />
+      <FormsClient initialForms={forms} initialPresets={presets} initialConnectors={connectors} initialSystems={systems} />
     </Suspense>
   );
 }

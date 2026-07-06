@@ -9,7 +9,6 @@ import cors from 'cors';
 import nodeCrypto from 'crypto';
 import authRouter from './routes/auth';
 import cdnRouter from './routes/cdn';
-import rbacRouter from './routes/rbac';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
 import { getPrefixedEnv } from './lib/config';
@@ -76,34 +75,8 @@ if (!CONNECTOR_ID || !CONNECTOR_SECRET) {
     process.exit(1);
 }
 
-// --- RBAC State Management ---
-let rbacConfig: any = null;
+// --- Legacy RBAC Polling Removed ---
 
-async function fetchRBACConfig() {
-    try {
-        console.log(`[RBAC] Fetching configuration from ${POSTPIPE_CORE_URL}/api/v1/rbac/bootstrap...`);
-        const response = await fetch(`${POSTPIPE_CORE_URL}/api/v1/rbac/bootstrap`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${CONNECTOR_SECRET}`
-            }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            rbacConfig = data.data;
-            console.log(`[RBAC] Configuration loaded successfully. Roles: ${rbacConfig?.roles?.length || 0}, Permissions: ${rbacConfig?.permissions?.length || 0}`);
-        } else {
-            console.error(`[RBAC] Failed to fetch configuration. Status: ${response.status}`);
-        }
-    } catch (error) {
-        console.error(`[RBAC] Error fetching configuration:`, error);
-    }
-}
-
-// Fetch initially and set polling
-fetchRBACConfig();
-setInterval(fetchRBACConfig, 5 * 60 * 1000); // 5 minutes
 
 // --- Rate Limiting (Simple In-Memory) ---
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
@@ -132,6 +105,20 @@ function rateLimit(req: Request, res: Response, next: express.NextFunction) {
     next();
 }
 
+// Support Private Network Access preflights (required when hitting localhost from a public secure/unsecure context like file:// or custom domains)
+app.use((req, res, next) => {
+    if (req.headers['access-control-request-private-network']) {
+        res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    }
+    if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With');
+        return res.sendStatus(200);
+    }
+    next();
+});
+
 app.use(cors({ origin: '*' }));
 app.use(cookieParser());
 
@@ -148,10 +135,13 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // --- Public Auth Route (CORS open) ---
+import rbacRouter from './routes/rbac';
+import { rbscRouter } from './routes/rbsc';
+
 app.use('/api/auth', authRouter);
 app.use('/api/public/cdn', cdnRouter);
-app.use('/postpipe/rbac', rbacRouter);
-
+app.use('/api/rbac', rbacRouter);
+app.use('/postpipe/rbsc', rbscRouter);
 
 
 app.use(rateLimit);
@@ -252,73 +242,7 @@ function authenticateConnector(req: Request, res: Response, next: express.NextFu
     return res.status(403).json({ error: "Forbidden: Invalid Token" });
 }
 
-// --- RBAC Enforcement Middleware ---
-function enforceRBAC(action: 'create' | 'read' | 'update' | 'delete') {
-    return (req: Request, res: Response, next: express.NextFunction) => {
-        const user = (req as any).user;
-        
-        // If there's no user object, it means they authenticated using the raw Connector Secret.
-        // The Connector Secret gives full admin access.
-        if (!user) {
-            return next();
-        }
-
-        // Determine the target collection
-        const collection = req.params.formId || req.query.formId || req.body.formId || req.body.collection;
-        
-        if (!collection) {
-            return next();
-        }
-
-        const roleName = user.role;
-        if (!roleName) {
-            console.warn(`[RBAC] User has no role assigned. Rejecting access.`);
-            return res.status(403).json({ error: "Forbidden: No role assigned" });
-        }
-
-        if (!rbacConfig || !rbacConfig.roles || !rbacConfig.permissions) {
-            console.warn(`[RBAC] Configuration not loaded yet or invalid.`);
-            return res.status(503).json({ error: "Service Unavailable: RBAC configuration not loaded" });
-        }
-
-        // Find the applicable role
-        const roleDef = rbacConfig.roles.find((r: any) => r.name === roleName);
-
-        if (!roleDef) {
-            console.warn(`[RBAC] Role '${roleName}' not found in RBAC config.`);
-            return res.status(403).json({ error: "Forbidden: Role not found" });
-        }
-
-        // Superadmin bypass
-        if (roleDef.isSuperAdmin) {
-            return next();
-        }
-
-        // Check permissions
-        let hasPermission = false;
-        if (rbacConfig.permissions) {
-            for (const perm of rbacConfig.permissions) {
-                if (perm.role === roleName) {
-                    if (perm.collection === collection || perm.collection === '*') {
-                        if (perm.action === action || perm.action === '*') {
-                            hasPermission = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!hasPermission) {
-            console.warn(`[RBAC] Access denied for role '${roleName}' on collection '${collection}' (action: ${action})`);
-            return res.status(403).json({ error: "Forbidden: Insufficient permissions" });
-        }
-
-        next();
-    };
-}
-
-// ----------------------------------------
+// Removed legacy rbac-db imports
 
 // @ts-ignore
 app.post('/postpipe/ingest', async (req: Request, res: Response) => {
@@ -549,9 +473,9 @@ app.post('/postpipe/ingest', async (req: Request, res: Response) => {
 });
 
 // @ts-ignore
-app.get('/postpipe/data', authenticateConnector, enforceRBAC('read'), async (req: Request, res: Response) => {
+app.get('/postpipe/data', authenticateConnector, async (req: Request, res: Response) => {
     try {
-        const { formId, limit, page, targetDatabase, databaseConfig, includeDeleted, filter } = req.query;
+        const { formId, formName, limit, page, targetDatabase, databaseConfig, includeDeleted, filter } = req.query;
 
         if (!formId) {
             return res.status(400).json({ error: "formId required" });
@@ -604,6 +528,7 @@ app.get('/postpipe/data', authenticateConnector, enforceRBAC('read'), async (req
         await adapter.connect({ databaseConfig: dbConfigParsed, targetDatabase: dbNameStr });
 
         const data = await adapter.query(String(formId), {
+            formName: formName ? String(formName) : undefined,
             limit: Number(limit) || 50,
             page: Number(page) || 1,
             targetDatabase: dbNameStr,
@@ -621,12 +546,12 @@ app.get('/postpipe/data', authenticateConnector, enforceRBAC('read'), async (req
 
 // --- Submission PATCH (Partial Update) ---
 // @ts-ignore
-app.patch('/postpipe/data/:submissionId', authenticateConnector, enforceRBAC('update'), async (req: Request, res: Response) => {
+app.patch('/postpipe/data/:submissionId', authenticateConnector, async (req: Request, res: Response) => {
     try {
         const { submissionId } = req.params;
-        const { formId, patch, targetDatabase, databaseConfig } = req.body;
+        const { formId, formName, patch, targetDatabase, databaseConfig } = req.body;
 
-        console.log(`[PATCH] submissionId=${submissionId}, formId=${formId}, targetDatabase=${targetDatabase}`);
+        console.log(`[PATCH] submissionId=${submissionId}, formId=${formId}, formName=${formName}, targetDatabase=${targetDatabase}`);
         console.log(`[PATCH] databaseConfig=`, databaseConfig);
         console.log(`[PATCH] databaseConfig.type=`, databaseConfig?.type);
 
@@ -641,7 +566,8 @@ app.patch('/postpipe/data/:submissionId', authenticateConnector, enforceRBAC('up
 
         const success = await adapter.updateSubmission(formId, submissionId, patch, {
             targetDatabase,
-            databaseConfig
+            databaseConfig,
+            formName: formName || formId
         });
 
         if (success) {
@@ -657,7 +583,7 @@ app.patch('/postpipe/data/:submissionId', authenticateConnector, enforceRBAC('up
 
 // --- Submission DELETE (Soft/Hard) ---
 // @ts-ignore
-app.delete('/postpipe/data/:submissionId', authenticateConnector, enforceRBAC('delete'), async (req: Request, res: Response) => {
+app.delete('/postpipe/data/:submissionId', authenticateConnector, async (req: Request, res: Response) => {
     try {
         const { submissionId } = req.params;
         const { formId, targetDatabase, databaseConfig, hard } = req.body;
@@ -686,7 +612,7 @@ app.delete('/postpipe/data/:submissionId', authenticateConnector, enforceRBAC('d
 });
 
 // @ts-ignore
-app.get('/api/postpipe/forms/:formId/submissions', authenticateConnector, enforceRBAC('read'), async (req: Request, res: Response) => {
+app.get('/api/postpipe/forms/:formId/submissions', authenticateConnector, async (req: Request, res: Response) => {
     try {
         const { formId } = req.params;
         const limit = parseInt(req.query.limit as string) || 50;
@@ -723,7 +649,7 @@ app.get('/api/postpipe/forms/:formId/submissions', authenticateConnector, enforc
 // Returns populated records for each provided ID.
 // This enables "eager" reference resolution on the read path.
 // @ts-ignore
-app.post('/postpipe/resolve', authenticateConnector, enforceRBAC('read'), async (req: Request, res: Response) => {
+app.post('/postpipe/resolve', authenticateConnector, async (req: Request, res: Response) => {
     try {
         const { collection, ids, targetDatabase, databaseConfig: dbConfigBody } = req.body;
 
