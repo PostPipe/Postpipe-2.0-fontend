@@ -1555,11 +1555,32 @@ export default function FormsClient(props: FormsClientProps) {
                                                             id={`group-${groupName}`}
                                                         >
                                                             <AccordionTrigger className='px-4 py-3 hover:no-underline group/trigger data-[state=open]:border-b data-[state=open]:border-indigo-200/60 dark:data-[state=open]:border-indigo-500/10'>
-                                                                <div className='flex items-center gap-3'>
-                                                                    <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500 group-hover/trigger:bg-indigo-500 group-hover/trigger:text-white transition-colors'>
+                                                                <div className='flex items-center gap-3 w-full'>
+                                                                    {isSelectionMode && (
+                                                                        <div onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            const groupForms = groupedForms[groupName];
+                                                                            const allSelected = groupForms.every(f => selectedFormIds.has(f.id));
+                                                                            const next = new Set(selectedFormIds);
+                                                                            if (allSelected) {
+                                                                                groupForms.forEach(f => next.delete(f.id));
+                                                                            } else {
+                                                                                groupForms.forEach(f => next.add(f.id));
+                                                                            }
+                                                                            setSelectedFormIds(next);
+                                                                        }} className="mr-1 cursor-pointer z-10 flex items-center" >
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                className="w-4 h-4 rounded border-neutral-300 text-indigo-600 focus:ring-indigo-600 pointer-events-none"
+                                                                                checked={groupedForms[groupName].length > 0 && groupedForms[groupName].every(f => selectedFormIds.has(f.id))}
+                                                                                readOnly
+                                                                            />
+                                                                        </div>
+                                                                    )}
+                                                                    <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500 group-hover/trigger:bg-indigo-500 group-hover/trigger:text-white transition-colors shrink-0'>
                                                                         <Folder className='h-4 w-4' />
                                                                     </div>
-                                                                    <div className='text-left'>
+                                                                    <div className='text-left flex-1'>
                                                                         <h3 className='text-sm font-bold text-neutral-700 dark:text-white/90'>
                                                                             {
                                                                                 groupName

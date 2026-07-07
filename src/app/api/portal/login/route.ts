@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getConnector } from '@/lib/server-db';
+import { getConnector, getForm } from '@/lib/server-db';
 import { ensureFullUrl } from '@/lib/utils';
 
 const CONNECTOR_ID = 'conn_jjho7d5eg';
@@ -9,6 +9,12 @@ const SYSTEM_ID    = 'rbac_zqvhub9g0';
 async function fetchSubmissions(connectorUrl: string, connectorSecret: string, formId: string) {
     const url = new URL(`${connectorUrl}/postpipe/data`);
     url.searchParams.set('formId', formId);
+    
+    const form = await getForm(formId);
+    if (form && form.name) {
+        url.searchParams.set('formName', form.name);
+    }
+
     url.searchParams.set('targetDatabase', DB_NAME);
     url.searchParams.set('databaseConfig', JSON.stringify({ uri: DB_NAME }));
     url.searchParams.set('limit', '500');
@@ -68,9 +74,10 @@ export async function POST(req: NextRequest) {
 
         // Resolve role name
         const roleRecord = roles.find(
-            (r: any) => r.submissionId === roleId || r.id === roleId
+            (r: any) => r.submissionId === roleId || r.id === roleId || r._id === roleId
         );
-        const roleName = roleRecord?.data?.name || roleRecord?.data?.text || (roleId ? roleId : null);
+        const roleData = roleRecord?.data?.data || roleRecord?.data;
+        const roleName = roleData?.name || roleData?.text || (roleId ? roleId : null);
 
         if (!roleId) {
             return NextResponse.json({
@@ -83,17 +90,18 @@ export async function POST(req: NextRequest) {
                 },
                 accessibleForms: [],
                 message: 'No role assigned.',
+                debug: { roleId, foundRoleRecord: !!roleRecord, rolesCount: roles.length, roleName }
             });
         }
 
         // Find the latest permission record for this role
         const permRecord = [...perms].reverse().find(
-            (p: any) => p.data?.role === roleId
+            (p: any) => (p.data?.data?.role || p.data?.role) === roleId
         );
 
-        let accessibleFormIds: string[] = permRecord?.data?.accessible_forms || [];
+        let accessibleFormIds: any = permRecord?.data?.data?.accessible_forms || permRecord?.data?.accessible_forms || [];
         if (typeof accessibleFormIds === 'string') {
-            accessibleFormIds = accessibleFormIds.split(',').map((s: string) => s.trim()).filter(Boolean);
+            accessibleFormIds = (accessibleFormIds as string).split(',').map((s: string) => s.trim()).filter(Boolean);
         }
 
         // Fetch managed forms list for display names
@@ -123,7 +131,7 @@ export async function POST(req: NextRequest) {
                 roleId,
                 roleName,
             },
-            accessibleForms,
+            accessibleForms
         });
 
     } catch (e: any) {
