@@ -8,7 +8,7 @@ import { RBACEditModal } from './RBACEditModal';
 export default function RBSCDetails({ system, forms }: { system: any, forms: any[] }) {
     const rolesForm = forms.find(f => f.id === system.settings?.rolesFormId);
     const permsForm = forms.find(f => f.id === system.settings?.permissionsFormId);
-    const [activeTab, setActiveTab] = React.useState<'overview' | 'react' | 'html'>('overview');
+    const [activeTab, setActiveTab] = React.useState<'overview' | 'react' | 'html' | 'portal'>('overview');
     const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
 
     const copyCode = (code: string) => {
@@ -90,12 +90,10 @@ export default function RBSCAdminPanel() {
   };
 
   const fetchRoles = async () => {
-    const res = await fetch(\`\${POSTPIPE_URL}/api/postpipe/forms/\${ROLES_FORM_ID}/submissions\`, {
-      headers: { 'Authorization': \`Bearer \${ROLES_READ_TOKEN}\` }
-    });
+    const res = await fetch(\`\${POSTPIPE_URL}/api/public/references/\${ROLES_FORM_ID}\`);
     if (res.ok) {
       const data = await res.json();
-      setRoles(data.submissions || []);
+      setRoles(data.data || data.submissions || []);
     }
   };
 
@@ -108,12 +106,10 @@ export default function RBSCAdminPanel() {
   };
 
   const fetchPermissions = async () => {
-    const res = await fetch(\`\${POSTPIPE_URL}/api/postpipe/forms/\${PERMS_FORM_ID}/submissions\`, {
-      headers: { 'Authorization': \`Bearer \${PERMS_READ_TOKEN}\` }
-    });
+    const res = await fetch(\`\${POSTPIPE_URL}/api/public/references/\${PERMS_FORM_ID}\`);
     if (res.ok) {
       const data = await res.json();
-      setPermissions(data.submissions || []);
+      setPermissions(data.data || data.submissions || []);
     }
   };
 
@@ -266,10 +262,59 @@ export default function RBSCAdminPanel() {
     const rolesHtml = rolesForm ? generateSnippets(rolesForm.id, rolesForm.name, rolesForm.fields || [], appUrl, rolesForm.connectorUrl || '').html : '';
     const permsHtml = permsForm ? generateSnippets(permsForm.id, permsForm.name, permsForm.fields || [], appUrl, permsForm.connectorUrl || '').html : '';
 
-        const formSchemasMap = forms.reduce((acc, form) => {
+    const formSchemasMap = forms.reduce((acc, form) => {
         acc[form.id] = form.fields || [];
         return acc;
     }, {} as any);
+
+    const managedFormsList = forms.filter(f => f.id !== system.settings?.rolesFormId && f.id !== system.settings?.permissionsFormId);
+    let portalFormsHtml = '';
+    let portalScripts = '';
+
+    managedFormsList.forEach(f => {
+        const snippet = generateSnippets(f.id, f.name, f.fields || [], appUrl, f.connectorUrl || '');
+        // Extract body content and remove the html/body wrappers
+        let formContent = snippet.html.replace(/<!DOCTYPE html>|<html>|<head>[\\s\\S]*?<\/head>|<body>|<\/body>|<\/html>/g, '').trim();
+        // Remove the script tag so we can put it at the bottom
+        const scriptMatch = formContent.match(/<script>[\\s\\S]*?<\/script>/g);
+        if (scriptMatch) {
+            scriptMatch.forEach(s => { portalScripts += s + '\\n'; });
+            formContent = formContent.replace(/<script>[\\s\\S]*?<\/script>/g, '');
+        }
+
+        portalFormsHtml += `
+            <div class="form-card" style="margin-bottom: 30px; border: 1px solid #e5e7eb; padding: 20px; border-radius: 8px; background: white;">
+                \${formContent}
+            </div>
+        `;
+    });
+
+    const portalHtmlSnippet = `<!DOCTYPE html>
+<html>
+<head>
+    <title>User Portal</title>
+    <style>
+        body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background: #fafafa; }
+        .form-card h2 { margin-top: 0; color: #111827; font-size: 1.25rem; margin-bottom: 1rem; }
+        .field-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
+        .field-group label { font-size: 0.875rem; font-weight: 500; color: #374151; text-transform: capitalize; }
+        input, select, textarea { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; }
+        button { background-color: #8b5cf6; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.375rem; font-weight: 500; cursor: pointer; }
+        button:hover { background-color: #7c3aed; }
+        .dynamic-kv-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .remove-kv-btn { background-color: #ef4444; width: 40px; }
+    </style>
+</head>
+<body>
+    <div style="margin-bottom: 30px;">
+        <h1 style="color: #111827; margin-bottom: 8px;">User Portal</h1>
+        <p style="color: #6b7280; margin-top: 0;">Submit data for available forms below.</p>
+    </div>
+    \${portalFormsHtml}
+    \${portalScripts}
+</body>
+</html>`.trim();
+
 
     const htmlSnippet = `\n<!DOCTYPE html>
 <html>
@@ -519,25 +564,13 @@ export default function RBSCAdminPanel() {
             </div>
             <div class="form-card">
                 <h3>Assign Permissions</h3>
-                <form id="pp-form-permissions-4" action="http://localhost:9002/api/public/submit/permissions-4"
-                    method="POST">
-                    <div class="field-group">
-                        <label>role *</label>
-                        <select id="perm-form-role-select" name="role" required
-                            onchange="document.getElementById('role-select').value = this.value; renderPermissions();">
-                            <option value="">Select role...</option>
-                        </select>
-                    </div>
-                    <div class="field-group">
-                        <label>accessible_forms (comma-separated)</label>
-                        <input type="text" name="accessible_forms" id="accessible-forms-input"
-                            placeholder="e.g. contact-us, users, roles-4">
-                    </div>
-                    <button type="submit">Save Permissions</button>
-                </form>
+                <div class="field-group">
+                    <label>Select Role:</label>
+                    <select id="role-select" onchange="renderPermissions()">
+                        <option value="">-- Select a Role --</option>
+                    </select>
+                </div>
                 <div id="permissions-container" style="margin-top: 15px;"></div>
-                <!-- Hidden select used by renderPermissions() -->
-                <select id="role-select" style="display:none;"></select>
             </div>
 
             <div class="form-card">
@@ -600,16 +633,16 @@ export default function RBSCAdminPanel() {
     </div>
 
     <script>
-        const POSTPIPE_URL = '\${appUrl || \'http://localhost:9002\'}';
-        const CONNECTOR_URL = '\${system.connectorUrl || \'http://localhost:3002\'}';
+        const POSTPIPE_URL = '${appUrl || 'http://localhost:9002'}';
+        const CONNECTOR_URL = '${system.connectorUrl || 'http://localhost:3002'}';
         const SYSTEM_ID = '${system.id}';
-        const ROLES_FORM_ID = '\${rolesForm?.id || \'\'}';
-        const PERMS_FORM_ID = '\${permsForm?.id || \'\'}';
+        const ROLES_FORM_ID = '${rolesForm?.id || ''}';
+        const PERMS_FORM_ID = '${permsForm?.id || ''}';
         
-        const USERS_API_URL = 'http://localhost:9002/api/users'; // REPLACE THIS WITH ACTUAL USERS API
+        const USERS_API_URL = '${appUrl || 'http://localhost:9002'}/api/public/references/users';
         
-        const ROLES_READ_TOKEN = '\${rolesForm?.readToken || \'\'}';
-        const PERMS_READ_TOKEN = '\${permsForm?.readToken || \'\'}';
+        const ROLES_READ_TOKEN = '${rolesForm?.readToken || ''}';
+        const PERMS_READ_TOKEN = '${permsForm?.readToken || ''}';
 
         let roles = [];
         let managedForms = [];
@@ -681,16 +714,24 @@ export default function RBSCAdminPanel() {
 
 
             const results = await Promise.allSettled([
-                // Roles - v1 connector API
-                fetch(POSTPIPE_URL + '/api/postpipe/forms/' + ROLES_FORM_ID + '/submissions', { headers: { 'Authorization': 'Bearer ' + ROLES_READ_TOKEN } })
+                // Roles - public references API
+                fetch(POSTPIPE_URL + '/api/public/references/' + ROLES_FORM_ID)
                     .then(r => { console.log('[ROLES] status:', r.status); return r.ok ? r.json() : r.text().then(t => { throw new Error('Roles: ' + r.status + ' ' + t) }); })
                     .then(d => { roles = d.data || d.submissions || []; console.log('[ROLES] loaded:', roles.length); }),
                 // Managed Forms
                 fetch(POSTPIPE_URL + '/api/public/rbac/' + SYSTEM_ID + '/forms')
                     .then(r => { console.log('[FORMS] status:', r.status); return r.ok ? r.json() : r.text().then(t => { throw new Error('Forms: ' + r.status + ' ' + t) }); })
-                    .then(d => { managedForms = d.forms || []; console.log('[FORMS] loaded:', managedForms.length); }),
-                // Permissions - v1 connector API
-                fetch(POSTPIPE_URL + '/api/postpipe/forms/' + PERMS_FORM_ID + '/submissions', { headers: { 'Authorization': 'Bearer ' + ROLES_READ_TOKEN } })
+                    .then(d => { 
+                        managedForms = d.forms || []; 
+                        managedForms.forEach(f => {
+                            if (f.fields && f.fields.length > 0) {
+                                formSchemas[f.id] = f.fields;
+                            }
+                        });
+                        console.log('[FORMS] loaded:', managedForms.length); 
+                    }),
+                // Permissions - public references API
+                fetch(POSTPIPE_URL + '/api/public/references/' + PERMS_FORM_ID)
                     .then(r => { console.log('[PERMS] status:', r.status); return r.ok ? r.json() : r.text().then(t => { throw new Error('Perms: ' + r.status + ' ' + t) }); })
                     .then(d => { permissions = d.data || d.submissions || []; console.log('[PERMS] loaded:', permissions.length); }),
                 // Users
@@ -733,15 +774,6 @@ export default function RBSCAdminPanel() {
             });
             roleSelect.innerHTML = roleOptions;
             assignRoleSelect.innerHTML = roleOptions;
-            // Also populate the permissions form role dropdown
-            if (permFormRoleSelect) {
-                permFormRoleSelect.innerHTML = '<option value="">Select role...</option>' +
-                    roles.map(r => {
-                        const id = r.submissionId || r.submission_id || r.id;
-                        const name = r.data?.name || r.data?.text || id;
-                        return \`<option value="\${id}">\${name}</option>\`;
-                    }).join('');
-            }
 
             // Populate Users
             let userOptions = '<option value="">-- Select a User --</option>';
@@ -823,7 +855,7 @@ export default function RBSCAdminPanel() {
             try {
                 const res = await fetch(url, {
                     method: method,
-                    headers: { 'Content-Type': 'application/json', ...(method === 'PATCH' ? { 'Authorization': API_TOKEN } : {}) },
+                    headers: { 'Content-Type': 'application/json', ...(method === 'PATCH' ? { 'Authorization': 'Bearer ' + getSafeToken() } : {}) },
                     body: reqBody
                 });
                 if (res.ok) {
@@ -988,9 +1020,8 @@ export default function RBSCAdminPanel() {
                 // Fetch submissions for this form
                 // In a real app we might construct the API url based on connector/db/form.
                 // For this example, we assume we can proxy through public/references or direct to API if known.
-                // Postpipe's public API for reading submissions usually needs auth, but let's use the connector URL directly like others.
-                const url = \`\${POSTPIPE_URL}/api/postpipe/forms/\${formId}/submissions\`;
-                const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + ROLES_READ_TOKEN } });
+                const url = \`\${POSTPIPE_URL}/api/public/references/\${formId}\`;
+                const res = await fetch(url);
 
                 if (!res.ok) throw new Error('Failed to fetch data');
 
@@ -1017,8 +1048,31 @@ export default function RBSCAdminPanel() {
 
             currentSubmissions.forEach(sub => {
                 const subId = sub.submissionId || sub.id || sub._id;
-                // create a short summary of the data json
-                const dataStr = JSON.stringify(sub.data || {}).substring(0, 50) + '...';
+                
+                let summaryObj = { ...(sub.data || {}) };
+                if (summaryObj.role) {
+                    const r = roles.find(r => (r.submissionId || r.id || r._id) === summaryObj.role);
+                    if (r) summaryObj.role = r.data?.name || r.data?.text || summaryObj.role;
+                }
+                if (summaryObj.roles && Array.isArray(summaryObj.roles)) {
+                    summaryObj.roles = summaryObj.roles.map(rId => {
+                        const r = roles.find(r => (r.submissionId || r.id || r._id) === rId);
+                        return r ? (r.data?.name || r.data?.text || rId) : rId;
+                    });
+                }
+                
+                let dataStr = '';
+                const parts = [];
+                Object.entries(summaryObj).forEach(([k, v]) => {
+                    if (typeof v === 'object' && v !== null) {
+                        parts.push(\`\${k}: \${Array.isArray(v) ? '[' + v.join(', ') + ']' : '{...}'}\`);
+                    } else {
+                        parts.push(\`\${k}: \${v}\`);
+                    }
+                });
+                dataStr = parts.join(' | ');
+                if (dataStr.length > 60) dataStr = dataStr.substring(0, 60) + '...';
+                if (!dataStr) dataStr = 'Empty Data';
 
                 html += \`<tr>
                     <td style="font-family: monospace; font-size: 12px;">\${subId.substring(0, 8)}...</td>
@@ -1039,14 +1093,62 @@ export default function RBSCAdminPanel() {
             
             const fields = formSchemas[formId] || [];
             if (fields.length === 0) {
-                // fallback to JSON textarea if no schema is found in formSchemas
+                // Deduce schema from existing submissions
+                const deducedKeys = new Set();
+                currentSubmissions.forEach(sub => {
+                    if (sub.data) {
+                        Object.keys(sub.data).forEach(k => deducedKeys.add(k));
+                    }
+                });
+                if (data && typeof data === 'object') {
+                    Object.keys(data).forEach(k => deducedKeys.add(k));
+                }
+
                 container.innerHTML = \`
                     <div class="field-group">
-                        <label>Data (JSON format)</label>
-                        <textarea name="_json_data" rows="10" style="font-family: monospace; width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 10px;">\${JSON.stringify(data, null, 2)}</textarea>
-                        <p style="font-size: 12px; color: #ef4444; margin-top: 4px;">Schema not found. Falling back to JSON editor.</p>
+                        <label style="margin-bottom: 8px;">Data Fields \${deducedKeys.size > 0 ? '(Auto-detected)' : '(No Schema Found)'}</label>
+                        <div id="dynamic-kv-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
                     </div>
                 \`;
+                
+                const kvContainer = document.getElementById('dynamic-kv-container');
+                window.addDynamicKVField = (key = '', value = '') => {
+                    const row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.gap = '8px';
+                    row.style.alignItems = 'center';
+                    
+                    const keyInput = document.createElement('input');
+                    keyInput.type = 'text';
+                    keyInput.value = key;
+                    keyInput.className = 'dynamic-kv-key';
+                    keyInput.style.flex = '1';
+                    keyInput.style.marginBottom = '0';
+                    keyInput.style.padding = '8px';
+                    keyInput.style.background = '#f3f4f6';
+                    keyInput.readOnly = true;
+                    
+                    const valInput = document.createElement('input');
+                    valInput.type = 'text';
+                    valInput.placeholder = 'Value';
+                    valInput.value = typeof value === 'object' ? JSON.stringify(value) : value;
+                    valInput.className = 'dynamic-kv-val';
+                    valInput.style.flex = '2';
+                    valInput.style.marginBottom = '0';
+                    valInput.style.padding = '8px';
+                    
+                    row.appendChild(keyInput);
+                    row.appendChild(valInput);
+                    kvContainer.appendChild(row);
+                };
+                
+                if (deducedKeys.size > 0) {
+                    deducedKeys.forEach(k => {
+                        window.addDynamicKVField(k, data ? data[k] : '');
+                    });
+                } else {
+                    kvContainer.innerHTML = '<p style="font-size: 12px; color: #6b7280;">No schema defined for this form.</p>';
+                }
                 return;
             }
             
@@ -1056,10 +1158,49 @@ export default function RBSCAdminPanel() {
                 let val = data[safeLabel] !== undefined ? data[safeLabel] : '';
                 const req = f.required ? 'required' : '';
                 
-                // Try resolving reference names for display
+                // Specific UI for Role assignments
                 if (safeLabel === 'role' || safeLabel === 'roles') {
-                     const r = roles.find(r => (r.submissionId || r.id || r._id) === val);
-                     if (r) val = r.data?.name || r.data?.text || val;
+                    const isMultiple = safeLabel === 'roles' || f.type === 'array' || f.type === 'list';
+                    if (isMultiple) {
+                        let selectedIds = [];
+                        if (Array.isArray(val)) selectedIds = val;
+                        else if (typeof val === 'string' && val) selectedIds = val.split(',').map(s => s.trim());
+                        
+                        let rolesHtml = '<div style="max-height: 150px; overflow-y: auto; border: 1px solid #e5e7eb; padding: 8px; border-radius: 4px; background: #fff;">';
+                        roles.forEach(r => {
+                            const rId = r.submissionId || r.id || r._id;
+                            const rName = r.data?.name || r.data?.text || rId;
+                            const checked = selectedIds.includes(rId) ? 'checked' : '';
+                            rolesHtml += \`
+                                <label class="form-check" style="margin-bottom: 4px;">
+                                    <input type="checkbox" name="\${safeLabel}[]" value="\${rId}" \${checked} /> \${rName}
+                                </label>
+                            \`;
+                        });
+                        rolesHtml += '</div>';
+                        html += \`
+                            <div class="field-group" style="margin-bottom: 0;">
+                                <label>\${safeLabel} \${f.required ? '*' : ''}</label>
+                                \${rolesHtml}
+                            </div>
+                        \`;
+                    } else {
+                        const selectedId = val || '';
+                        let optsHtml = '<option value="">Select a role...</option>';
+                        roles.forEach(r => {
+                            const rId = r.submissionId || r.id || r._id;
+                            const rName = r.data?.name || r.data?.text || rId;
+                            const sel = (selectedId === rId) ? 'selected' : '';
+                            optsHtml += \`<option value="\${rId}" \${sel}>\${rName}</option>\`;
+                        });
+                        html += \`
+                            <div class="field-group" style="margin-bottom: 0;">
+                                <label>\${safeLabel} \${f.required ? '*' : ''}</label>
+                                <select name="\${safeLabel}" \${req} style="width: 100%;">\${optsHtml}</select>
+                            </div>
+                        \`;
+                    }
+                    return; // Skip default rendering for this field
                 }
                 
                 let inputType = 'text';
@@ -1134,8 +1275,26 @@ export default function RBSCAdminPanel() {
             const formElement = document.getElementById('crud-dynamic-form');
             const formData = new FormData(formElement);
             
-            // Check if we are falling back to JSON
-            if (formData.has('_json_data')) {
+            // Check if we are falling back to JSON or KV editor
+            const kvKeys = formElement.querySelectorAll('.dynamic-kv-key');
+            const kvVals = formElement.querySelectorAll('.dynamic-kv-val');
+            
+            if (kvKeys.length > 0) {
+                // KV editor used
+                for (let i = 0; i < kvKeys.length; i++) {
+                    const k = kvKeys[i].value.trim();
+                    let v = kvVals[i].value;
+                    if (k) {
+                        if (v === 'true') v = true;
+                        else if (v === 'false') v = false;
+                        else if (v !== '' && !isNaN(v)) v = Number(v);
+                        else {
+                            try { v = JSON.parse(v); } catch(e) {}
+                        }
+                        parsedData[k] = v;
+                    }
+                }
+            } else if (formData.has('_json_data')) {
                 try {
                     parsedData = JSON.parse(formData.get('_json_data'));
                 } catch (err) {
@@ -1147,7 +1306,13 @@ export default function RBSCAdminPanel() {
                 formElement.querySelectorAll('input, select, textarea').forEach(input => {
                     if (input.type === 'submit' || input.type === 'hidden') return;
                     if (input.type === 'checkbox') {
-                        parsedData[input.name] = input.checked;
+                        if (input.name.endsWith('[]')) {
+                            const actualName = input.name.replace('[]', '');
+                            if (!parsedData[actualName]) parsedData[actualName] = [];
+                            if (input.checked) parsedData[actualName].push(input.value);
+                        } else {
+                            parsedData[input.name] = input.checked;
+                        }
                     } else if (input.type === 'number') {
                         parsedData[input.name] = input.value ? Number(input.value) : null;
                     } else {
@@ -1156,12 +1321,12 @@ export default function RBSCAdminPanel() {
                 });
             }
 
-            // Convert role names back to role IDs before saving
-            if (parsedData.roles) {
+            // Convert role names back to role IDs before saving (for legacy KV compatibility)
+            if (parsedData.roles && typeof parsedData.roles === 'string') {
                 const r = roles.find(r => (r.data?.name || r.data?.text || r.submissionId || r.id || r._id) === parsedData.roles);
                 if (r) parsedData.roles = r.submissionId || r.id || r._id;
             }
-            if (parsedData.role) {
+            if (parsedData.role && typeof parsedData.role === 'string') {
                 const r = roles.find(r => (r.data?.name || r.data?.text || r.submissionId || r.id || r._id) === parsedData.role);
                 if (r) parsedData.role = r.submissionId || r.id || r._id;
             }
@@ -1174,13 +1339,11 @@ export default function RBSCAdminPanel() {
             try {
                 if (subId) {
                     // Update existing
-                    // Using proxy route we built for users PATCH, or direct connector PATCH if available.
-                    // Connector v1 API supports PATCH /api/v1/connectors/.../forms/:formId/submissions/:subId
-                    const url = \`\${POSTPIPE_URL}/api/postpipe/forms/\${currentSelectedFormId}/submissions/\${subId}\`;
+                    const url = \`\${POSTPIPE_URL}/api/public/references/\${currentSelectedFormId}\`;
                     const res = await fetch(url, {
                         method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': API_TOKEN },
-                        body: JSON.stringify({ data: parsedData })
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSafeToken() },
+                        body: JSON.stringify({ submissionId: subId, patch: parsedData })
                     });
                     if (res.ok) {
                         alert('Entry updated successfully!');
@@ -1218,10 +1381,11 @@ export default function RBSCAdminPanel() {
             if (!confirm('Are you sure you want to delete this entry?')) return;
 
             try {
-                const url = \`\${POSTPIPE_URL}/api/postpipe/forms/\${currentSelectedFormId}/submissions/\${subId}\`;
+                const url = \`\${POSTPIPE_URL}/api/public/references/\${currentSelectedFormId}\`;
                 const res = await fetch(url, {
                     method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + ROLES_READ_TOKEN }
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSafeToken() },
+                    body: JSON.stringify({ submissionId: subId })
                 });
 
                 if (res.ok) {
@@ -1247,10 +1411,10 @@ export default function RBSCAdminPanel() {
     return (
         <div className='p-6 bg-indigo-50/30 dark:bg-indigo-950/5 border-t border-neutral-200/60 dark:border-white/[0.04]'>
             <div className='flex justify-between items-center mb-6 border-b border-neutral-200 dark:border-white/10 pb-4'>
-                <div className='flex gap-4'>
                     <Button variant={activeTab === 'overview' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('overview')} className={activeTab === 'overview' ? 'bg-violet-600 hover:bg-violet-500' : ''}>Overview</Button>
                     <Button variant={activeTab === 'react' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('react')} className={activeTab === 'react' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> React Snippet</Button>
-                    <Button variant={activeTab === 'html' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('html')} className={activeTab === 'html' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> HTML Snippet</Button>
+                    <Button variant={activeTab === 'html' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('html')} className={activeTab === 'html' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> Admin Panel HTML</Button>
+                    <Button variant={activeTab === 'portal' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('portal')} className={activeTab === 'portal' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> Portal HTML</Button>
                 </div>
                 <Button variant='outline' size='sm' onClick={() => setIsEditModalOpen(true)}><Settings className='w-4 h-4 mr-2' /> Edit Settings</Button>
             </div>
@@ -1362,6 +1526,19 @@ export default function RBSCAdminPanel() {
                 </div>
             )}
 
+            {activeTab === 'portal' && (
+                <div className='space-y-4'>
+                    <div className='flex justify-between items-center'>
+                        <h4 className='text-sm font-semibold text-neutral-900 dark:text-white'>Public User Portal HTML</h4>
+                        <Button size='sm' variant='outline' onClick={() => copyCode(portalHtmlSnippet)}><Copy className='w-4 h-4 mr-2'/> Copy Full Code</Button>
+                    </div>
+                    <p className='text-xs text-neutral-500'>This HTML file combines the submission forms for all your managed resources, making it easy to create a public-facing data entry portal.</p>
+                    <pre className='p-4 rounded-xl bg-neutral-950 text-neutral-300 text-xs font-mono overflow-x-auto whitespace-pre'>
+                        {portalHtmlSnippet}
+                    </pre>
+                </div>
+            )}
+            
             {activeTab === 'html' && (
                 <div className='relative'>
                     <div className='absolute top-4 right-4 flex gap-2'>
