@@ -266,29 +266,239 @@ export default function RBSCAdminPanel() {
     const rolesHtml = rolesForm ? generateSnippets(rolesForm.id, rolesForm.name, rolesForm.fields || [], appUrl, rolesForm.connectorUrl || '').html : '';
     const permsHtml = permsForm ? generateSnippets(permsForm.id, permsForm.name, permsForm.fields || [], appUrl, permsForm.connectorUrl || '').html : '';
 
-    const htmlSnippet = `
-<!DOCTYPE html>
+        const formSchemasMap = forms.reduce((acc, form) => {
+        acc[form.id] = form.fields || [];
+        return acc;
+    }, {} as any);
+
+    const htmlSnippet = `\n<!DOCTYPE html>
 <html>
+
 <head>
     <title>RBAC Admin Panel</title>
     <style>
-        body { font-family: system-ui, sans-serif; padding: 20px; background: #fafafa; }
-        .login-box { max-width: 400px; margin: 40px auto; border: 1px solid #e5e7eb; padding: 20px; border-radius: 8px; background: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        .dashboard-container { max-width: 1000px; margin: 0 auto; display: none; }
-        .forms-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
-        .form-card { flex: 1 1 300px; background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); }
-        input[type="email"], input[type="password"], input[type="text"], button, select, textarea { display: block; width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box; border: 1px solid #e5e7eb; border-radius: 6px; }
-        button { background: #7c3aed; color: white; border: none; cursor: pointer; font-weight: 500; }
-        button:hover { background: #6d28d9; }
-        label { display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: #374151; }
-        h3 { margin-top: 0; color: #111827; }
-        .form-check { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 14px; }
-        .form-check input { margin: 0; width: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; }
-        .logout-btn { width: auto; padding: 8px 16px; background: #ef4444; }
-        .logout-btn:hover { background: #dc2626; }
+        body {
+            font-family: system-ui, sans-serif;
+            padding: 20px;
+            background: #fafafa;
+        }
+
+        .login-box {
+            max-width: 400px;
+            margin: 40px auto;
+            border: 1px solid #e5e7eb;
+            padding: 20px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .dashboard-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: none;
+        }
+
+        .forms-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .form-card {
+            flex: 1 1 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"],
+        button,
+        select,
+        textarea {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+
+        button {
+            background: #7c3aed;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #6d28d9;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        h3 {
+            margin-top: 0;
+            color: #111827;
+        }
+
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-check input {
+            margin: 0;
+            width: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logout-btn {
+            width: auto;
+            padding: 8px 16px;
+            background: #ef4444;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+        }
+
+        /* Data Management Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        th,
+        td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+
+        .action-btn {
+            padding: 4px 8px;
+            font-size: 12px;
+            margin-right: 4px;
+            width: auto;
+            display: inline-block;
+        }
+
+        .btn-edit {
+            background: #3b82f6;
+        }
+
+        .btn-edit:hover {
+            background: #2563eb;
+        }
+
+        .btn-delete {
+            background: #ef4444;
+        }
+
+        .btn-delete:hover {
+            background: #dc2626;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 500px;
+            max-width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 0;
+            width: auto;
+        }
+
+        .modal-close:hover {
+            background: none;
+            color: #111827;
+        }
+
+        .form-list-item {
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: pointer;
+            background: white;
+            transition: background 0.2s;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-list-item:hover {
+            background: #f3f4f6;
+        }
+
+        .form-list-item.active {
+            background: #ede9fe;
+            border-color: #8b5cf6;
+            color: #5b21b6;
+        }
     </style>
 </head>
+
 <body>
     <div id="login-screen" class="login-box">
         <h2>Master Admin Login</h2>
@@ -305,15 +515,29 @@ export default function RBSCAdminPanel() {
         <div class="forms-grid">
             <div class="form-card">
                 <h3>Manage Roles</h3>
-                ${rolesHtml.replace(/<!DOCTYPE html>|<html>|<head>[\s\S]*?<\/head>|<body>|<\/body>|<\/html>/g, '').trim()}
+                ${rolesHtml.replace(/<!DOCTYPE html>|<html>|<head>[\\s\\S]*?<\/head>|<body>|<\/body>|<\/html>/g, '').trim()}
             </div>
-            
             <div class="form-card">
                 <h3>Assign Permissions</h3>
-                <select id="role-select" onchange="renderPermissions()">
-                    <option value="">-- Select a Role --</option>
-                </select>
+                <form id="pp-form-permissions-4" action="http://localhost:9002/api/public/submit/permissions-4"
+                    method="POST">
+                    <div class="field-group">
+                        <label>role *</label>
+                        <select id="perm-form-role-select" name="role" required
+                            onchange="document.getElementById('role-select').value = this.value; renderPermissions();">
+                            <option value="">Select role...</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>accessible_forms (comma-separated)</label>
+                        <input type="text" name="accessible_forms" id="accessible-forms-input"
+                            placeholder="e.g. contact-us, users, roles-4">
+                    </div>
+                    <button type="submit">Save Permissions</button>
+                </form>
                 <div id="permissions-container" style="margin-top: 15px;"></div>
+                <!-- Hidden select used by renderPermissions() -->
+                <select id="role-select" style="display:none;"></select>
             </div>
 
             <div class="form-card">
@@ -322,32 +546,81 @@ export default function RBSCAdminPanel() {
                 <select id="user-select">
                     <option value="">-- Select a User --</option>
                 </select>
-                
+
                 <label style="margin-top: 10px;">Select Role:</label>
                 <select id="assign-role-select">
                     <option value="">-- Select a Role --</option>
                 </select>
-                
+
                 <button onclick="assignUser()" style="margin-top: 15px;">Assign Role to User</button>
+            </div>
+
+            <div class="form-card" style="flex: 1 1 100%;">
+                <h3>Data Management</h3>
+                <p style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">Manage data for forms assigned to your
+                    role (Master Admin sees all Managed Forms).</p>
+                <div style="display: flex; gap: 20px;">
+                    <div style="flex: 1; border-right: 1px solid #e5e7eb; padding-right: 20px; max-width: 250px;">
+                        <h4 style="margin-top: 0;">Accessible Forms</h4>
+                        <div id="data-forms-list" style="display: flex; flex-direction: column; gap: 8px;">
+                            <p style="font-size: 12px; color: #9ca3af;">Loading forms...</p>
+                        </div>
+                    </div>
+                    <div style="flex: 2; overflow-x: auto;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 id="selected-form-title" style="margin: 0;">Select a form</h4>
+                            <button id="btn-create-entry"
+                                style="width: auto; padding: 6px 12px; font-size: 12px; display: none;"
+                                onclick="openCreateModal()">Create New Entry</button>
+                        </div>
+                        <div id="submissions-container">
+                            <p style="font-size: 12px; color: #9ca3af;">Select a form from the left to view its data.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- CRUD Modal -->
+    <div id="crud-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Create Entry</h3>
+                <button class="modal-close" onclick="closeCrudModal()">&times;</button>
+            </div>
+            <form id="crud-dynamic-form" onsubmit="saveCrudEntry(event)">
+                <div id="crud-fields-container" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; max-height: 60vh; overflow-y: auto;"></div>
+                <input type="hidden" id="crud-submission-id" />
+                <button type="submit" id="btn-save-crud" style="margin-top: 10px;">Save Entry</button>
+            </form>
+        </div>
+    </div>
+
     <script>
-        const POSTPIPE_URL = '${appUrl || 'http://localhost:9002'}';
-        const CONNECTOR_URL = '${system.connectorUrl || 'http://localhost:3002'}';
+        const POSTPIPE_URL = '\${appUrl || \'http://localhost:9002\'}';
+        const CONNECTOR_URL = '\${system.connectorUrl || \'http://localhost:3002\'}';
         const SYSTEM_ID = '${system.id}';
-        const ROLES_FORM_ID = '${rolesForm?.id || ''}';
-        const PERMS_FORM_ID = '${permsForm?.id || ''}';
-        const ROLES_READ_TOKEN = '${rolesForm?.readToken || ''}';
-        const PERMS_READ_TOKEN = '${permsForm?.readToken || ''}';
+        const ROLES_FORM_ID = '\${rolesForm?.id || \'\'}';
+        const PERMS_FORM_ID = '\${permsForm?.id || \'\'}';
+        
         const USERS_API_URL = 'http://localhost:9002/api/users'; // REPLACE THIS WITH ACTUAL USERS API
         
+        const ROLES_READ_TOKEN = '\${rolesForm?.readToken || \'\'}';
+        const PERMS_READ_TOKEN = '\${permsForm?.readToken || \'\'}';
+
         let roles = [];
         let managedForms = [];
         let permissions = [];
         let users = [];
         
+        // This object should be populated with the schema of each form
+        // For the generated snippet, it will be injected dynamically.
+        // For testing here, you can add fields for the forms you test.
+        const formSchemas = ${JSON.stringify(formSchemasMap)};
+
         function getSafeToken() {
             try {
                 return localStorage.getItem('pp_admin_token') || '';
@@ -355,7 +628,7 @@ export default function RBSCAdminPanel() {
                 return window._pp_mem_token || '';
             }
         }
-        
+
         function setSafeToken(token) {
             try {
                 localStorage.setItem('pp_admin_token', token);
@@ -363,7 +636,7 @@ export default function RBSCAdminPanel() {
                 window._pp_mem_token = token;
             }
         }
-        
+
         function removeSafeToken() {
             try {
                 localStorage.removeItem('pp_admin_token');
@@ -402,53 +675,80 @@ export default function RBSCAdminPanel() {
         async function initDashboard() {
             const token = getSafeToken();
             if (!token) return;
-            
+
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
 
-            try {
-                await Promise.all([
-                    fetch(POSTPIPE_URL + '/api/postpipe/forms/' + ROLES_FORM_ID + '/submissions', { headers: { 'Authorization': 'Bearer ' + ROLES_READ_TOKEN } })
-                        .then(r => r.ok ? r.json() : Promise.reject('Failed to load roles'))
-                        .then(d => roles = d.submissions || []),
-                    fetch(POSTPIPE_URL + '/api/public/rbac/' + SYSTEM_ID + '/forms')
-                        .then(r => r.ok ? r.json() : Promise.reject('Failed to load managed forms'))
-                        .then(d => managedForms = d.forms || []),
-                    fetch(POSTPIPE_URL + '/api/postpipe/forms/' + PERMS_FORM_ID + '/submissions', { headers: { 'Authorization': 'Bearer ' + PERMS_READ_TOKEN } })
-                        .then(r => r.ok ? r.json() : Promise.reject('Failed to load permissions'))
-                        .then(d => permissions = d.submissions || []),
-                    fetch(USERS_API_URL)
-                        .then(r => r.ok ? r.json() : Promise.resolve({ users: [] }))
-                        .then(d => users = d.users || d.data || [])
-                        .catch(e => console.warn("Failed to load users:", e))
-                ]);
 
-                populateDropdowns();
-                renderPermissions();
-            } catch (err) {
-                console.error("Dashboard initialization error:", err);
-                document.getElementById('permissions-container').innerHTML = 
-                    '<p style="color: #ef4444; font-size: 14px;">Failed to load data. See console for details. Error: ' + err + '</p>';
-            }
+            const results = await Promise.allSettled([
+                // Roles - v1 connector API
+                fetch(POSTPIPE_URL + '/api/postpipe/forms/' + ROLES_FORM_ID + '/submissions', { headers: { 'Authorization': 'Bearer ' + ROLES_READ_TOKEN } })
+                    .then(r => { console.log('[ROLES] status:', r.status); return r.ok ? r.json() : r.text().then(t => { throw new Error('Roles: ' + r.status + ' ' + t) }); })
+                    .then(d => { roles = d.data || d.submissions || []; console.log('[ROLES] loaded:', roles.length); }),
+                // Managed Forms
+                fetch(POSTPIPE_URL + '/api/public/rbac/' + SYSTEM_ID + '/forms')
+                    .then(r => { console.log('[FORMS] status:', r.status); return r.ok ? r.json() : r.text().then(t => { throw new Error('Forms: ' + r.status + ' ' + t) }); })
+                    .then(d => { managedForms = d.forms || []; console.log('[FORMS] loaded:', managedForms.length); }),
+                // Permissions - v1 connector API
+                fetch(POSTPIPE_URL + '/api/postpipe/forms/' + PERMS_FORM_ID + '/submissions', { headers: { 'Authorization': 'Bearer ' + ROLES_READ_TOKEN } })
+                    .then(r => { console.log('[PERMS] status:', r.status); return r.ok ? r.json() : r.text().then(t => { throw new Error('Perms: ' + r.status + ' ' + t) }); })
+                    .then(d => { permissions = d.data || d.submissions || []; console.log('[PERMS] loaded:', permissions.length); }),
+                // Users
+                fetch(USERS_API_URL, { headers: { 'Authorization': 'Bearer ' + ROLES_READ_TOKEN } })
+                    .then(r => { console.log('[USERS] status:', r.status); return r.ok ? r.json() : r.text().then(t => { throw new Error('Users: ' + r.status + ' ' + t) }); })
+                    .then(d => {
+                        console.log('[USERS] raw response:', d);
+                        const rawUsers = d.data || d.users || [];
+                        users = rawUsers.map(u => ({
+                            id: u.submissionId || u.id || u._id,
+                            ...u.data,
+                            ...u
+                        }));
+                        console.log('[USERS] loaded:', users.length, users);
+                    })
+            ]);
+
+            results.forEach((r, i) => {
+                if (r.status === 'rejected') console.error('[initDashboard] fetch #' + i + ' failed:', r.reason);
+            });
+
+            populateDropdowns();
+            renderPermissions();
+            renderDataFormsList();
         }
+
 
         function populateDropdowns() {
             const roleSelect = document.getElementById('role-select');
             const assignRoleSelect = document.getElementById('assign-role-select');
             const userSelect = document.getElementById('user-select');
+            const permFormRoleSelect = document.getElementById('perm-form-role-select');
 
-            // Populate Roles
+            // Populate Roles (data comes from v1 API: each item has .submissionId and .data.name)
             let roleOptions = '<option value="">-- Select a Role --</option>';
             roles.forEach(r => {
-                roleOptions += \`<option value="\${r.submission_id}">\${r.data?.name || r.data?.text || r.submission_id}</option>\`;
+                const id = r.submissionId || r.submission_id || r.id;
+                const name = r.data?.name || r.data?.text || id;
+                roleOptions += \`<option value="\${id}">\${name}</option>\`;
             });
             roleSelect.innerHTML = roleOptions;
             assignRoleSelect.innerHTML = roleOptions;
+            // Also populate the permissions form role dropdown
+            if (permFormRoleSelect) {
+                permFormRoleSelect.innerHTML = '<option value="">Select role...</option>' +
+                    roles.map(r => {
+                        const id = r.submissionId || r.submission_id || r.id;
+                        const name = r.data?.name || r.data?.text || id;
+                        return \`<option value="\${id}">\${name}</option>\`;
+                    }).join('');
+            }
 
             // Populate Users
             let userOptions = '<option value="">-- Select a User --</option>';
             users.forEach(u => {
-                userOptions += \`<option value="\${u.id || u._id}">\${u.name || u.email || u.id}</option>\`;
+                const submissionId = u.submissionId || u.id || u._id;
+                const displayName = u.name || u.email || submissionId;
+                userOptions += \`<option value="\${submissionId}">\${displayName}</option>\`;
             });
             userSelect.innerHTML = userOptions;
         }
@@ -456,9 +756,9 @@ export default function RBSCAdminPanel() {
         function renderPermissions() {
             const container = document.getElementById('permissions-container');
             const roleId = document.getElementById('role-select').value;
-            
+
             container.innerHTML = '';
-            
+
             if (!roleId) {
                 return; // Nothing selected
             }
@@ -468,13 +768,18 @@ export default function RBSCAdminPanel() {
                 return;
             }
 
-            // Find existing permission record for this role
+            // Find existing permission record for this role (reversed to get latest submission)
+            // permissions from v1 API: each item has .submissionId and .data.role / .data.accessible_forms
             const existingPerm = [...permissions].reverse().find(p => p.data?.role === roleId);
-            const accessibleForms = existingPerm?.data?.accessible_forms || [];
+            // accessible_forms may be stored as a comma-separated string OR an array
+            let accessibleForms = existingPerm?.data?.accessible_forms || [];
+            if (typeof accessibleForms === 'string') {
+                accessibleForms = accessibleForms.split(',').map(s => s.trim()).filter(Boolean);
+            }
 
             let html = '<div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">';
             html += '<p style="font-size: 14px; font-weight: bold; margin-bottom: 10px;">Accessible Forms:</p>';
-            
+
             managedForms.forEach(form => {
                 const isChecked = accessibleForms.includes(form.id) ? 'checked' : '';
                 html += \`
@@ -484,29 +789,42 @@ export default function RBSCAdminPanel() {
                     </label>
                 \`;
             });
-            
+
             html += \`<button onclick="savePermissions('\${roleId}')" style="margin-top: 10px;">Save Permissions</button>\`;
             html += '</div>';
-            
+
             container.innerHTML = html;
         }
 
         async function savePermissions(roleId) {
             const checkboxes = document.querySelectorAll('input[id^="perm-"]');
             const selectedForms = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-            
+
             const payload = {
                 role: roleId,
                 accessible_forms: selectedForms
             };
 
-            const url = POSTPIPE_URL + '/api/public/submit/' + PERMS_FORM_ID;
-            
+            const existingPerm = [...permissions].reverse().find(p => p.data?.role === roleId);
+
+            let url, method, reqBody;
+
+            if (existingPerm) {
+                const subId = existingPerm.submissionId || existingPerm.id || existingPerm._id;
+                url = \`\${POSTPIPE_URL}/api/postpipe/forms/\${PERMS_FORM_ID}/submissions/\${subId}\`;
+                method = 'PATCH';
+                reqBody = JSON.stringify({ data: payload });
+            } else {
+                url = POSTPIPE_URL + '/api/public/submit/' + PERMS_FORM_ID;
+                method = 'POST';
+                reqBody = JSON.stringify(payload);
+            }
+
             try {
                 const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    method: method,
+                    headers: { 'Content-Type': 'application/json', ...(method === 'PATCH' ? { 'Authorization': API_TOKEN } : {}) },
+                    body: reqBody
                 });
                 if (res.ok) {
                     alert('Permissions saved successfully!');
@@ -514,22 +832,407 @@ export default function RBSCAdminPanel() {
                 } else {
                     alert('Failed to save permissions');
                 }
-            } catch(e) {
-                alert('Error saving permissions');
+            } catch (e) {
+                alert('Error saving permissions: ' + e.message);
             }
         }
 
         async function assignUser() {
             const userId = document.getElementById('user-select').value;
             const roleId = document.getElementById('assign-role-select').value;
-            
+
             if (!userId || !roleId) {
                 alert("Please select both a user and a role.");
                 return;
             }
+
+            const btn = document.querySelector('button[onclick="assignUser()"]');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Assigning...';
+
+            try {
+                const res = await fetch(POSTPIPE_URL + '/api/public/references/users', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        submissionId: userId,
+                        patch: { roles: roleId }
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    alert('Role assigned successfully!');
+                    initDashboard(); // refresh dropdowns
+                } else {
+                    alert('Failed to assign role: ' + (data.error || res.statusText));
+                }
+            } catch (e) {
+                alert('Network error assigning role: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        // Intercept Permissions Form submission
+        document.getElementById('pp-form-permissions-4')?.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = this.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            const formData = new FormData(this);
+            const payload = {};
+            formData.forEach((value, key) => { payload[key] = value; });
+
+            try {
+                const res = await fetch(this.action, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    alert('Permissions saved successfully!');
+                    this.reset();
+                    initDashboard(); // refresh so new permission appears in dropdown
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    alert('Failed to save permissions: ' + (data.error || res.statusText));
+                }
+            } catch (e) {
+                alert('Network error during submission.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+
+        // Intercept Roles Form submission to handle dynamically via Fetch and refresh dashboard
+        document.getElementById('pp-form-roles-4')?.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = this.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+
+            const formData = new FormData(this);
+            const payload = {};
+            formData.forEach((value, key) => {
+                payload[key] = value;
+            });
+
+            try {
+                const res = await fetch(this.action, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    alert('Role created successfully!');
+                    this.reset();
+                    initDashboard(); // refresh state to show new role in list
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    alert('Failed to create role: ' + (data.error || res.statusText));
+                }
+            } catch (e) {
+                alert('Network error during submission.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+
+        // ==========================================
+        // Data Management CRUD Logic
+        // ==========================================
+        let currentSelectedFormId = null;
+        let currentSubmissions = [];
+
+        function renderDataFormsList() {
+            const listContainer = document.getElementById('data-forms-list');
+            listContainer.innerHTML = '';
+
+            if (managedForms.length === 0) {
+                listContainer.innerHTML = '<p style="font-size: 12px; color: #9ca3af;">No forms accessible.</p>';
+                return;
+            }
+
+            managedForms.forEach(form => {
+                const div = document.createElement('div');
+                div.className = 'form-list-item';
+                div.id = \`nav-form-\${form.id}\`;
+                div.textContent = form.name;
+                div.onclick = () => selectDataForm(form.id, form.name);
+                listContainer.appendChild(div);
+            });
+        }
+
+        async function selectDataForm(formId, formName) {
+            currentSelectedFormId = formId;
+            document.getElementById('selected-form-title').textContent = formName + ' Data';
+            document.getElementById('btn-create-entry').style.display = 'block';
+
+            // Highlight active item
+            document.querySelectorAll('.form-list-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(\`nav-form-\${formId}\`).classList.add('active');
+
+            const container = document.getElementById('submissions-container');
+            container.innerHTML = '<p style="font-size: 12px; color: #9ca3af;">Loading data...</p>';
+
+            try {
+                // Fetch submissions for this form
+                // In a real app we might construct the API url based on connector/db/form.
+                // For this example, we assume we can proxy through public/references or direct to API if known.
+                // Postpipe's public API for reading submissions usually needs auth, but let's use the connector URL directly like others.
+                const url = \`\${POSTPIPE_URL}/api/postpipe/forms/\${formId}/submissions\`;
+                const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + ROLES_READ_TOKEN } });
+
+                if (!res.ok) throw new Error('Failed to fetch data');
+
+                const data = await res.json();
+                currentSubmissions = data.data || data.submissions || [];
+                renderSubmissionsTable();
+            } catch (e) {
+                container.innerHTML = \`<p style="font-size: 12px; color: #ef4444;">Error loading data: \${e.message}</p>\`;
+            }
+        }
+
+        function renderSubmissionsTable() {
+            const container = document.getElementById('submissions-container');
+            if (currentSubmissions.length === 0) {
+                container.innerHTML = '<p style="font-size: 12px; color: #9ca3af;">No entries found for this form.</p>';
+                return;
+            }
+
+            let html = '<table><thead><tr>';
+            html += '<th>ID</th>';
+            html += '<th>Data Summary</th>';
+            html += '<th style="text-align: right;">Actions</th>';
+            html += '</tr></thead><tbody>';
+
+            currentSubmissions.forEach(sub => {
+                const subId = sub.submissionId || sub.id || sub._id;
+                // create a short summary of the data json
+                const dataStr = JSON.stringify(sub.data || {}).substring(0, 50) + '...';
+
+                html += \`<tr>
+                    <td style="font-family: monospace; font-size: 12px;">\${subId.substring(0, 8)}...</td>
+                    <td style="font-size: 12px;">\${dataStr}</td>
+                    <td style="text-align: right;">
+                        <button class="action-btn btn-edit" onclick="openEditModal('\${subId}')">Edit</button>
+                        <button class="action-btn btn-delete" onclick="deleteSubmission('\${subId}')">Delete</button>
+                    </td>
+                </tr>\`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function buildDynamicForm(formId, data) {
+            const container = document.getElementById('crud-fields-container');
+            container.innerHTML = '';
             
-            // Replace this with actual users API assignment logic
-            alert(\`Assigned User \${userId} to Role \${roleId}\`);
+            const fields = formSchemas[formId] || [];
+            if (fields.length === 0) {
+                // fallback to JSON textarea if no schema is found in formSchemas
+                container.innerHTML = \`
+                    <div class="field-group">
+                        <label>Data (JSON format)</label>
+                        <textarea name="_json_data" rows="10" style="font-family: monospace; width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 10px;">\${JSON.stringify(data, null, 2)}</textarea>
+                        <p style="font-size: 12px; color: #ef4444; margin-top: 4px;">Schema not found. Falling back to JSON editor.</p>
+                    </div>
+                \`;
+                return;
+            }
+            
+            let html = '';
+            fields.forEach(f => {
+                const safeLabel = f.name || f.label || f.type || 'field';
+                let val = data[safeLabel] !== undefined ? data[safeLabel] : '';
+                const req = f.required ? 'required' : '';
+                
+                // Try resolving reference names for display
+                if (safeLabel === 'role' || safeLabel === 'roles') {
+                     const r = roles.find(r => (r.submissionId || r.id || r._id) === val);
+                     if (r) val = r.data?.name || r.data?.text || val;
+                }
+                
+                let inputType = 'text';
+                if (f.type === 'number' || f.type === 'decimal') inputType = 'number';
+                if (f.type === 'email') inputType = 'email';
+                
+                if (f.type === 'boolean') {
+                    const checked = val ? 'checked' : '';
+                    html += \`
+                        <div class="field-group form-check" style="margin-bottom: 0;">
+                            <input type="checkbox" name="\${safeLabel}" id="field-\${safeLabel}" \${checked}>
+                            <label for="field-\${safeLabel}" style="display:inline; margin-bottom:0;">\${safeLabel} \${f.required ? '*' : ''}</label>
+                        </div>
+                    \`;
+                } else if (f.type === 'enum' || f.type === 'select') {
+                    const options = String(f.options || '').split(',').map(o => o.trim()).filter(Boolean);
+                    let optsHtml = \`<option value="">Select...</option>\`;
+                    options.forEach(o => {
+                        const sel = (String(val) === o) ? 'selected' : '';
+                        optsHtml += \`<option value="\${o}" \${sel}>\${o}</option>\`;
+                    });
+                    html += \`
+                        <div class="field-group" style="margin-bottom: 0;">
+                            <label>\${safeLabel} \${f.required ? '*' : ''}</label>
+                            <select name="\${safeLabel}" \${req} style="width: 100%;">\${optsHtml}</select>
+                        </div>
+                    \`;
+                } else {
+                    html += \`
+                        <div class="field-group" style="margin-bottom: 0;">
+                            <label>\${safeLabel} \${f.required ? '*' : ''}</label>
+                            <input type="\${inputType}" name="\${safeLabel}" value="\${val}" \${req} \${inputType==='number' && f.type==='decimal' ? 'step="any"' : ''} style="width: 100%;">
+                        </div>
+                    \`;
+                }
+            });
+            container.innerHTML = html;
+        }
+
+        function openCreateModal() {
+            document.getElementById('modal-title').textContent = 'Create New Entry';
+            document.getElementById('crud-submission-id').value = '';
+            
+            buildDynamicForm(currentSelectedFormId, {});
+            document.getElementById('crud-modal').style.display = 'flex';
+        }
+
+        function openEditModal(subId) {
+            const sub = currentSubmissions.find(s => (s.submissionId || s.id || s._id) === subId);
+            if (!sub) return;
+
+            let dataToShow = JSON.parse(JSON.stringify(sub.data || {}));
+
+            document.getElementById('modal-title').textContent = 'Edit Entry';
+            document.getElementById('crud-submission-id').value = subId;
+            
+            buildDynamicForm(currentSelectedFormId, dataToShow);
+            document.getElementById('crud-modal').style.display = 'flex';
+        }
+
+        function closeCrudModal() {
+            document.getElementById('crud-modal').style.display = 'none';
+        }
+
+        async function saveCrudEntry(e) {
+            if (e) e.preventDefault();
+            if (!currentSelectedFormId) return;
+
+            const subId = document.getElementById('crud-submission-id').value;
+            
+            let parsedData = {};
+            const formElement = document.getElementById('crud-dynamic-form');
+            const formData = new FormData(formElement);
+            
+            // Check if we are falling back to JSON
+            if (formData.has('_json_data')) {
+                try {
+                    parsedData = JSON.parse(formData.get('_json_data'));
+                } catch (err) {
+                    alert("Invalid JSON format");
+                    return;
+                }
+            } else {
+                // Build object from form inputs
+                formElement.querySelectorAll('input, select, textarea').forEach(input => {
+                    if (input.type === 'submit' || input.type === 'hidden') return;
+                    if (input.type === 'checkbox') {
+                        parsedData[input.name] = input.checked;
+                    } else if (input.type === 'number') {
+                        parsedData[input.name] = input.value ? Number(input.value) : null;
+                    } else {
+                        parsedData[input.name] = input.value;
+                    }
+                });
+            }
+
+            // Convert role names back to role IDs before saving
+            if (parsedData.roles) {
+                const r = roles.find(r => (r.data?.name || r.data?.text || r.submissionId || r.id || r._id) === parsedData.roles);
+                if (r) parsedData.roles = r.submissionId || r.id || r._id;
+            }
+            if (parsedData.role) {
+                const r = roles.find(r => (r.data?.name || r.data?.text || r.submissionId || r.id || r._id) === parsedData.role);
+                if (r) parsedData.role = r.submissionId || r.id || r._id;
+            }
+
+            const btn = document.getElementById('btn-save-crud');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                if (subId) {
+                    // Update existing
+                    // Using proxy route we built for users PATCH, or direct connector PATCH if available.
+                    // Connector v1 API supports PATCH /api/v1/connectors/.../forms/:formId/submissions/:subId
+                    const url = \`\${POSTPIPE_URL}/api/postpipe/forms/\${currentSelectedFormId}/submissions/\${subId}\`;
+                    const res = await fetch(url, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': API_TOKEN },
+                        body: JSON.stringify({ data: parsedData })
+                    });
+                    if (res.ok) {
+                        alert('Entry updated successfully!');
+                        closeCrudModal();
+                        selectDataForm(currentSelectedFormId, document.getElementById('selected-form-title').textContent.replace(' Data', ''));
+                    } else {
+                        throw new Error('Update failed');
+                    }
+                } else {
+                    // Create new
+                    // We can use the public submit route: POST /api/public/submit/:formId
+                    const url = POSTPIPE_URL + '/api/public/submit/' + currentSelectedFormId;
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(parsedData)
+                    });
+                    if (res.ok) {
+                        alert('Entry created successfully!');
+                        closeCrudModal();
+                        selectDataForm(currentSelectedFormId, document.getElementById('selected-form-title').textContent.replace(' Data', ''));
+                    } else {
+                        throw new Error('Creation failed');
+                    }
+                }
+            } catch (e) {
+                alert('Error saving entry: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        async function deleteSubmission(subId) {
+            if (!confirm('Are you sure you want to delete this entry?')) return;
+
+            try {
+                const url = \`\${POSTPIPE_URL}/api/postpipe/forms/\${currentSelectedFormId}/submissions/\${subId}\`;
+                const res = await fetch(url, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + ROLES_READ_TOKEN }
+                });
+
+                if (res.ok) {
+                    alert('Entry deleted successfully!');
+                    selectDataForm(currentSelectedFormId, document.getElementById('selected-form-title').textContent.replace(' Data', ''));
+                } else {
+                    throw new Error('Delete failed');
+                }
+            } catch (e) {
+                alert('Error deleting entry: ' + e.message);
+            }
         }
 
         // Auto-login if token exists
@@ -538,8 +1241,8 @@ export default function RBSCAdminPanel() {
         }
     </script>
 </body>
-</html>
-`.trim();
+
+</html>\n`.trim();
 
     return (
         <div className='p-6 bg-indigo-50/30 dark:bg-indigo-950/5 border-t border-neutral-200/60 dark:border-white/[0.04]'>
