@@ -201,7 +201,7 @@ ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
     .field-group { margin-bottom: 16px; }
     label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; color: #374151; }
     input[type="text"], input[type="email"], input[type="number"], input[type="datetime-local"], select, textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: #6366f1; ring: 2px #6366f1; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px #6366f1; }
     textarea { min-height: 100px; resize: vertical; }
     button[type="submit"] { background: #4f46e5; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; width: 100%; transition: background 0.2s; }
     button[type="submit"]:hover { background: #4338ca; }

@@ -46,6 +46,7 @@ export default function RBSCAdminPanel() {
   // Assign Permissions State
   const [selectedRoleForPerms, setSelectedRoleForPerms] = useState('');
   const [selectedForms, setSelectedForms] = useState([]);
+  const [selectedBlocks, setSelectedBlocks] = useState([]);
 
   // Assign Users State
   const [selectedUserForAssign, setSelectedUserForAssign] = useState('');
@@ -64,8 +65,10 @@ export default function RBSCAdminPanel() {
     if (selectedRoleForPerms) {
       const existingPerm = [...permissions].reverse().find(p => p.data?.role === selectedRoleForPerms);
       setSelectedForms(existingPerm?.data?.accessible_forms || []);
+      setSelectedBlocks(existingPerm?.data?.accessible_blocks || []);
     } else {
       setSelectedForms([]);
+      setSelectedBlocks([]);
     }
   }, [selectedRoleForPerms, permissions]);
 
@@ -127,7 +130,7 @@ export default function RBSCAdminPanel() {
 
   const handleSavePermissions = async () => {
     if (!selectedRoleForPerms) return;
-    const payload = { role: selectedRoleForPerms, accessible_forms: selectedForms };
+    const payload = { role: selectedRoleForPerms, accessible_forms: selectedForms, accessible_blocks: selectedBlocks };
     const url = \`\${POSTPIPE_URL}/api/public/submit/\${PERMS_FORM_ID}\`;
     try {
       const res = await fetch(url, {
@@ -196,11 +199,29 @@ export default function RBSCAdminPanel() {
 
           {selectedRoleForPerms && (
             <div style={{ padding: '10px', background: '#f9f9f9', borderRadius: '4px' }}>
+              <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '10px' }}>Accessible Admin Blocks:</p>
+              {[
+                { id: 'manage_roles', name: 'Manage Roles' },
+                { id: 'assign_permissions', name: 'Assign Permissions' },
+                { id: 'assign_users', name: 'Assign Users' }
+              ].map(block => (
+                <label key={block.id} style={{ display: 'block', margin: '5px 0', fontSize: '14px' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedBlocks.includes(block.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedBlocks([...selectedBlocks, block.id]);
+                      else setSelectedBlocks(selectedBlocks.filter(id => id !== block.id));
+                    }}
+                  /> {block.name}
+                </label>
+              ))}
+
+              <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '10px', marginTop: '15px' }}>Accessible Forms:</p>
               {managedForms.length === 0 ? (
                 <p style={{ fontSize: '12px', color: '#6b7280' }}>No managed forms assigned to this RBAC system.</p>
               ) : (
                 <>
-                  <p style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '10px' }}>Accessible Forms:</p>
                   {managedForms.map(form => (
                     <label key={form.id} style={{ display: 'block', margin: '5px 0', fontSize: '14px' }}>
                       <input 
@@ -213,9 +234,9 @@ export default function RBSCAdminPanel() {
                       /> {form.name}
                     </label>
                   ))}
-                  <button style={{ marginTop: '10px', padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSavePermissions}>Save Permissions</button>
                 </>
               )}
+              <button style={{ marginTop: '15px', padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSavePermissions}>Save Permissions</button>
             </div>
           )}
         </div>
@@ -276,15 +297,15 @@ export default function RBSCAdminPanel() {
         // Extract body content and remove the html/body wrappers
         let formContent = snippet.html.replace(/<!DOCTYPE html>|<html>|<head>[\\s\\S]*?<\/head>|<body>|<\/body>|<\/html>/g, '').trim();
         // Remove the script tag so we can put it at the bottom
-        const scriptMatch = formContent.match(/<script>[\\s\\S]*?<\/script>/g);
+        const scriptMatch = formContent.match(/<script>[\s\S]*?<\/script>/g);
         if (scriptMatch) {
-            scriptMatch.forEach(s => { portalScripts += s + '\\n'; });
-            formContent = formContent.replace(/<script>[\\s\\S]*?<\/script>/g, '');
+            scriptMatch.forEach(s => { portalScripts += s + '\n'; });
+            formContent = formContent.replace(/<script>[\s\S]*?<\/script>/g, '');
         }
 
         portalFormsHtml += `
-            <div class="form-card" style="margin-bottom: 30px; border: 1px solid #e5e7eb; padding: 20px; border-radius: 8px; background: white;">
-                \${formContent}
+            <div class="form-card" id="portal-form-${f.id}" style="margin-bottom: 30px; border: 1px solid #e5e7eb; padding: 20px; border-radius: 8px; background: white; display: none;">
+                ${formContent}
             </div>
         `;
     });
@@ -295,28 +316,427 @@ export default function RBSCAdminPanel() {
     <title>User Portal</title>
     <style>
         body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background: #fafafa; }
+        .auth-container { max-width: 400px; margin: 40px auto; border: 1px solid #e5e7eb; padding: 20px; border-radius: 8px; background: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
+        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-weight: 500; color: #6b7280; }
+        .tab.active { color: #7c3aed; border-bottom: 2px solid #7c3aed; }
+        .dashboard-container { display: none; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .logout-btn { width: auto; padding: 8px 16px; background: #ef4444; }
+        .logout-btn:hover { background: #dc2626; }
         .form-card h2 { margin-top: 0; color: #111827; font-size: 1.25rem; margin-bottom: 1rem; }
         .field-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
         .field-group label { font-size: 0.875rem; font-weight: 500; color: #374151; text-transform: capitalize; }
-        input, select, textarea { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; }
+        input, select, textarea { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; box-sizing: border-box; margin-bottom: 10px; }
         button { background-color: #8b5cf6; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.375rem; font-weight: 500; cursor: pointer; }
         button:hover { background-color: #7c3aed; }
         .dynamic-kv-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
         .remove-kv-btn { background-color: #ef4444; width: 40px; }
+        .forms-grid { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; align-items: flex-start; }
+        .form-card { flex: 1 1 300px; background: white; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); }
+        .form-check { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 14px; }
+        .form-check input { margin: 0; width: auto; }
     </style>
 </head>
 <body>
-    <div style="margin-bottom: 30px;">
-        <h1 style="color: #111827; margin-bottom: 8px;">User Portal</h1>
-        <p style="color: #6b7280; margin-top: 0;">Submit data for available forms below.</p>
+    <div id="auth-screen" class="auth-container">
+        <h2 style="margin-top: 0;">User Portal</h2>
+        <div class="tabs">
+            <div id="tab-login" class="tab active" onclick="switchTab('login')">Login</div>
+            <div id="tab-signup" class="tab" onclick="switchTab('signup')">Sign Up</div>
+        </div>
+
+        <div id="form-login">
+            <input type="email" id="login-email" placeholder="Email" />
+            <input type="password" id="login-password" placeholder="Password" />
+            <button onclick="login()" style="width: 100%;">Login</button>
+        </div>
+
+        <div id="form-signup" style="display: none;">
+            <input type="text" id="signup-name" placeholder="Full Name" />
+            <input type="email" id="signup-email" placeholder="Email" />
+            <input type="password" id="signup-password" placeholder="Password" />
+            <button onclick="signup()" style="width: 100%;">Sign Up</button>
+        </div>
     </div>
-    \${portalFormsHtml}
-    \${portalScripts}
+
+    <div id="dashboard" class="dashboard-container">
+        <div class="header">
+            <div>
+                <h1 style="color: #111827; margin: 0; font-size: 24px;">User Portal</h1>
+                <p style="color: #6b7280; margin-top: 4px; margin-bottom: 0;">Submit data for available forms below.</p>
+            </div>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="forms-grid">
+            <div class="form-card" id="block-manage_roles" style="display: none;">
+                <h3>Manage Roles</h3>
+                ${rolesHtml.replace(/<!DOCTYPE html>|<html>|<head>[\s\S]*?<\/head>|<body>|<\/body>|<\/html>/g, '').trim()}
+            </div>
+
+            <div class="form-card" id="block-assign_permissions" style="display: none;">
+                <h3>Assign Permissions</h3>
+                <div class="field-group">
+                    <label>Select Role:</label>
+                    <select id="role-select" onchange="renderPermissions()">
+                        <option value="">-- Select a Role --</option>
+                    </select>
+                </div>
+                <div id="permissions-container" style="margin-top: 15px;"></div>
+            </div>
+
+            <div class="form-card" id="block-assign_users" style="display: none;">
+                <h3>Assign Users</h3>
+                <label>Select User:</label>
+                <select id="user-select">
+                    <option value="">-- Select a User --</option>
+                </select>
+
+                <label style="margin-top: 10px;">Select Role:</label>
+                <select id="assign-role-select">
+                    <option value="">-- Select a Role --</option>
+                </select>
+
+                <button onclick="assignUser()" style="margin-top: 15px; width: 100%;">Assign Role to User</button>
+            </div>
+
+            ${portalFormsHtml}
+        </div>
+    </div>
+
+    <script>
+        const POSTPIPE_URL = '${appUrl}';
+        const SYSTEM_ID = '${system.id}';
+        const USERS_FORM_ID = '${system.settings?.usersFormId || 'users'}';
+        const ROLES_FORM_ID = '${system.settings?.rolesFormId || 'roles'}';
+        const PERMS_FORM_ID = '${system.settings?.permissionsFormId || 'permissions'}';
+
+        let currentUser = null;
+        let currentUserPerms = { accessible_forms: [] };
+
+        function switchTab(tab) {
+            document.getElementById('tab-login').classList.remove('active');
+            document.getElementById('tab-signup').classList.remove('active');
+            document.getElementById('form-login').style.display = 'none';
+            document.getElementById('form-signup').style.display = 'none';
+
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.getElementById('form-' + tab).style.display = 'block';
+        }
+
+        async function fetchUsers() {
+            const res = await fetch(\`\${POSTPIPE_URL}/api/public/references/\${USERS_FORM_ID}\`);
+            const data = await res.json();
+            return data.data || data.submissions || [];
+        }
+
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const allUsers = await fetchUsers();
+                const user = allUsers.find(u => u.data?.email === email && u.data?.password === password);
+
+                if (user) {
+                    currentUser = user;
+                    localStorage.setItem('pp_user_portal_session', JSON.stringify(user));
+                    initDashboard();
+                } else {
+                    alert('Invalid credentials');
+                }
+            } catch (e) {
+                alert('Error during login');
+            }
+        }
+
+        async function signup() {
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+
+            if (!name || !email || !password) return alert('All fields required');
+
+            try {
+                const allUsers = await fetchUsers();
+                if (allUsers.find(u => u.data?.email === email)) {
+                    return alert('Email already in use');
+                }
+
+                const id = 'usr_' + Math.random().toString(36).substring(2, 9);
+
+                const res = await fetch(\`\${POSTPIPE_URL}/api/public/submit/\${USERS_FORM_ID}\`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password, id })
+                });
+
+                if (res.ok) {
+                    alert('Sign up successful! You can now login.');
+                    switchTab('login');
+                } else {
+                    alert('Failed to sign up');
+                }
+            } catch (e) {
+                alert('Error during sign up');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('pp_user_portal_session');
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('auth-screen').style.display = 'block';
+            
+            // Hide all forms again
+            const formCards = document.querySelectorAll('[id^="portal-form-"]');
+            formCards.forEach(card => card.style.display = 'none');
+        }
+
+        async function initDashboard() {
+            if (!currentUser) return;
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+
+            try {
+                const results = await Promise.all([
+                    fetch(\`\${POSTPIPE_URL}/api/public/references/\${ROLES_FORM_ID}\`).then(r => r.json()),
+                    fetch(\`\${POSTPIPE_URL}/api/public/references/\${PERMS_FORM_ID}\`).then(r => r.json()),
+                    fetchUsers(),
+                    fetch(\`\${POSTPIPE_URL}/api/public/rbac/\${SYSTEM_ID}/forms\`).then(r => r.json()).catch(e => {
+                        console.error("Failed to fetch managed forms:", e);
+                        return { forms: [] };
+                    })
+                ]);
+
+                window.rolesList = results[0].data || results[0].submissions || [];
+                window.permissionsList = results[1].data || results[1].submissions || [];
+                window.usersList = results[2] || [];
+                window.managedForms = results[3].forms || [];
+
+                // Populate Role Selects
+                const roleSelect = document.getElementById('role-select');
+                const assignRoleSelect = document.getElementById('assign-role-select');
+                if (roleSelect && assignRoleSelect) {
+                    roleSelect.innerHTML = '<option value="">-- Select a Role --</option>';
+                    assignRoleSelect.innerHTML = '<option value="">-- Select a Role --</option>';
+                    window.rolesList.forEach(r => {
+                        const val = r.submission_id || r.submissionId || r.id || r._id;
+                        const label = r.data?.name || r.data?.text || val;
+                        roleSelect.innerHTML += \`<option value="\${val}">\${label}</option>\`;
+                        assignRoleSelect.innerHTML += \`<option value="\${val}">\${label}</option>\`;
+                    });
+                }
+
+                // Populate User Select
+                const userSelect = document.getElementById('user-select');
+                if (userSelect) {
+                    userSelect.innerHTML = '<option value="">-- Select a User --</option>';
+                    window.usersList.forEach(u => {
+                        const val = u.submission_id || u.submissionId || u.id || u._id;
+                        const label = u.data?.name || u.data?.email || val;
+                        userSelect.innerHTML += \`<option value="\${val}">\${label}</option>\`;
+                    });
+                }
+
+                // Compute permissions
+                let userRoleId = currentUser.data?.roles || currentUser.data?.role;
+                if (Array.isArray(userRoleId)) userRoleId = userRoleId[0]; 
+
+                currentUserPerms = { accessible_forms: [], accessible_blocks: [] };
+
+                if (userRoleId) {
+                    const permObj = [...window.permissionsList].reverse().find(p => p.data?.role === userRoleId);
+                    if (permObj && permObj.data) {
+                        let forms = permObj.data.accessible_forms || [];
+                        if (typeof forms === 'string') forms = forms.split(',').map(s => s.trim());
+                        currentUserPerms.accessible_forms = forms;
+
+                        let blocks = permObj.data.accessible_blocks || [];
+                        if (typeof blocks === 'string') blocks = blocks.split(',').map(s => s.trim());
+                        currentUserPerms.accessible_blocks = blocks;
+                    }
+                }
+
+                // Show only accessible forms
+                currentUserPerms.accessible_forms.forEach(formId => {
+                    const el = document.getElementById('portal-form-' + formId);
+                    if (el) {
+                        el.style.display = 'block';
+                    }
+                });
+
+                // Show accessible admin blocks
+                currentUserPerms.accessible_blocks.forEach(blockId => {
+                    const el = document.getElementById('block-' + blockId);
+                    if (el) {
+                        el.style.display = 'block';
+                    }
+                });
+
+            } catch (e) {
+                console.error("Dashboard init error:", e);
+                alert("Failed to load dashboard data.");
+            }
+        }
+
+        window.managedForms = [];
+
+        function renderPermissions() {
+            const container = document.getElementById('permissions-container');
+            const roleId = document.getElementById('role-select').value;
+            container.innerHTML = '';
+            if (!roleId) return;
+
+            const existingPerm = [...window.permissionsList].reverse().find(p => p.data?.role === roleId);
+            let accessibleForms = existingPerm?.data?.accessible_forms || [];
+            if (typeof accessibleForms === 'string') accessibleForms = accessibleForms.split(',').map(s => s.trim()).filter(Boolean);
+            
+            let accessibleBlocks = existingPerm?.data?.accessible_blocks || [];
+            if (typeof accessibleBlocks === 'string') accessibleBlocks = accessibleBlocks.split(',').map(s => s.trim()).filter(Boolean);
+
+            let html = '<div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">';
+            html += '<p style="font-size: 14px; font-weight: bold; margin-bottom: 10px;">Accessible Admin Blocks:</p>';
+            
+            const blocks = [
+                { id: 'manage_roles', name: 'Manage Roles' },
+                { id: 'assign_permissions', name: 'Assign Permissions' },
+                { id: 'assign_users', name: 'Assign Users' }
+            ];
+            
+            blocks.forEach(block => {
+                const isChecked = accessibleBlocks.includes(block.id) ? 'checked' : '';
+                html += \`
+                    <label class="form-check">
+                        <input type="checkbox" id="block-\${block.id}" value="\${block.id}" \${isChecked} />
+                        \${block.name}
+                    </label>
+                \`;
+            });
+
+            html += '<p style="font-size: 14px; font-weight: bold; margin-bottom: 10px; margin-top: 15px;">Accessible Forms:</p>';
+
+            if (window.managedForms.length === 0) {
+                html += '<p style="color: #6b7280; font-size: 12px;">No managed forms assigned to this RBAC system.</p>';
+            } else {
+                window.managedForms.forEach(form => {
+                    const isChecked = accessibleForms.includes(form.id) ? 'checked' : '';
+                    html += \`
+                        <label class="form-check">
+                            <input type="checkbox" id="perm-\${form.id}" value="\${form.id}" \${isChecked} />
+                            \${form.name}
+                        </label>
+                    \`;
+                });
+            }
+
+            html += \`<button onclick="savePermissions('\${roleId}')" style="margin-top: 15px; width: 100%;">Save Permissions</button>\`;
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        async function savePermissions(roleId) {
+            const permCheckboxes = document.querySelectorAll('input[id^="perm-"]');
+            const selectedForms = Array.from(permCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+            
+            const blockCheckboxes = document.querySelectorAll('input[id^="block-"]');
+            const selectedBlocks = Array.from(blockCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+            const payload = {
+                role: roleId,
+                accessible_forms: selectedForms,
+                accessible_blocks: selectedBlocks
+            };
+
+            const existingPerm = [...window.permissionsList].reverse().find(p => p.data?.role === roleId);
+
+            let url, method, reqBody;
+
+            if (existingPerm) {
+                const subId = existingPerm.submissionId || existingPerm.id || existingPerm._id;
+                url = \`\${POSTPIPE_URL}/api/public/references/\${PERMS_FORM_ID}\`;
+                method = 'PATCH';
+                reqBody = JSON.stringify({ submissionId: subId, patch: payload });
+            } else {
+                url = \`\${POSTPIPE_URL}/api/public/submit/\${PERMS_FORM_ID}\`;
+                method = 'POST';
+                reqBody = JSON.stringify(payload);
+            }
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: reqBody
+                });
+                if (res.ok) {
+                    alert('Permissions saved successfully!');
+                    initDashboard(); // refresh state
+                } else {
+                    alert('Failed to save permissions');
+                }
+            } catch (e) {
+                alert('Error saving permissions: ' + e.message);
+            }
+        }
+
+        async function assignUser() {
+            const userId = document.getElementById('user-select').value;
+            const roleId = document.getElementById('assign-role-select').value;
+
+            if (!userId || !roleId) {
+                alert("Please select both a user and a role.");
+                return;
+            }
+
+            const btn = document.querySelector('button[onclick="assignUser()"]');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Assigning...';
+
+            try {
+                const res = await fetch(\`\${POSTPIPE_URL}/api/public/references/users\`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        submissionId: userId,
+                        patch: { roles: roleId }
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success !== false) {
+                    alert('Role assigned successfully!');
+                    initDashboard(); // refresh dropdowns
+                } else {
+                    alert('Failed to assign role');
+                }
+            } catch (e) {
+                alert('Network error assigning role: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        // Auto-login
+        const savedUser = localStorage.getItem('pp_user_portal_session');
+        if (savedUser) {
+            try {
+                currentUser = JSON.parse(savedUser);
+                initDashboard();
+            } catch (e) {}
+        }
+    </script>
+    ${portalScripts}
 </body>
 </html>`.trim();
 
 
-    const htmlSnippet = `\n<!DOCTYPE html>
+    const htmlSnippet = `
+<!DOCTYPE html>
 <html>
 
 <head>
@@ -795,11 +1215,6 @@ export default function RBSCAdminPanel() {
                 return; // Nothing selected
             }
 
-            if (managedForms.length === 0) {
-                container.innerHTML = '<p style="color: #6b7280; font-size: 12px;">No managed forms assigned to this RBAC system.</p>';
-                return;
-            }
-
             // Find existing permission record for this role (reversed to get latest submission)
             // permissions from v1 API: each item has .submissionId and .data.role / .data.accessible_forms
             const existingPerm = [...permissions].reverse().find(p => p.data?.role === roleId);
@@ -808,33 +1223,64 @@ export default function RBSCAdminPanel() {
             if (typeof accessibleForms === 'string') {
                 accessibleForms = accessibleForms.split(',').map(s => s.trim()).filter(Boolean);
             }
+            
+            let accessibleBlocks = existingPerm?.data?.accessible_blocks || [];
+            if (typeof accessibleBlocks === 'string') {
+                accessibleBlocks = accessibleBlocks.split(',').map(s => s.trim()).filter(Boolean);
+            }
 
             let html = '<div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">';
-            html += '<p style="font-size: 14px; font-weight: bold; margin-bottom: 10px;">Accessible Forms:</p>';
-
-            managedForms.forEach(form => {
-                const isChecked = accessibleForms.includes(form.id) ? 'checked' : '';
+            html += '<p style="font-size: 14px; font-weight: bold; margin-bottom: 10px;">Accessible Admin Blocks:</p>';
+            
+            const blocks = [
+                { id: 'manage_roles', name: 'Manage Roles' },
+                { id: 'assign_permissions', name: 'Assign Permissions' },
+                { id: 'assign_users', name: 'Assign Users' }
+            ];
+            
+            blocks.forEach(block => {
+                const isChecked = accessibleBlocks.includes(block.id) ? 'checked' : '';
                 html += \`
                     <label class="form-check">
-                        <input type="checkbox" id="perm-\${form.id}" value="\${form.id}" \${isChecked} />
-                        \${form.name}
+                        <input type="checkbox" id="block-\${block.id}" value="\${block.id}" \${isChecked} />
+                        \${block.name}
                     </label>
                 \`;
             });
 
-            html += \`<button onclick="savePermissions('\${roleId}')" style="margin-top: 10px;">Save Permissions</button>\`;
+            html += '<p style="font-size: 14px; font-weight: bold; margin-bottom: 10px; margin-top: 15px;">Accessible Forms:</p>';
+
+            if (managedForms.length === 0) {
+                html += '<p style="color: #6b7280; font-size: 12px;">No managed forms assigned to this RBAC system.</p>';
+            } else {
+                managedForms.forEach(form => {
+                    const isChecked = accessibleForms.includes(form.id) ? 'checked' : '';
+                    html += \`
+                        <label class="form-check">
+                            <input type="checkbox" id="perm-\${form.id}" value="\${form.id}" \${isChecked} />
+                            \${form.name}
+                        </label>
+                    \`;
+                });
+            }
+
+            html += \`<button onclick="savePermissions('\${roleId}')" style="margin-top: 15px;">Save Permissions</button>\`;
             html += '</div>';
 
             container.innerHTML = html;
         }
 
         async function savePermissions(roleId) {
-            const checkboxes = document.querySelectorAll('input[id^="perm-"]');
-            const selectedForms = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            const permCheckboxes = document.querySelectorAll('input[id^="perm-"]');
+            const selectedForms = Array.from(permCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+            
+            const blockCheckboxes = document.querySelectorAll('input[id^="block-"]');
+            const selectedBlocks = Array.from(blockCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
 
             const payload = {
                 role: roleId,
-                accessible_forms: selectedForms
+                accessible_forms: selectedForms,
+                accessible_blocks: selectedBlocks
             };
 
             const existingPerm = [...permissions].reverse().find(p => p.data?.role === roleId);
@@ -1411,10 +1857,11 @@ export default function RBSCAdminPanel() {
     return (
         <div className='p-6 bg-indigo-50/30 dark:bg-indigo-950/5 border-t border-neutral-200/60 dark:border-white/[0.04]'>
             <div className='flex justify-between items-center mb-6 border-b border-neutral-200 dark:border-white/10 pb-4'>
+                <div className='flex items-center gap-2'>
                     <Button variant={activeTab === 'overview' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('overview')} className={activeTab === 'overview' ? 'bg-violet-600 hover:bg-violet-500' : ''}>Overview</Button>
                     <Button variant={activeTab === 'react' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('react')} className={activeTab === 'react' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> React Snippet</Button>
-                    <Button variant={activeTab === 'html' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('html')} className={activeTab === 'html' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> Admin Panel HTML</Button>
-                    <Button variant={activeTab === 'portal' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('portal')} className={activeTab === 'portal' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> Portal HTML</Button>
+                    <Button variant={activeTab === 'html' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('html')} className={activeTab === 'html' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> Master Admin Panel HTML</Button>
+                    <Button variant={activeTab === 'portal' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('portal')} className={activeTab === 'portal' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> Admin Panel HTML</Button>
                 </div>
                 <Button variant='outline' size='sm' onClick={() => setIsEditModalOpen(true)}><Settings className='w-4 h-4 mr-2' /> Edit Settings</Button>
             </div>
@@ -1529,10 +1976,10 @@ export default function RBSCAdminPanel() {
             {activeTab === 'portal' && (
                 <div className='space-y-4'>
                     <div className='flex justify-between items-center'>
-                        <h4 className='text-sm font-semibold text-neutral-900 dark:text-white'>Public User Portal HTML</h4>
+                        <h4 className='text-sm font-semibold text-neutral-900 dark:text-white'>Admin Panel HTML</h4>
                         <Button size='sm' variant='outline' onClick={() => copyCode(portalHtmlSnippet)}><Copy className='w-4 h-4 mr-2'/> Copy Full Code</Button>
                     </div>
-                    <p className='text-xs text-neutral-500'>This HTML file combines the submission forms for all your managed resources, making it easy to create a public-facing data entry portal.</p>
+                    <p className='text-xs text-neutral-500'>This HTML file contains the admin panel for standard roled users to log in, view and manage their authorized forms and blocks.</p>
                     <pre className='p-4 rounded-xl bg-neutral-950 text-neutral-300 text-xs font-mono overflow-x-auto whitespace-pre'>
                         {portalHtmlSnippet}
                     </pre>
