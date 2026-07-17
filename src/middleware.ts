@@ -17,7 +17,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/login') && isAuthenticated) {
-    return NextResponse.redirect(new URL('/dashboard/workflows', request.url));
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   // Legacy route redirects
@@ -25,7 +25,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard/forms', request.url));
   }
   if (pathname === '/workflows') {
-    return NextResponse.redirect(new URL('/dashboard/workflows', request.url));
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
 

@@ -1,15 +1,23 @@
+
 import { Metadata } from 'next';
 import crypto from 'crypto';
 import { notFound, redirect } from 'next/navigation';
+import fs from 'fs';
+import path from 'path';
 import SubmissionsClient from '@/components/dashboard/submissions-client';
-import { getForm, getConnector } from '@/lib/server-db';
+import { getForm, getConnector, getUserDatabaseConfig } from '@/lib/server-db';
+import { ensureFullUrl } from '@/lib/utils';
 import { getSession } from '@/lib/auth/actions';
 
 export const metadata: Metadata = {
     title: 'Submissions',
 };
 
-export default async function SubmissionsPage({ params }: { params: { id: string } }) {
+export default async function SubmissionsPage({
+    params,
+}: {
+    params: Promise<{ id: string }>;
+}) {
     const session = await getSession();
     if (!session || !session.userId) {
         redirect('/login');
@@ -22,38 +30,31 @@ export default async function SubmissionsPage({ params }: { params: { id: string
         notFound();
     }
 
-    if (form.userId !== session.userId) {
-        redirect('/dashboard/forms');
-    }
+    // 2. We now offload fetching to the client via /api/submissions
+    // This perfectly avoids browser redirects and allows the client to show a loading state cleanly.
 
-    const connector = await getConnector(form.connectorId);
-    if (!connector) {
-        return <div>Connector not found for this form.</div>;
-    }
+    // Generate Secure API Token (Optional depending on how the frontend dashboard is auth'd, but good for display)
+    const { generateApiToken } = await import('@/lib/api-auth');
+    const token = generateApiToken(session.userId, form.connectorId);
 
-    // Generate Read Token
-    const payload = {
-        formId: form.id,
-        exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 365) // 1 year
-    };
-    const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const signature = crypto
-        .createHmac('sha256', connector.secret)
-        .update(payloadB64)
-        .digest('hex');
-    const token = `pp_read_${payloadB64}.${signature}`;
+    // Construct Public API Endpoint for display purposes
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+    const dbName = form.targetDatabase || "default";
+    const endpoint = `${appUrl}/api/v1/connectors/${form.connectorId}/databases/${dbName}/forms/${form.id}/submissions`;
 
-    const endpoint = `${connector.url}/api/postpipe/forms/${form.id}/submissions`;
-
-    // Fetch Submissions directly from DB (Server Component)
-    // This avoids self-fetch issues and is faster.
-    const submissions = form.submissions || [];
+    const schema = (() => {
+        try {
+            return typeof form.fields === 'string' ? JSON.parse(form.fields) : form.fields || [];
+        } catch (e) {
+            return [];
+        }
+    })();
 
     return (
         <SubmissionsClient
             id={id}
             formName={form.name}
-            initialSubmissions={submissions}
+            schema={schema}
             endpoint={endpoint}
             token={token}
         />

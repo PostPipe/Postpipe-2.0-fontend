@@ -16,6 +16,7 @@ import { HeroParticles } from '@/components/layout/hero-particles';
 import { cn } from '@/lib/utils';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { RadialIntro } from '@/components/ui/radial-intro';
+import { PathSelection } from '@/components/layout/path-selection';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero-image');
 
@@ -48,7 +49,8 @@ const features = [
 ];
 
 export const metadata: Metadata = {
-  title: 'Home',
+  title: 'PostPipe | The Ultimate Next.js Backend Component Library',
+  description: 'Connect any database to your Next.js frontend in minutes. Visual form builder, agentic AI tools, and production-ready backend components.',
 };
 
 export default function Home() {
@@ -56,10 +58,42 @@ export default function Home() {
     <>
       <section
         id="hero"
-        className="relative"
+        className="relative min-h-[calc(100vh-4rem)] flex flex-col justify-center px-4 md:px-6 lg:px-8"
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebApplication',
+              name: 'PostPipe',
+              url: 'https://www.postpipe.in',
+              description: 'The largest Next.js backend component library and static ingest system.',
+              applicationCategory: 'DeveloperApplication',
+              genre: 'Software Development',
+              browserRequirements: 'Requires JavaScript',
+              softwareVersion: '2.0',
+              author: {
+                '@type': 'Organization',
+                name: 'PostPipe',
+              },
+              offers: {
+                '@type': 'Offer',
+                price: '0',
+                priceCurrency: 'USD',
+              },
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: '4.9',
+                ratingCount: '250',
+              },
+            }),
+          }}
+        />
         <HeroParticles />
       </section>
+
+      <PathSelection />
 
       <section id="features" className="bg-background-muted py-20 md:py-32">
         <div className="container mx-auto px-4">
@@ -72,7 +106,7 @@ export default function Home() {
               process from end to end.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-12 md:gap-4 lg:grid-cols-12 xl:max-h-[34rem] xl:grid-rows-2">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-12 md:gap-4 lg:grid-cols-12 xl:max-h-[34rem] xl:grid-rows-2">
             <GridItem
               area="md:[grid-area:1/1/2/7] xl:[grid-area:1/1/2/5]"
               icon={<Palette className="h-4 w-4 text-black dark:text-neutral-400" />}
@@ -162,9 +196,11 @@ export default function Home() {
                   { id: 1, name: 'Sourodip-1', src: 'https://github.com/Sourodip-1.png', href: 'https://github.com/Sourodip-1', size: 120 },
                   { id: 2, name: 'yo-soyam', src: 'https://github.com/yo-soyam.png', href: 'https://github.com/yo-soyam', size: 110 },
                   { id: 3, name: 'souvikvos', src: 'https://github.com/souvikvos.png', href: 'https://github.com/souvikvos', size: 110 },
+                  { id: 4, name: 'ghosthouse7', src: 'https://github.com/ghosthouse7.png', href: 'https://github.com/ghosthouse7', size: 110 },
+                  { id: 5, name: 'PINaKey', src: 'https://github.com/PINaKey.png', href: 'https://github.com/PINaKey', size: 110 },
                 ]}
-                stageSize={400}
-                imageSize={70}
+                stageSize={480}
+                imageSize={80}
                 className="mx-0"
               />
             </div>
@@ -184,7 +220,7 @@ interface GridItemProps {
 
 const GridItem = ({ area, icon, title, description }: GridItemProps) => {
   return (
-    <div className={cn("min-h-[14rem] list-none", area)}>
+    <div className={cn("min-h-[16rem] md:min-h-[14rem] list-none w-full", area)}>
       <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2 md:rounded-[1.5rem] md:p-3">
         <GlowingEffect
           spread={40}

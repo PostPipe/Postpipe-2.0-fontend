@@ -138,9 +138,11 @@ function ViewerContent() {
     );
 }
 
+import { ViewerSkeleton } from '@/components/viewer-skeleton';
+
 export default function ViewerPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<ViewerSkeleton />}>
             <ViewerContent />
         </Suspense>
     );

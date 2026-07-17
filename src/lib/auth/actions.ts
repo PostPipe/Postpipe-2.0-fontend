@@ -21,7 +21,10 @@ export async function signup(prevState: any, formData: FormData): Promise<AuthSt
     const validated = SignupSchema.safeParse(rawData);
 
     if (!validated.success) {
-        return { success: false, message: 'Validation failed', errors: validated.error.flatten().fieldErrors };
+        const errors = validated.error.flatten().fieldErrors;
+        const firstErrorDetails = Object.values(errors).flat();
+        const firstError = firstErrorDetails.length > 0 ? firstErrorDetails[0] : 'Please check your inputs';
+        return { success: false, message: String(firstError), errors };
     }
 
     const { name, email, password } = validated.data;
@@ -61,15 +64,21 @@ export async function signup(prevState: any, formData: FormData): Promise<AuthSt
     }
 }
 
+import { redirect } from 'next/navigation';
+
 export async function login(prevState: any, formData: FormData): Promise<AuthState> {
     const rawData = Object.fromEntries(formData.entries());
     const validated = LoginSchema.safeParse(rawData);
 
     if (!validated.success) {
-        return { success: false, message: 'Validation failed', errors: validated.error.flatten().fieldErrors };
+        const errors = validated.error.flatten().fieldErrors;
+        const firstErrorDetails = Object.values(errors).flat();
+        const firstError = firstErrorDetails.length > 0 ? firstErrorDetails[0] : 'Please check your inputs';
+        return { success: false, message: String(firstError), errors };
     }
 
     const { email, password } = validated.data;
+    let loginSuccess = false;
 
     try {
         await dbConnect();
@@ -93,35 +102,70 @@ export async function login(prevState: any, formData: FormData): Promise<AuthSta
         (await cookies()).set('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000,
             path: '/',
+            ...(process.env.NODE_ENV === 'production' && { domain: '.postpipe.in' }),
         });
 
         // Set client-readable cookie for AuthProvider
-        (await cookies()).set('postpipe_auth', encodeURIComponent(user.email), {
+        (await cookies()).set('postpipe_auth', user.email, {
             httpOnly: false, // Explicitly false so client can read it
             secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000,
             path: '/',
+            ...(process.env.NODE_ENV === 'production' && { domain: '.postpipe.in' }),
         });
 
-        return { success: true, message: 'Logged in successfully' };
+        loginSuccess = true;
     } catch (error) {
         console.error('Login error:', error);
         return { success: false, message: 'Internal server error' };
     }
+
+    if (loginSuccess) {
+        redirect('/dashboard/forms');
+    }
+    
+    return { success: true, message: 'Logged in successfully' };
 }
 
 export async function logout(prevState: any, formData: FormData): Promise<AuthState> {
-    (await cookies()).delete('token');
-    (await cookies()).delete('postpipe_auth');
+    const cookieStore = await cookies();
+    const isProd = process.env.NODE_ENV === 'production';
+    
+    cookieStore.set('token', '', {
+        maxAge: 0,
+        path: '/',
+        ...(isProd && { domain: '.postpipe.in' }),
+    });
+    
+    cookieStore.set('postpipe_auth', '', {
+        maxAge: 0,
+        path: '/',
+        ...(isProd && { domain: '.postpipe.in' }),
+    });
+    
     return { success: true, message: 'Logged out successfully' };
 }
 
 export async function signOut() {
     'use server';
-    (await cookies()).delete('token');
-    (await cookies()).delete('postpipe_auth');
+    const cookieStore = await cookies();
+    const isProd = process.env.NODE_ENV === 'production';
+    
+    cookieStore.set('token', '', {
+        maxAge: 0,
+        path: '/',
+        ...(isProd && { domain: '.postpipe.in' }),
+    });
+    
+    cookieStore.set('postpipe_auth', '', {
+        maxAge: 0,
+        path: '/',
+        ...(isProd && { domain: '.postpipe.in' }),
+    });
 }
 
 export async function forgotPassword(prevState: any, formData: FormData): Promise<AuthState> {
@@ -129,7 +173,10 @@ export async function forgotPassword(prevState: any, formData: FormData): Promis
     const validated = ForgotPasswordSchema.safeParse(rawData);
 
     if (!validated.success) {
-        return { success: false, message: 'Validation failed', errors: validated.error.flatten().fieldErrors };
+        const errors = validated.error.flatten().fieldErrors;
+        const firstErrorDetails = Object.values(errors).flat();
+        const firstError = firstErrorDetails.length > 0 ? firstErrorDetails[0] : 'Please check your inputs';
+        return { success: false, message: String(firstError), errors };
     }
 
     const { email } = validated.data;
@@ -142,14 +189,16 @@ export async function forgotPassword(prevState: any, formData: FormData): Promis
             return { success: true, message: 'If an account exists, a reset link has been sent.' };
         }
 
-        const forgotPasswordToken = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
-        const forgotPasswordTokenExpiry = new Date(Date.now() + 3600000);
+        const crypto = require('crypto');
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+        const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
 
-        user.forgotPasswordToken = forgotPasswordToken;
-        user.forgotPasswordTokenExpiry = forgotPasswordTokenExpiry;
+        user.resetTokenHash = resetTokenHash;
+        user.resetTokenExpiry = resetTokenExpiry;
         await user.save();
 
-        await sendPasswordResetEmail(email, forgotPasswordToken);
+        await sendPasswordResetEmail(email, resetToken);
 
         return { success: true, message: 'If an account exists, a reset link has been sent.' };
     } catch (error) {
@@ -163,17 +212,23 @@ export async function resetPassword(prevState: any, formData: FormData): Promise
     const validated = ResetPasswordSchema.safeParse(rawData);
 
     if (!validated.success) {
-        return { success: false, message: 'Validation failed', errors: validated.error.flatten().fieldErrors };
+        const errors = validated.error.flatten().fieldErrors;
+        const firstErrorDetails = Object.values(errors).flat();
+        const firstError = firstErrorDetails.length > 0 ? firstErrorDetails[0] : 'Please check your inputs';
+        return { success: false, message: String(firstError), errors };
     }
 
     const { token, password } = validated.data;
 
     try {
         await dbConnect();
+        
+        const crypto = require('crypto');
+        const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
         const user = await User.findOne({
-            forgotPasswordToken: token,
-            forgotPasswordTokenExpiry: { $gt: Date.now() },
+            resetTokenHash: resetTokenHash,
+            resetTokenExpiry: { $gt: Date.now() },
         });
 
         if (!user) {
@@ -182,6 +237,8 @@ export async function resetPassword(prevState: any, formData: FormData): Promise
 
         const hashedPassword = await bcrypt.hash(password, 10);
         user.password = hashedPassword;
+        user.resetTokenHash = undefined;
+        user.resetTokenExpiry = undefined;
         user.forgotPasswordToken = undefined;
         user.forgotPasswordTokenExpiry = undefined;
         await user.save();
@@ -278,12 +335,20 @@ export async function getSession() {
     }
 }
 
+export async function getRawTokenAction() {
+    const token = (await cookies()).get('token')?.value;
+    return token || null;
+}
+
 export async function updateProfile(prevState: any, formData: FormData): Promise<AuthState> {
     const rawData = Object.fromEntries(formData.entries());
     const validated = UpdateProfileSchema.safeParse(rawData);
 
     if (!validated.success) {
-        return { success: false, message: 'Validation failed', errors: validated.error.flatten().fieldErrors };
+        const errors = validated.error.flatten().fieldErrors;
+        const firstErrorDetails = Object.values(errors).flat();
+        const firstError = firstErrorDetails.length > 0 ? firstErrorDetails[0] : 'Please check your inputs';
+        return { success: false, message: String(firstError), errors };
     }
 
     const { name, image } = validated.data;
@@ -295,10 +360,10 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         }
 
         await dbConnect();
-        
+
         const updateData: any = { name };
         if (image) {
-             updateData.image = image;
+            updateData.image = image;
         }
 
         const user = await User.findByIdAndUpdate(
@@ -310,7 +375,7 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         if (!user) {
             return { success: false, message: 'User not found' };
         }
-        
+
         return { success: true, message: 'Profile updated successfully' };
 
     } catch (error) {

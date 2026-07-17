@@ -7,19 +7,35 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { AuthButton } from '../layout/auth-button';
-import { Logo } from '../icons/logo';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
+
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from '@/components/ui/sheet';
+import { Menu, HelpCircle } from 'lucide-react';
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export function Header2() {
 	const scrolled = useScroll(10);
 	const pathname = usePathname();
-	const isExplore = pathname?.startsWith("/explore");
+	const [isOpen, setIsOpen] = React.useState(false);
 
 	const links = [
-		{ href: "/explore", label: "Dynamic" },
+		{ href: "/explore", label: "Forge" },
 		{ href: "/static", label: "Static" },
-		{ href: "/dashboard/workflows", label: "Workflows" },
+		{ href: "https://studio.postpipe.in", label: "Studio" },
+		{ href: "/dashboard/changelog", label: "Change Log" },
 		{ href: "/docs", label: "Docs" },
 	];
 
@@ -38,8 +54,8 @@ export function Header2() {
 			>
 				<Link href="/" className="flex items-center gap-2">
 					<div className="relative h-8 w-40">
-						<Image src="/PostPipe-Black.svg" alt="PostPipe" fill className="dark:hidden object-contain object-left" />
-						<Image src="/PostPipe.svg" alt="PostPipe" fill className="hidden dark:block object-contain object-left" />
+						<Image src="/PostPipe-Black.svg" alt="PostPipe" fill sizes="160px" className="dark:hidden object-contain object-left" />
+						<Image src="/PostPipe.svg" alt="PostPipe" fill sizes="160px" className="hidden dark:block object-contain object-left" />
 					</div>
 				</Link>
 				<div className="hidden items-center gap-2 md:flex">
@@ -48,8 +64,78 @@ export function Header2() {
 							{link.label}
 						</Link>
 					))}
-					<AuthButton />
+					<div className="flex items-center gap-3 ml-2 border-l pl-4 border-border/50">
+						<AuthButton />
+						{pathname === '/dashboard' && (
+							<TooltipProvider>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											onClick={() => document.dispatchEvent(new CustomEvent('replay-tour'))}
+											className="h-9 w-9 text-muted-foreground hover:text-foreground hover:!bg-transparent group"
+										>
+											<HelpCircle className="h-5 w-5 transition-all duration-300 group-hover:text-primary group-hover:drop-shadow-[0_0_8px_hsl(var(--primary))]" />
+											<span className="sr-only">Replay Tour</span>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>
+										<p>Replay Tour</p>
+									</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
+						)}
+						<ThemeToggle />
+					</div>
+				</div>
+
+				<div className="flex items-center gap-2 md:hidden">
+					{pathname === '/dashboard' && (
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => document.dispatchEvent(new CustomEvent('replay-tour'))}
+							className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground hover:!bg-transparent group"
+							title="Replay Tour"
+						>
+							<HelpCircle className="h-5 w-5 transition-all duration-300 group-hover:text-primary group-hover:drop-shadow-[0_0_8px_hsl(var(--primary))]" />
+						</Button>
+					)}
 					<ThemeToggle />
+					<Sheet open={isOpen} onOpenChange={setIsOpen}>
+						<SheetTrigger asChild>
+							<Button variant="ghost" size="icon" className="shrink-0">
+								<Menu className="h-5 w-5" />
+								<span className="sr-only">Toggle menu</span>
+							</Button>
+						</SheetTrigger>
+						<SheetContent side="right">
+							<SheetHeader>
+								<SheetTitle className="text-left">Menu</SheetTitle>
+								<SheetDescription className="sr-only">
+									Navigation links for PostPipe.
+								</SheetDescription>
+							</SheetHeader>
+							<div className="flex flex-col gap-4 mt-8">
+								{links.map((link, i) => (
+									<Link
+										key={i}
+										href={link.href}
+										className="text-lg font-medium hover:text-primary transition-colors"
+										onClick={() => setIsOpen(false)}
+									>
+										{link.label}
+									</Link>
+								))}
+								<div className="pt-4 mt-4 border-t flex flex-col gap-3">
+									<div className="flex justify-between items-center">
+										<AuthButton />
+									</div>
+								</div>
+							</div>
+						</SheetContent>
+					</Sheet>
 				</div>
 			</div>
 		</header>

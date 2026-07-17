@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "@/lib/auth/actions";
 
@@ -30,21 +30,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const fetchUser = async () => {
+    // Skip the backend call if the user doesn't even have the auth cookie
+    if (typeof document !== 'undefined' && !document.cookie.includes(AUTH_COOKIE_NAME)) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
-        if (data.user) {
-          setUser(data.user);
+        if (data && data.email) {
+          setUser(data);
         } else {
           setUser(null);
+          document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=-1`;
         }
       } else {
         setUser(null);
+        document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=-1`;
       }
     } catch (error) {
       console.error("Failed to fetch user session", error);
       setUser(null);
+      // Only clear cookie on explicit auth failure, but error might include 401. 
+      // Safest to clear if we can't verify identity.
+      document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=-1`;
     } finally {
       setLoading(false);
     }
@@ -60,15 +72,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // However, the main thing is to refresh the user state.
     document.cookie = `${AUTH_COOKIE_NAME}=${encodeURIComponent(email)}; path=/; max-age=86400`;
     fetchUser(); // Refresh user data immediately
-    router.push("/dashboard/workflows");
+    router.push("/dashboard");
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await signOut();
     document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=-1`;
     setUser(null);
     router.push("/login");
-  };
+  }, [router]);
+
+
 
   // Function to manually refresh session (useful after profile update)
   const refreshSession = () => {

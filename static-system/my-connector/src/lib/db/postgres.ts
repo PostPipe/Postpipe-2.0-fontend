@@ -1,0 +1,500 @@
+import { Pool } from 'pg';
+import { DatabaseAdapter, PostPipeIngestPayload } from '../../types';
+
+// Map of Connection String -> Pool Promise (to handle race conditions)
+const postgresPoolMap = new Map<string, Promise<Pool>>();
+
+// Track initialized tables to prevent running CREATE TABLE IF NOT EXISTS on every query
+const initializedTables = new Set<string>();
+
+export class PostgresAdapter implements DatabaseAdapter {
+
+    private resolveConnectionString(payload?: PostPipeIngestPayload): string | undefined {
+        const { databaseConfig, targetDatabase } = (payload || {}) as any;
+        const targetDb = targetDatabase || (payload as any)?.targetDb;
+        
+        console.log(`[PostgresAdapter] resolving connection for target: ${targetDb || 'default'}...`);
+        
+        // 1. Explicit Payload Config
+        if (databaseConfig?.uri) {
+            const envVarName = databaseConfig.uri;
+            const uri = process.env[envVarName];
+            if (uri) return uri;
+        }
+
+        // 2. Dynamic Routing
+        if (targetDb) {
+            const dynamicKey = `DATABASE_URL_${targetDb.toUpperCase()}`;
+            let dynamicUri = process.env[dynamicKey];
+            if (dynamicUri) return dynamicUri;
+
+            dynamicUri = process.env[targetDb];
+            if (dynamicUri) return dynamicUri;
+        }
+
+        // 3. Default Environment Variables
+        const prefix = process.env.POSTPIPE_VAR_PREFIX ? `${process.env.POSTPIPE_VAR_PREFIX}_` : "";
+        const defaultUri = process.env[`${prefix}DATABASE_URL`] || 
+                           process.env[`${prefix}POSTGRES_URL`] || 
+                           process.env.DATABASE_URL || 
+                           process.env.POSTGRES_URL;
+                           
+        return defaultUri;
+    }
+
+    /**
+     * ARCHITECT OPTIMIZATION: Dynamic Database Override
+     * In PostgreSQL, databases must exist before connecting. We cannot auto-create them 
+     * just by changing the URI string (it throws 3D000 Invalid Catalog Name). 
+     * We leave the connection untouched and use the alias for dynamic TABLE routing instead.
+     */
+    private overrideDatabaseInUri(uri: string, alias?: string): string {
+        return uri;
+    }
+
+    private getTableName(alias?: string, dbName?: string, formName?: string): string {
+        const nameToUse = formName || dbName || alias;
+        
+        const thermalKeys = ['url', 'uri', 'postgres', 'postgresql', 'database'];
+        const isTechnical = nameToUse && thermalKeys.some(key => nameToUse.toLowerCase().includes(key));
+
+        if (!nameToUse || nameToUse === 'default' || nameToUse.startsWith('conn_') || isTechnical) {
+            return 'public.postpipe_submissions';
+        }
+        const safeAlias = nameToUse.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+        return `public.${safeAlias}`;
+    }
+
+    private async getPool(connectionString: string, alias?: string, dbName?: string): Promise<Pool> {
+        // We do not override Postgres URI databases because it throws 3D000 if it doesn't exist
+        const finalUri = connectionString;
+
+        // Include alias in the cache key so different aliases don't return the same pool mapping mistakenly if URIs match
+        const cacheKey = `${finalUri}::${dbName || alias || 'default'}`;
+        
+        let poolPromise = postgresPoolMap.get(cacheKey);
+
+        if (!poolPromise) {
+            poolPromise = (async () => {
+                console.log(`[PostgresAdapter] Target Database: [${dbName || alias || 'default'}]`);
+                console.log(`[PostgresAdapter] Establishing connection pool to host: ${finalUri.split('@').pop()?.split('/')[0] || 'localhost'}`);
+
+                const pool = new Pool({
+                    connectionString: finalUri,
+                    ssl: (finalUri.includes('supabase') || 
+                          finalUri.includes('render') || 
+                          finalUri.includes('aiven') ||
+                          finalUri.includes('neon.tech'))
+                        ? { rejectUnauthorized: false } 
+                        : false
+                });
+
+                // Test connection
+                await pool.query('SELECT NOW()');
+                return pool;
+            })();
+
+            postgresPoolMap.set(cacheKey, poolPromise);
+        }
+
+        const pool = await poolPromise;
+        return pool;
+    }
+
+    private async ensureTable(pool: Pool, alias?: string, dbName?: string, formName?: string) {
+        const tableName = this.getTableName(alias, dbName, formName);
+        const authTableName = tableName.replace(/[^.]+$/, 'postpipe_users');
+        
+        // 1. Ensure Submissions Table
+        if (!initializedTables.has(tableName)) {
+            try {
+                console.log(`[PostgresAdapter] Verifying table '${tableName}' exists...`);
+                const createTableQuery = `
+                    CREATE TABLE IF NOT EXISTS ${tableName} (
+                        id SERIAL PRIMARY KEY,
+                        form_id TEXT NOT NULL,
+                        submission_id TEXT UNIQUE NOT NULL,
+                        data JSONB NOT NULL,
+                        timestamp TIMESTAMPTZ NOT NULL,
+                        is_deleted BOOLEAN DEFAULT FALSE,
+                        deleted_at TIMESTAMPTZ,
+                        updated_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                `;
+                await pool.query(createTableQuery);
+
+                // Add soft-delete columns to existing tables (idempotent)
+                await pool.query(`ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`).catch(() => {});
+                await pool.query(`ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`).catch(() => {});
+                await pool.query(`ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ`).catch(() => {});
+
+                const indexName = `idx_form_id_${tableName.replace('public.', '')}`;
+                const createIndexQuery = `
+                    CREATE INDEX IF NOT EXISTS ${indexName} ON ${tableName}(form_id);
+                `;
+                await pool.query(createIndexQuery);
+                initializedTables.add(tableName);
+                console.log(`[PostgresAdapter] Submissions table '${tableName}' verified.`);
+            } catch (error) {
+                console.error(`[PostgresAdapter] FAILED to verify/create table ${tableName}:`, error);
+                // We show error but continue to try Auth table
+            }
+        }
+
+        // 2. Ensure Auth Table
+        if (!initializedTables.has(authTableName)) {
+            try {
+                console.log(`[PostgresAdapter] Verifying auth table '${authTableName}' exists...`);
+                await pool.query(`
+                    CREATE TABLE IF NOT EXISTS ${authTableName} (
+                        id TEXT PRIMARY KEY,
+                        email TEXT UNIQUE NOT NULL,
+                        name TEXT,
+                        password_hash TEXT,
+                        provider TEXT,
+                        provider_id TEXT,
+                        avatar TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        last_login TIMESTAMPTZ DEFAULT NOW(),
+                        email_verified BOOLEAN DEFAULT true,
+                        otp_code TEXT,
+                        otp_expires_at TIMESTAMPTZ
+                    );
+                `);
+                
+                // For existing databases without the column, attempt to add it silently
+                try {
+                    await pool.query(`ALTER TABLE ${authTableName} ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT true`);
+                    await pool.query(`ALTER TABLE ${authTableName} ADD COLUMN IF NOT EXISTS otp_code TEXT`);
+                    await pool.query(`ALTER TABLE ${authTableName} ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMPTZ`);
+                } catch (e) {
+                    // Ignore column already exists or other minor errors
+                }
+                
+                initializedTables.add(authTableName);
+                console.log(`[PostgresAdapter] Auth table '${authTableName}' verified.`);
+            } catch (error) {
+                console.error(`[PostgresAdapter] FAILED to verify/create auth table ${authTableName}:`, error);
+                throw error; // Auth failure is critical for auth flows
+            }
+        }
+    }
+
+    async connect(payload?: PostPipeIngestPayload) {
+        const connectionString = this.resolveConnectionString(payload);
+        const alias = (payload as any)?.targetDatabase || (payload as any)?.targetDb;
+        const dbName = (payload as any)?.databaseConfig?.dbName;
+        if (connectionString) {
+            await this.getPool(connectionString, alias, dbName);
+        }
+    }
+
+    async insert(submission: PostPipeIngestPayload): Promise<void> {
+        const connectionString = this.resolveConnectionString(submission);
+        const alias = (submission as any).targetDatabase || (submission as any).targetDb;
+        const dbName = (submission as any).databaseConfig?.dbName;
+
+        if (!connectionString) {
+            throw new Error(`[PostgresAdapter] No connection string resolved.`);
+        }
+
+        const pool = await this.getPool(connectionString, alias, dbName);
+        const formName = submission.formName || submission.formId;
+        await this.ensureTable(pool, alias, dbName, formName);
+        
+        // ARCHITECT LEVEL OPTIMIZATION: Payload Sanitization
+        const { 
+            databaseConfig, 
+            routing, 
+            signature,
+            ...cleanData 
+        } = submission as any;
+        delete cleanData.targetDatabase;
+        delete cleanData.targetDb;
+
+        const tableName = this.getTableName(alias, dbName, formName);
+
+        const query = `
+            INSERT INTO ${tableName} (form_id, submission_id, data, timestamp)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (submission_id) DO NOTHING;
+        `;
+        
+        await pool.query(query, [
+            cleanData.formId,
+            cleanData.submissionId,
+            typeof cleanData.data === 'string' ? cleanData.data : JSON.stringify(cleanData.data),
+            cleanData.timestamp
+        ]);
+        
+        console.log(`[PostgresAdapter] Saved to DB: [${alias || 'default'}]`);
+    }
+
+    async query(formId: string, options?: any): Promise<PostPipeIngestPayload[]> {
+        const connectionString = this.resolveConnectionString(options);
+        const alias = options?.targetDatabase || options?.targetDb;
+        const dbName = options?.databaseConfig?.dbName;
+        if (!connectionString) throw new Error("[PostgresAdapter] Cannot query: No connection string.");
+
+        const pool = await this.getPool(connectionString, alias, dbName);
+        const formName = options?.formName || formId;
+        await this.ensureTable(pool, alias, dbName, formName);
+        const tableName = this.getTableName(alias, dbName, formName);
+
+        // Pagination
+        const limit = options?.limit || 50;
+        const page = Math.max(1, options?.page || 1);
+        const offset = (page - 1) * limit;
+
+        // Soft-delete filter
+        const deletedFilter = options?.includeDeleted ? '' : 'AND (is_deleted IS NULL OR is_deleted = FALSE)';
+
+        // Smart Search Filter
+        let searchFilter = '';
+        const queryParams: any[] = [formId, limit, offset];
+        let paramIdx = 4;
+
+        if (options?.search) {
+            searchFilter = `AND (submission_id ILIKE $${paramIdx} OR data::text ILIKE $${paramIdx})`;
+            queryParams.push(`%${options.search}%`);
+            paramIdx++;
+        }
+
+        // Date range filter
+        let dateFilter = '';
+        if (options?.dateRange) {
+            if (options.dateRange === '24h') dateFilter = "AND timestamp > NOW() - INTERVAL '1 day'";
+            else if (options.dateRange === '7d') dateFilter = "AND timestamp > NOW() - INTERVAL '7 days'";
+            else if (options.dateRange === '30d') dateFilter = "AND timestamp > NOW() - INTERVAL '30 days'";
+        }
+
+        const query = `
+            SELECT submission_id as "submissionId", data, timestamp, form_id as "formId", is_deleted, deleted_at, updated_at
+            FROM ${tableName}
+            WHERE form_id = $1 ${deletedFilter} ${searchFilter} ${dateFilter}
+            ORDER BY timestamp DESC
+            LIMIT $2 OFFSET $3;
+        `;
+
+        const res = await pool.query(query, queryParams);
+
+        return res.rows.map(row => {
+            let parsedData = row.data;
+            if (typeof parsedData === 'string') {
+                try { parsedData = JSON.parse(parsedData); } catch { /* leave as string */ }
+            }
+            return {
+                ...row,
+                data: parsedData,
+                signature: '',
+                _dbType: 'postgres',
+                _sourceDb: alias || 'default'
+            };
+        });
+    }
+
+    async updateSubmission(formId: string, submissionId: string, patch: Record<string, unknown>, options?: any): Promise<boolean> {
+        const connectionString = this.resolveConnectionString(options);
+        const alias = options?.targetDatabase || options?.targetDb;
+        const dbName = options?.databaseConfig?.dbName;
+        
+        console.log(`[PostgresAdapter] updateSubmission: formId=${formId}, submissionId=${submissionId}, targetDb=${alias}`);
+        console.log(`[PostgresAdapter] connectionString (first 50): ${connectionString ? connectionString.substring(0, 50) : 'undefined'}`);
+        console.log(`[PostgresAdapter] patch=`, patch);
+        
+        if (!connectionString) throw new Error("[PostgresAdapter] Cannot update: No connection string.");
+
+        const pool = await this.getPool(connectionString, alias, dbName);
+        const formName = options?.formName || formId;
+        await this.ensureTable(pool, alias, dbName, formName);
+        const tableName = this.getTableName(alias, dbName, formName);
+
+        // Use JSONB || to merge only the provided fields — true partial update
+        // We ensure we merge directly into the data column
+        const result = await pool.query(`
+            UPDATE ${tableName}
+            SET data = data || $1::jsonb, updated_at = NOW()
+            WHERE submission_id = $2 AND (is_deleted IS NULL OR is_deleted = FALSE)
+            RETURNING submission_id;
+        `, [JSON.stringify(patch), submissionId]);
+
+
+        console.log(`[PostgresAdapter] updateSubmission submissionId=${submissionId}: rowsAffected=${result.rowCount}`);
+        if ((result.rowCount ?? 0) === 0) {
+            console.warn(`[PostgresAdapter] UPDATE FAILED: No row found for submissionId=${submissionId} in table ${tableName}`);
+        }
+        return (result.rowCount ?? 0) > 0;
+    }
+
+    async deleteSubmission(formId: string, submissionId: string, hard: boolean, options?: any): Promise<boolean> {
+        const connectionString = this.resolveConnectionString(options);
+        const alias = options?.targetDatabase || options?.targetDb;
+        const dbName = options?.databaseConfig?.dbName;
+        if (!connectionString) throw new Error("[PostgresAdapter] Cannot delete: No connection string.");
+
+        const pool = await this.getPool(connectionString, alias, dbName);
+        const formName = options?.formName || formId;
+        await this.ensureTable(pool, alias, dbName, formName);
+        const tableName = this.getTableName(alias, dbName, formName);
+
+        if (hard) {
+            const result = await pool.query(
+                `DELETE FROM ${tableName} WHERE submission_id = $1 RETURNING submission_id;`,
+                [submissionId]
+            );
+            console.log(`[PostgresAdapter] Hard delete submissionId=${submissionId}: rows=${result.rowCount}`);
+            return (result.rowCount ?? 0) > 0;
+        } else {
+            const result = await pool.query(`
+                UPDATE ${tableName}
+                SET is_deleted = TRUE, deleted_at = NOW()
+                WHERE submission_id = $1
+                RETURNING submission_id;
+            `, [submissionId]);
+            console.log(`[PostgresAdapter] Soft delete submissionId=${submissionId}: rows=${result.rowCount}`);
+            return (result.rowCount ?? 0) > 0;
+        }
+    }
+
+    // --- AUTH METHODS ---
+    async findUserByEmail(email: string, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) throw new Error("[PostgresAdapter] Cannot query: No connection string.");
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const authTableName = this.getTableName(context?.targetDatabase).replace(/[^.]+$/, 'postpipe_users');
+        const res = await pool.query(`SELECT * FROM ${authTableName} WHERE email = $1 LIMIT 1`, [email]);
+        return res.rows[0] || null;
+    }
+
+    async insertUser(user: any, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) throw new Error("[PostgresAdapter] Cannot query: No connection string.");
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const authTableName = this.getTableName(context?.targetDatabase).replace(/[^.]+$/, 'postpipe_users');
+        await pool.query(`
+            INSERT INTO ${authTableName} (id, email, name, password_hash, provider, provider_id, avatar, created_at, last_login, email_verified)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ON CONFLICT (email) DO NOTHING;
+        `, [
+            user.id, user.email, user.name, user.password_hash, 
+            user.provider, user.provider_id, user.avatar, 
+            user.created_at, user.last_login, user.email_verified
+        ]);
+        console.log(`[PostgresAdapter] Inserted Auth User: ${user.email}`);
+    }
+
+    async updateUserLastLogin(userId: string, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) return;
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const authTableName = this.getTableName(context?.targetDatabase).replace(/[^.]+$/, 'postpipe_users');
+        await pool.query(`UPDATE ${authTableName} SET last_login = NOW() WHERE id = $1`, [userId]);
+    }
+
+    async updateUserPassword(userId: string, newPasswordHash: string, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) return;
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const authTableName = this.getTableName(context?.targetDatabase).replace(/[^.]+$/, 'postpipe_users');
+        await pool.query(`UPDATE ${authTableName} SET password_hash = $1 WHERE id = $2`, [newPasswordHash, userId]);
+    }
+
+    async verifyUserEmail(userId: string, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) return;
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const authTableName = this.getTableName(context?.targetDatabase).replace(/[^.]+$/, 'postpipe_users');
+        await pool.query(`UPDATE ${authTableName} SET email_verified = true, otp_code = NULL, otp_expires_at = NULL WHERE id = $1`, [userId]);
+    }
+    
+    async updateUserOtp(userId: string, otp: string, expiresAt: Date, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) return;
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const authTableName = this.getTableName(context?.targetDatabase).replace(/[^.]+$/, 'postpipe_users');
+        await pool.query(`UPDATE ${authTableName} SET otp_code = $1, otp_expires_at = $2 WHERE id = $3`, [otp, expiresAt, userId]);
+    }
+    async initRBACSchema(tableName: string, rolesCol: string, context?: any) {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) throw new Error("Missing PostgreSQL connection string");
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+        
+        const safeTableName = tableName.replace(/[^a-zA-Z0-9_.]/g, '');
+        const safeRolesCol = rolesCol.replace(/[^a-zA-Z0-9_]/g, '');
+
+        console.log(`[PostgresAdapter] Altering table ${safeTableName} to add RBAC column ${safeRolesCol}`);
+        // Add column if it doesn't exist
+        await pool.query(`
+            ALTER TABLE ${safeTableName} 
+            ADD COLUMN IF NOT EXISTS ${safeRolesCol} VARCHAR(255) DEFAULT 'unassigned';
+        `);
+
+        // Set existing nulls to unassigned
+        await pool.query(`
+            UPDATE ${safeTableName} 
+            SET ${safeRolesCol} = 'unassigned' 
+            WHERE ${safeRolesCol} IS NULL;
+        `);
+    }
+
+    async addRBSCSchemaToTable(tableName: string, rolesCol: string, context?: any) {
+        return this.initRBACSchema(tableName, rolesCol, context);
+    }
+
+    async verifyRBACLogin(tableName: string, emailCol: string, passwordCol: string, rolesCol: string, email: string, password: string, context?: any): Promise<any> {
+        const connectionString = this.resolveConnectionString(context);
+        if (!connectionString) throw new Error("Missing PostgreSQL connection string");
+        const pool = await this.getPool(connectionString, context?.targetDatabase);
+
+        const safeTableName = tableName.replace(/[^a-zA-Z0-9_.]/g, '');
+        const safeEmailCol = emailCol.replace(/[^a-zA-Z0-9_]/g, '');
+        const safePasswordCol = passwordCol.replace(/[^a-zA-Z0-9_]/g, '');
+        const safeRolesCol = rolesCol.replace(/[^a-zA-Z0-9_]/g, '');
+
+        const result = await pool.query(`
+            SELECT ${safePasswordCol}, ${safeRolesCol}, * 
+            FROM ${safeTableName} 
+            WHERE ${safeEmailCol} = $1
+        `, [email]);
+
+        if (result.rows.length === 0) return null;
+
+        const user = result.rows[0];
+        const hash = user[safePasswordCol];
+        
+        // Dynamic import of bcryptjs since it's a connector dependency
+        const bcrypt = require('bcryptjs');
+        let isValid = false;
+
+        // In case the user stores passwords in plain text (not recommended, but possible)
+        if (hash === password) {
+            isValid = true;
+        } else if (hash) {
+            try {
+                isValid = await bcrypt.compare(password, hash);
+            } catch (e) {
+                isValid = false;
+            }
+        }
+
+        if (isValid) {
+            return user;
+        }
+        return null;
+    }
+
+  async disconnect() {
+        for (const poolPromise of postgresPoolMap.values()) {
+            const pool = await poolPromise;
+            await pool.end();
+        }
+        postgresPoolMap.clear();
+    }
+}

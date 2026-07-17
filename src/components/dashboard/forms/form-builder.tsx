@@ -64,7 +64,7 @@ export function FormBuilder() {
                   key={fieldType.type}
                   variant="outline"
                   className="h-20 flex-col gap-2"
-                  onClick={() => addField(fieldType.type)}
+                  onClick={() => addField(fieldType.type as FormField["type"])}
                 >
                   {fieldType.icon}
                   {fieldType.label}

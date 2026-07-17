@@ -1,4 +1,5 @@
 import { MongoClient } from 'mongodb';
+import { ensureFullUrl } from './utils';
 
 // --- Types ---
 export interface Connector {
@@ -6,11 +7,24 @@ export interface Connector {
   secret: string;  // Generated "sk_..."
   url: string;     // e.g. http://localhost:3001
   name: string;
+  databaseRoutes?: {
+    dbName: string;
+    connectorId: string;
+    connectorName: string;
+    [key: string]: any;
+  }[];
+  databases?: Record<string, {
+    uri: string;
+    dbName: string;
+    type?: 'mongodb' | 'postgres';
+  }>;
+  envPrefix?: string; // Optional prefix for env vars (e.g. "PROD")
 }
 
 export interface UserConnectorsDocument {
   userId: string;
   connectors: Connector[];
+  databaseConfig?: any; // Stores the configuration from the "Defined Databases" page
 }
 
 
@@ -23,23 +37,49 @@ export interface FormField {
   name: string;
   type: string;    // text, email, number, etc.
   required: boolean;
+  isRelationalSource?: boolean; // Toggled on to make this field a target for references
+  reference?: {
+    collection: string;      // Target collection/form to reference
+    displayField?: string;   // The field to display in the dropdown
+  };
+}
+
+export interface RoutingConfig {
+  broadcast: string[]; // List of databases to receive the full payload
+  splits: {
+    target: string;
+    fields: string[];
+    excludeFromMain?: boolean;
+  }[]; // Mappings for partial data routing
+  transformations?: {
+    mask: string[]; // Fields to mask (****-1234)
+    hash: string[]; // Fields to hash (SHA-256)
+  };
 }
 
 export interface Form {
   id: string; // Slug/ID e.g. "contact-us"
   name: string;
+  group?: string; // e.g. "Support", "Auth"
   connectorId: string;
+  targetDatabase?: string; // e.g. "main", "backup"
+  routing?: RoutingConfig;
   fields: FormField[];
   createdAt: string;
   userId?: string; // The user who owns this form
   status: 'Live' | 'Paused';
-  submissions?: Submission[];
+  submissionCount?: number;
+  is_deleted?: boolean;
+  deleted_at?: string;
+  submissions?: Submission[]; // Legacy support: stored in user_forms
 }
 
+
+
 export interface Submission {
-    id: string;
-    submittedAt: string;
-    data: any;
+  id: string;
+  submittedAt: string;
+  data: any;
 }
 
 export interface System {
@@ -48,11 +88,34 @@ export interface System {
   type: string; // e.g. "Auth", "E-commerce"
   templateId?: string;
   createdAt: string;
+  settings?: any;
 }
 
 export interface UserSystemsDocument {
   userId: string;
   systems: System[];
+}
+
+export interface AuthPreset {
+  id: string;
+  name: string;
+  connectorId: string;
+  targetDatabase?: string;
+  projectId?: string;
+  redirectUrl?: string;
+  envFrontendUrlAlias?: string;
+  apiUrl?: string;
+  providers: {
+    email: boolean;
+    google: boolean;
+    github: boolean;
+  };
+  createdAt: string;
+}
+
+export interface UserAuthPresetsDocument {
+  userId: string;
+  presets: AuthPreset[];
 }
 
 // --- Persistence ---
@@ -91,13 +154,13 @@ function getClientPromise(): Promise<MongoClient> {
   return clientPromise;
 }
 
-async function getDB() {
+export async function getDB() {
   const c = await getClientPromise();
   return c.db(dbName);
 }
 
 // --- Connectors ---
-export async function registerConnector(url: string | null, name: string = 'My Connector', userId?: string): Promise<Connector> {
+export async function registerConnector(url: string | null, name: string = 'My Connector', userId?: string, envPrefix?: string): Promise<Connector> {
   const db = await getDB();
 
   if (!userId) {
@@ -105,7 +168,7 @@ export async function registerConnector(url: string | null, name: string = 'My C
   }
 
   // Clean URL if provided, otherwise PENDING
-  let cleanUrl = url ? url.replace(/\/$/, "") : "PENDING";
+  let cleanUrl = url ? ensureFullUrl(url) : "PENDING";
 
   // Check if user already has this connector
   const existingDoc = await db.collection<UserConnectorsDocument>('user_connectors').findOne({
@@ -123,7 +186,8 @@ export async function registerConnector(url: string | null, name: string = 'My C
     id: `conn_${Math.random().toString(36).substr(2, 9)}`,
     secret: `sk_live_${Math.random().toString(36).substr(2, 16)}${Math.random().toString(36).substr(2, 16)}`,
     url: cleanUrl,
-    name
+    name,
+    envPrefix: envPrefix || undefined
   };
 
   await db.collection<UserConnectorsDocument>('user_connectors').updateOne(
@@ -137,21 +201,21 @@ export async function registerConnector(url: string | null, name: string = 'My C
 
 export async function updateConnectorUrl(id: string, url: string, userId: string): Promise<void> {
   const db = await getDB();
-  const cleanUrl = url.replace(/\/$/, "");
+  const cleanUrl = ensureFullUrl(url);
 
   // Verify ownership
   const doc = await db.collection<UserConnectorsDocument>('user_connectors').findOne({
-      userId,
-      "connectors.id": id
+    userId,
+    "connectors.id": id
   });
 
   if (!doc) {
-      throw new Error("Connector not found or unauthorized");
+    throw new Error("Connector not found or unauthorized");
   }
 
   await db.collection<UserConnectorsDocument>('user_connectors').updateOne(
-      { userId, "connectors.id": id },
-      { $set: { "connectors.$.url": cleanUrl } }
+    { userId, "connectors.id": id },
+    { $set: { "connectors.$.url": cleanUrl } }
   );
 }
 
@@ -168,6 +232,19 @@ export async function getConnector(id: string): Promise<Connector | undefined> {
   return undefined;
 }
 
+export async function getConnectorBySecret(secret: string): Promise<{connector: Connector, userId: string} | undefined> {
+  const db = await getDB();
+  const res = await db.collection<UserConnectorsDocument>('user_connectors').findOne(
+    { "connectors.secret": secret },
+    { projection: { userId: 1, "connectors.$": 1 } }
+  );
+
+  if (res && res.connectors && res.connectors.length > 0) {
+    return { connector: res.connectors[0], userId: res.userId };
+  }
+  return undefined;
+}
+
 export async function getConnectors(userId?: string): Promise<Connector[]> {
   const db = await getDB();
   if (!userId) return [];
@@ -178,67 +255,133 @@ export async function getConnectors(userId?: string): Promise<Connector[]> {
 
 
 // --- Forms ---
-export async function createForm(connectorId: string, name: string, fields: FormField[], userId?: string): Promise<Form> {
+export async function createForm(connectorId: string, name: string, fields: FormField[], userId?: string, targetDatabase?: string, routing?: RoutingConfig, group?: string): Promise<Form> {
   const db = await getDB();
-
+ 
   if (!userId) {
-     throw new Error("UserId is required to create a form");
+    throw new Error("UserId is required to create a form");
   }
-
+ 
   // Simple slugify for ID
   const baseId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   let id = baseId;
   let counter = 1;
-
+ 
   while (await db.collection('user_forms').findOne({ "forms.id": id })) {
     id = `${baseId}-${counter++}`;
   }
-
+ 
   const newForm: Form = {
     id,
     name,
+    group,
     connectorId,
+    targetDatabase,
+    routing,
     fields,
     createdAt: new Date().toISOString(),
     status: 'Live',
-    userId
+    userId,
+    is_deleted: false
   };
-
+ 
   await db.collection<UserFormsDocument>('user_forms').updateOne(
     { userId },
     { $push: { forms: newForm } },
     { upsert: true }
   );
-  
+ 
   return newForm;
 }
 
 export async function duplicateForm(originalFormId: string, userId: string): Promise<Form> {
-    const db = await getDB();
-    const originalForm = await getForm(originalFormId);
-    if (!originalForm) throw new Error("Form not found");
-    if (originalForm.userId !== userId) throw new Error("Unauthorized");
+  const db = await getDB();
+  const originalForm = await getForm(originalFormId);
+  if (!originalForm) throw new Error("Form not found");
+  if (originalForm.userId !== userId) throw new Error("Unauthorized");
 
-    const newName = `${originalForm.name} (Copy)`;
-    const newForm = await createForm(originalForm.connectorId, newName, originalForm.fields, userId);
-    return newForm;
+  const newName = `${originalForm.name} (Copy)`;
+  const newForm = await createForm(originalForm.connectorId, newName, originalForm.fields, userId, originalForm.targetDatabase);
+  return newForm;
 }
 
+export async function loadForms(userId: string) {
+  const db = await getDB();
+  const doc = await db.collection<UserFormsDocument>('user_forms').findOne({ userId });
+  return doc ? doc.forms : [];
+}
+
+// === AUTH PRESETS METHODS ===
+async function getAuthPresetsCollection() {
+  const client = await getClientPromise();
+  return client.db(dbName!).collection<UserAuthPresetsDocument>('user_auth_presets');
+}
+
+export async function createAuthPreset(userId: string, presetData: Omit<AuthPreset, 'id' | 'createdAt'>) {
+  const collection = await getAuthPresetsCollection();
+  const newPreset: AuthPreset = {
+    ...presetData,
+    id: Math.random().toString(36).substr(2, 9),
+    createdAt: new Date().toISOString()
+  };
+
+  await collection.updateOne(
+    { userId },
+    { $push: { presets: newPreset } },
+    { upsert: true }
+  );
+  return newPreset;
+}
+
+export async function updateAuthPreset(userId: string, presetId: string, updates: Partial<Omit<AuthPreset, 'id' | 'createdAt'>>) {
+  const collection = await getAuthPresetsCollection();
+  
+  const setOps: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) {
+      setOps[`presets.$.${key}`] = value;
+    }
+  }
+
+  await collection.updateOne(
+    { userId, "presets.id": presetId },
+    { $set: setOps }
+  );
+  return { success: true };
+}
+
+export async function getAuthPresets(userId: string) {
+  const collection = await getAuthPresetsCollection();
+  const doc = await collection.findOne({ userId });
+  return doc ? doc.presets : [];
+}
+
+export async function deleteAuthPreset(userId: string, presetId: string) {
+  const collection = await getAuthPresetsCollection();
+  await collection.updateOne(
+    { userId },
+    { $pull: { presets: { id: presetId } } }
+  );
+}
+
+// --- Systems (User Backend Systems) ---
 export async function getForms(userId?: string): Promise<Form[]> {
   const db = await getDB();
   if (!userId) return [];
-  
+
   const res = await db.collection<UserFormsDocument>('user_forms').findOne({ userId });
-  return res?.forms || [];
+  // Exclude soft-deleted forms
+  return (res?.forms || []).filter(f => !f.is_deleted);
 }
+
 
 export async function getForm(id: string): Promise<Form | undefined> {
   const db = await getDB();
   const res = await db.collection<UserFormsDocument>('user_forms').findOne(
-    { "forms.id": id },
+    { forms: { $elemMatch: { id: id, is_deleted: { $ne: true } } } },
     { projection: { "forms.$": 1 } }
   );
-  
+
   if (res && res.forms && res.forms.length > 0) {
     // We need to return the specific form, not the first one if multiple matches (though ID should be unique)
     // projection "forms.$" returns only the FIRST matching element from the array
@@ -249,12 +392,12 @@ export async function getForm(id: string): Promise<Form | undefined> {
 
 export async function updateForm(id: string, updates: Partial<Form>): Promise<void> {
   const db = await getDB();
-  
+
   const updateFields: any = {};
   for (const [key, value] of Object.entries(updates)) {
-      if (key !== 'id') { 
-          updateFields[`forms.$.${key}`] = value;
-      }
+    if (key !== 'id') {
+      updateFields[`forms.$.${key}`] = value;
+    }
   }
 
   if (Object.keys(updateFields).length === 0) return;
@@ -266,19 +409,27 @@ export async function updateForm(id: string, updates: Partial<Form>): Promise<vo
 }
 
 export async function addSubmission(formId: string, submission: Submission): Promise<void> {
-    const db = await getDB();
-    await db.collection('user_forms').updateOne(
-        { "forms.id": formId },
-        { $push: { "forms.$.submissions": submission } as any }
-    );
+  const db = await getDB();
+  await db.collection('user_forms').updateOne(
+    { "forms.id": formId },
+    { $push: { "forms.$.submissions": submission } as any }
+  );
+}
+
+export async function incrementSubmissionCount(formId: string): Promise<void> {
+  const db = await getDB();
+  await db.collection('user_forms').updateOne(
+    { "forms.id": formId },
+    { $inc: { "forms.$.submissionCount": 1 } }
+  );
 }
 
 export async function deleteConnector(id: string, userId?: string): Promise<void> {
   const db = await getDB();
-  
+
   const filter: any = { "connectors.id": id };
   if (userId) {
-      filter.userId = userId;
+    filter.userId = userId;
   }
 
   // We need to pull from the array where this connector exists
@@ -286,17 +437,18 @@ export async function deleteConnector(id: string, userId?: string): Promise<void
     filter,
     { $pull: { connectors: { id } } as any }
   );
-  
+
   // Only delete forms if we actually deleted the connector (or if we blindly trust, but safer this way)
   // If userId was provided, we implicitly know we are targeting that user's forms too.
   if (res.modifiedCount > 0) {
-      const formFilter: any = { "forms.connectorId": id };
-      if (userId) formFilter.userId = userId;
+    const formFilter: any = { "forms.connectorId": id };
+    if (userId) formFilter.userId = userId;
 
-      await db.collection('user_forms').updateMany(
-        formFilter,
-        { $pull: { forms: { connectorId: id } } as any } 
-      );
+    await db.collection('user_forms').updateMany(
+      formFilter,
+      { $set: { "forms.$[elem].is_deleted": true, "forms.$[elem].deleted_at": new Date().toISOString() } },
+      { arrayFilters: [{ "elem.connectorId": id }] }
+    );
   }
 }
 
@@ -304,86 +456,210 @@ export async function deleteForm(id: string): Promise<void> {
   const db = await getDB();
   await db.collection('user_forms').updateOne(
     { "forms.id": id },
-    { $pull: { forms: { id } } as any }
+    { $set: { "forms.$.is_deleted": true, "forms.$.deleted_at": new Date().toISOString() } }
   );
 }
 
+export async function getSubmissions(formId: string): Promise<Submission[]> {
+  const db = await getDB();
+  const res = await db.collection<UserFormsDocument>('user_forms').findOne(
+    { forms: { $elemMatch: { id: formId } } },
+    { projection: { "forms.$": 1 } }
+  );
+
+  if (res && res.forms && res.forms.length > 0) {
+    return res.forms[0].submissions || [];
+  }
+  return [];
+}
+
+
 // --- Systems (User Backend Systems) ---
 export async function createSystem(name: string, type: string, templateId?: string, userId?: string): Promise<System> {
-    const db = await getDB();
-    if (!userId) throw new Error("UserId required");
+  const db = await getDB();
+  if (!userId) throw new Error("UserId required");
 
-    // Check for duplicates
-    // We check if the user already has a system with this templateId
-    if (templateId) {
-        const existingDoc = await db.collection<UserSystemsDocument>('user_systems').findOne({
-            userId,
-            "systems.templateId": templateId
-        });
-        
-        if (existingDoc && existingDoc.systems) {
-             const existingSystem = existingDoc.systems.find(s => s.templateId === templateId);
-             if (existingSystem) return existingSystem; // Return existing instead of creating new
-        }
+  // Check for duplicates
+  // We check if the user already has a system with this templateId
+  if (templateId) {
+    const existingDoc = await db.collection<UserSystemsDocument>('user_systems').findOne({
+      userId,
+      systems: { $elemMatch: { templateId, type } }
+    });
+
+    if (existingDoc && existingDoc.systems) {
+      const existingSystem = existingDoc.systems.find(s => s.templateId === templateId && s.type === type);
+      if (existingSystem) return existingSystem; // Return existing instead of creating new
     }
+  }
 
-    const newSystem: System = {
-        id: `sys_${Math.random().toString(36).substr(2, 9)}`,
-        name,
-        type,
-        templateId,
-        createdAt: new Date().toISOString()
-    };
+  const newSystem: System = {
+    id: `sys_${Math.random().toString(36).substr(2, 9)}`,
+    name,
+    type,
+    templateId,
+    createdAt: new Date().toISOString()
+  };
 
-    await db.collection<UserSystemsDocument>('user_systems').updateOne(
-        { userId },
-        { $push: { systems: newSystem } },
-        { upsert: true }
-    );
+  await db.collection<UserSystemsDocument>('user_systems').updateOne(
+    { userId },
+    { $push: { systems: newSystem } },
+    { upsert: true }
+  );
 
-    return newSystem;
+  return newSystem;
 }
 
 export async function getSystems(userId?: string): Promise<System[]> {
-    const db = await getDB();
-    if (!userId) return [];
-    
-    const res = await db.collection<UserSystemsDocument>('user_systems').findOne({ userId });
-    return res?.systems || [];
+  const db = await getDB();
+  if (!userId) return [];
+
+  const res = await db.collection<UserSystemsDocument>('user_systems').findOne({ userId });
+  if (res && res.systems) {
+    return res.systems;
+  }
+  return [];
 }
 
+export async function updateSystem(id: string, userId: string, updates: Partial<System>): Promise<void> {
+  const db = await getDB();
+  
+  // Create update object with $set
+  const updateObj: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    updateObj[`systems.$.${key}`] = value;
+  }
+
+  await db.collection<UserSystemsDocument>('user_systems').updateOne(
+    { userId, "systems.id": id },
+    { $set: updateObj }
+  );
+}
+
+export async function deleteSystem(id: string, userId: string): Promise<void> {
+  const db = await getDB();
+  await db.collection<UserSystemsDocument>('user_systems').updateOne(
+    { userId },
+    { $pull: { systems: { id } } }
+  );
+}
+
+// --- RBAC Systems ---
+export async function createRBACSystem(name: string, templateId?: string, userId?: string): Promise<System> {
+  const db = await getDB();
+  if (!userId) throw new Error("UserId required");
+
+  const newSystem: System = {
+    id: `rbac_${Math.random().toString(36).substr(2, 9)}`,
+    name,
+    type: 'rbac',
+    templateId,
+    createdAt: new Date().toISOString()
+  };
+
+  await db.collection<UserSystemsDocument>('user_rbac_systems').updateOne(
+    { userId },
+    { $push: { systems: newSystem } },
+    { upsert: true }
+  );
+
+  return newSystem;
+}
+
+export async function getRBACSystems(userId?: string): Promise<System[]> {
+  const db = await getDB();
+  if (!userId) return [];
+
+  const res = await db.collection<UserSystemsDocument>('user_rbac_systems').findOne({ userId });
+  if (res && res.systems) {
+    return res.systems;
+  }
+  return [];
+}
+
+export async function updateRBACSystem(id: string, userId: string, updates: Partial<System>): Promise<void> {
+  const db = await getDB();
+  
+  const updateObj: Record<string, any> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    updateObj[`systems.$.${key}`] = value;
+  }
+
+  await db.collection<UserSystemsDocument>('user_rbac_systems').updateOne(
+    { userId, "systems.id": id },
+    { $set: updateObj }
+  );
+}
+
+export async function deleteRBACSystem(id: string, userId: string): Promise<void> {
+  const db = await getDB();
+  await db.collection<UserSystemsDocument>('user_rbac_systems').updateOne(
+    { userId },
+    { $pull: { systems: { id } } }
+  );
+}
 // --- Usage Stats ---
 export async function getUserUsageStats(userId: string) {
-    const db = await getDB();
-    
-    // 1. Get Forms & Submissions
-    const formsDoc = await db.collection<UserFormsDocument>('user_forms').findOne({ userId });
-    const forms = formsDoc?.forms || [];
-    
-    let totalSubmissions = 0;
-    forms.forEach(f => {
-        if (f.submissions) {
-            totalSubmissions += f.submissions.length;
-        }
-    });
+  const db = await getDB();
 
-    // 2. Get Connectors count
-    const connectorsDoc = await db.collection<UserConnectorsDocument>('user_connectors').findOne({ userId });
-    const activeConnectors = connectorsDoc?.connectors?.length || 0;
+  // 1. Get Forms & Submissions
+  const formsDoc = await db.collection<UserFormsDocument>('user_forms').findOne({ userId });
+  const forms = formsDoc?.forms || [];
 
-    // 3. Estimate Storage (Mock calculation: ~2KB per submission + overhead)
-    const storageBytes = (totalSubmissions * 2048) + (forms.length * 5120) + 51200; 
+  let totalSubmissions = 0;
+  forms.forEach(f => {
+    totalSubmissions += (f.submissionCount || 0);
+    if (f.submissions) {
+      totalSubmissions += f.submissions.length;
+    }
+  });
 
-    // 4. Mock Error Rate & Latency (deterministic-ish or random)
-    // Using random for demo "variance" as requested
-    const errorRate = (Math.random() * 0.3).toFixed(2); // 0.00% - 0.30%
-    const avgLatency = Math.floor(Math.random() * (80 - 30) + 30); // 30ms - 80ms
+  // 2. Get Connectors count
+  const connectorsDoc = await db.collection<UserConnectorsDocument>('user_connectors').findOne({ userId });
+  const activeConnectors = connectorsDoc?.connectors?.length || 0;
 
-    return {
-        totalRequests: totalSubmissions,
-        errorRate: parseFloat(errorRate),
-        avgLatency,
-        storageBytes,
-        activeConnectors
-    };
+  // 3. Estimate Storage (Mock calculation: ~2KB per submission + overhead)
+  const storageBytes = (totalSubmissions * 2048) + (forms.length * 5120) + 51200;
+
+  // 4. Mock Error Rate & Latency (deterministic-ish or random)
+  // Using random for demo "variance" as requested
+  const errorRate = (Math.random() * 0.3).toFixed(2); // 0.00% - 0.30%
+  const avgLatency = Math.floor(Math.random() * (80 - 30) + 30); // 30ms - 80ms
+
+  return {
+    totalRequests: totalSubmissions,
+    errorRate: parseFloat(errorRate),
+    avgLatency,
+    storageBytes,
+    activeConnectors
+  };
 }
+
+// --- Database Configuration (User Level) ---
+export async function getUserDatabaseConfig(userId: string): Promise<any | null> {
+  const db = await getDB();
+  const res = await db.collection<UserConnectorsDocument>('user_connectors').findOne(
+    { userId },
+    { projection: { databaseConfig: 1 } }
+  );
+  return res?.databaseConfig || null;
+}
+
+export async function saveUserDatabaseConfig(userId: string, config: any): Promise<void> {
+  const db = await getDB();
+  await db.collection<UserConnectorsDocument>('user_connectors').updateOne(
+    { userId },
+    { $set: { databaseConfig: config } },
+    { upsert: true }
+  );
+}
+
+export async function getUserConfigByConnectorId(connectorId: string): Promise<any | null> {
+  const db = await getDB();
+  const res = await db.collection<UserConnectorsDocument>('user_connectors').findOne(
+    { "connectors.id": connectorId },
+    { projection: { databaseConfig: 1 } }
+  );
+  return res?.databaseConfig || null;
+}
+

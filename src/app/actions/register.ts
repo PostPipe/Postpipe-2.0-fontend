@@ -6,6 +6,7 @@ import { getSession } from '../../lib/auth/actions';
 export async function registerConnectorAction(formData: FormData) {
   const url = formData.get('url') as string; // Optional now
   const name = formData.get('name') as string;
+  const envPrefix = formData.get('envPrefix') as string;
 
   try {
     const session = await getSession();
@@ -13,7 +14,7 @@ export async function registerConnectorAction(formData: FormData) {
       return { error: 'Unauthorized' };
     }
 
-    const connector = await registerConnector(url || null, name, session.userId);
+    const connector = await registerConnector(url || null, name, session.userId, envPrefix);
     return {
       success: true,
       connectorId: connector.id,
@@ -26,18 +27,18 @@ export async function registerConnectorAction(formData: FormData) {
 
 export async function finalizeConnectorAction(id: string, url: string) {
   if (!id || !url) {
-      return { error: 'Connector ID and URL are required' };
+    return { error: 'Connector ID and URL are required' };
   }
 
   try {
-      const session = await getSession();
-      if (!session || !session.userId) {
-          return { error: 'Unauthorized' };
-      }
+    const session = await getSession();
+    if (!session || !session.userId) {
+      return { error: 'Unauthorized' };
+    }
 
-      await updateConnectorUrl(id, url, session.userId);
-      return { success: true };
+    await updateConnectorUrl(id, url, session.userId);
+    return { success: true };
   } catch (e) {
-      return { error: 'Failed to verify connector' };
+    return { error: 'Failed to verify connector' };
   }
 }
