@@ -15,6 +15,7 @@ const resourceLinks = [
     { href: "/blog", label: "Blog" },
     { href: "/static", label: "Static" },
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/sitemap", label: "Sitemap" },
 ];
 
 const contactEmails = [
@@ -159,11 +160,17 @@ export function AppFooter() {
 
                 {/* Bottom divider + legal */}
                 <div className="border-t border-border/50 pt-8 mb-16 md:mb-24 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                         <p className="text-xs text-muted-foreground/50">
                             © {new Date().getFullYear()} Postpipe. Built with ❤️ in India.
                         </p>
                         <CountrySelector />
+                        <Link
+                            href="/sitemap"
+                            className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors underline-offset-4 hover:underline flex items-center gap-1"
+                        >
+                            <span>Sitemap</span>
+                        </Link>
                     </div>
                     <p className="text-xs text-muted-foreground/40">
                         Maintained by Sourodip &amp; Pinaki

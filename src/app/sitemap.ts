@@ -4,12 +4,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://www.postpipe.in';
   const routes = [
     '',
+    '/pricing',
     '/explore',
     '/static',
     '/docs',
+    '/docs/getting-started',
+    '/docs/connectors',
+    '/docs/cli',
     '/blog',
     '/dashboard',
     '/login',
+    '/sitemap',
   ];
 
   return routes.map((route) => ({

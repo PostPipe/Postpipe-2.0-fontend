@@ -1,20 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar-motion";
 import { useAuth } from "@/hooks/use-auth";
 import {
-    Activity,
     UserCog,
     ArrowLeftToLine,
     ArrowRightFromLine,
     Search,
 } from "lucide-react";
-import dashboardIconData from "../../../public/logos/dashboard.json";
-import backendSystemsIconData from "../../../public/logos/backendSystems.json";
-import formsIconData from "../../../public/logos/forms.json";
-import connectorIconData from "../../../public/logos/connector.json";
-import serverIconData from "../../../public/logos/Server.json";
 import logoutIconData from "../../../public/logos/logout.json";
 import { AnimatedSidebarIcon } from "@/components/ui/animated-sidebar-icon";
 import { SearchPopup } from "./SearchPopup";
@@ -24,25 +18,20 @@ interface ExploreSidebarProps {
     setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+interface NavItem {
+    label: string;
+    href: string;
+    icon: React.ReactNode;
+    onClick?: () => void;
+}
+
 export function ExploreSidebar({ open, setOpen }: ExploreSidebarProps) {
     const { user, logout } = useAuth();
     const [searchOpen, setSearchOpen] = useState(false);
 
-    // Keyboard shortcut (⌘K / Ctrl+K)
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-                e.preventDefault();
-                setSearchOpen((prev) => !prev);
-            }
-        };
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, []);
-
-    const navItems = [
+    const navItems: NavItem[] = [
         {
-            label: "Search (⌘K)",
+            label: "Search",
             href: "#",
             icon: (
                 <div className="flex items-center justify-center h-8 w-8 group-hover/sidebar:scale-110 transition-all duration-200">
@@ -50,36 +39,6 @@ export function ExploreSidebar({ open, setOpen }: ExploreSidebarProps) {
                 </div>
             ),
             onClick: () => setSearchOpen(true),
-        },
-        {
-            label: "Overview",
-            href: "/dashboard",
-            icon: <AnimatedSidebarIcon animationData={dashboardIconData} className="h-8 w-8 group-hover/sidebar:scale-110 transition-all duration-200" />
-        },
-        {
-            label: "Backend Systems",
-            href: "/dashboard/systems",
-            icon: (
-                <div className="flex flex-col -space-y-[11px] justify-center items-center h-8 w-8 group-hover/sidebar:scale-110 transition-all duration-200">
-                    <AnimatedSidebarIcon animationData={backendSystemsIconData} className="h-[22px] w-[22px]" />
-                    <AnimatedSidebarIcon animationData={backendSystemsIconData} className="h-[22px] w-[22px]" />
-                </div>
-            )
-        },
-        {
-            label: "Forms",
-            href: "/dashboard/forms",
-            icon: <AnimatedSidebarIcon animationData={formsIconData} className="h-8 w-8 group-hover/sidebar:scale-110 transition-all duration-200" />
-        },
-        {
-            label: "Connectors",
-            href: "/dashboard/connectors",
-            icon: <AnimatedSidebarIcon animationData={connectorIconData} className="h-8 w-8 group-hover/sidebar:scale-110 transition-all duration-200" />
-        },
-        {
-            label: "Databases",
-            href: "/dashboard/database",
-            icon: <AnimatedSidebarIcon animationData={serverIconData} className="h-8 w-8 group-hover/sidebar:scale-110 transition-all duration-200" />
         },
     ];
 
@@ -108,7 +67,7 @@ export function ExploreSidebar({ open, setOpen }: ExploreSidebarProps) {
                             {navItems.map((link, idx) => (
                                 <div
                                     key={idx}
-                                    onClick={link.onClick ? (e) => { e.preventDefault(); link.onClick(); } : undefined}
+                                    onClick={link.onClick ? (e) => { e.preventDefault(); link.onClick?.(); } : undefined}
                                     className={link.onClick ? "cursor-pointer" : undefined}
                                 >
                                     <SidebarLink link={link} />
@@ -117,26 +76,6 @@ export function ExploreSidebar({ open, setOpen }: ExploreSidebarProps) {
                         </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                        <SidebarLink 
-                            link={{
-                                label: "Usage",
-                                href: "/dashboard/usage",
-                                icon: (
-                                    <>
-                                        <style>{`
-                                            @keyframes wipe-right {
-                                                0% { clip-path: inset(0 100% 0 0); }
-                                                100% { clip-path: inset(0 0 0 0); }
-                                            }
-                                            .group\\/sidebar:hover .icon-wipe {
-                                                animation: wipe-right 0.5s ease-out forwards;
-                                            }
-                                        `}</style>
-                                        <Activity className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0 icon-wipe transition-all duration-200 ml-1.5" />
-                                    </>
-                                )
-                            }} 
-                        />
                         {bottomLinks.map((link, idx) => (
                             <SidebarLink key={idx} link={link} />
                         ))}
