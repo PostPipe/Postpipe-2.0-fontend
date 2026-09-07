@@ -517,13 +517,23 @@ export function ExplorePageContent({
                 {/* Single Showcase Card with Hardware-Accelerated Motion */}
                 <div className='relative min-h-[380px] w-full'>
                     {loadingCard ? (
-                        <div className='w-full rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 md:p-8 flex flex-col lg:flex-row gap-6 shadow-sm'>
+                        <div className='w-full rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-neutral-900 p-6 md:p-8 flex flex-col lg:flex-row gap-6 shadow-sm items-center'>
                             <Skeleton className='w-full lg:w-3/5 aspect-video md:aspect-[16/9] rounded-xl' />
                             <div className='w-full lg:w-2/5 space-y-4 flex flex-col justify-center'>
-                                <Skeleton className='h-4 w-28' />
-                                <Skeleton className='h-8 w-3/4' />
+                                <div className='flex items-center gap-2'>
+                                    <Skeleton className='h-6 w-6 rounded-full' />
+                                    <Skeleton className='h-4 w-20' />
+                                    <Skeleton className='h-3 w-3 rounded-full' />
+                                    <Skeleton className='h-4 w-16' />
+                                </div>
+                                <Skeleton className='h-7 w-3/4' />
                                 <Skeleton className='h-4 w-full' />
-                                <Skeleton className='h-4 w-5/6' />
+                                <Skeleton className='h-4 w-4/5' />
+                                <div className='flex flex-wrap gap-1.5'>
+                                    <Skeleton className='h-5 w-16 rounded-full' />
+                                    <Skeleton className='h-5 w-20 rounded-full' />
+                                    <Skeleton className='h-5 w-14 rounded-full' />
+                                </div>
                                 <div className='flex gap-2 pt-2'>
                                     <Skeleton className='h-9 w-28 rounded-lg' />
                                     <Skeleton className='h-9 w-28 rounded-lg' />
@@ -675,6 +685,7 @@ export function ExplorePageContent({
                         ? {
                               id: selectedItem._id,
                               title: selectedItem.name,
+                              category: selectedItem.category,
                               image:
                                   selectedItem.demoGifUrl &&
                                   selectedItem.demoGifUrl.startsWith('http')
