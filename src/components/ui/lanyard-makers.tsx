@@ -308,7 +308,7 @@ function MakersShowcaseCards() {
       </div>
 
       {/* Identity Scanner / DropZone */}
-      <div className="flex justify-center">
+      <div className="hidden md:flex justify-center">
         <DropZone />
       </div>
     </div>

@@ -94,15 +94,15 @@ export default function UsageClient({ stats }: UsageClientProps) {
         <div className="flex flex-col gap-8 w-full max-w-6xl mx-auto pb-16">
             
             {/* ─── 1. TOP HEADER & BREADCRUMBS ─── */}
-            <div className="flex flex-col gap-4 border-b border-border/70 pb-6">
+            <div className="flex flex-col gap-4 mb-2">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-1.5">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-1">
                             <span>Workspace</span>
-                            <span>/</span>
-                            <span className="text-foreground font-semibold">Observability & Quotas</span>
+                            <span className="text-muted-foreground/50">/</span>
+                            <span className="text-foreground font-medium">Observability & Quotas</span>
                         </div>
-                        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
                             Usage Overview
                         </h1>
                         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">

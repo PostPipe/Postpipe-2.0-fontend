@@ -124,6 +124,7 @@ const postpipePlans: PricingPlan[] = [
 
 interface PricingSectionProps {
   hideIfPurchased?: boolean;
+  isHome?: boolean;
 }
 
 function PaymentSuccessHandler() {
@@ -164,7 +165,7 @@ function PaymentSuccessHandler() {
   return null;
 }
 
-export function PricingSection({ hideIfPurchased }: PricingSectionProps = {}) {
+export function PricingSection({ hideIfPurchased, isHome }: PricingSectionProps = {}) {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "quarterly" | "yearly">("monthly");
   const { user } = useAuth();
   const { getRawPrice, currencySymbol } = useCountry();
@@ -396,83 +397,94 @@ export function PricingSection({ hideIfPurchased }: PricingSectionProps = {}) {
         </div>
 
         {/* ─── Billing Terms & Conditions / Service Continuity Policy ─── */}
-        <div className="mt-16 max-w-6xl mx-auto space-y-6">
-          {/* Prominent Warning Callout */}
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-6 sm:p-8 backdrop-blur-sm relative overflow-hidden">
-            <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-[radial-gradient(circle,rgba(245,158,11,0.12)_0%,transparent_70%)] pointer-events-none" />
-            <div className="flex flex-col sm:flex-row items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 mt-0.5">
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-              <div className="space-y-2.5 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-base sm:text-lg font-bold text-foreground">
-                    Subscription & Billing Terms Notice
-                  </h4>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                    Important Clause
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  All recurring subscription payments are debited automatically on the <strong className="text-foreground font-semibold">1st of each calendar month</strong>. In the event that an automated debit fails or payment cannot be processed, your paid subscription tier will be <strong className="text-foreground font-semibold">revoked immediately</strong> and your account will automatically revert to the <strong className="text-foreground font-semibold">Starter Plan</strong>.
-                </p>
-                <div className="flex items-start sm:items-center gap-2 pt-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                  <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5 sm:mt-0" />
-                  <span>
-                    <strong>Uninterrupted Service Continuity:</strong> Downgrading never terminates your active pipeline. You can continue utilizing Postpipe with all features included under the Starter plan (up to 1,000 monthly submissions and 2 database connectors) without loss of data.
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Detailed Clauses Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-xl border border-border/70 bg-card/60 p-5 backdrop-blur-sm space-y-2.5">
-              <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
-                <Calendar className="h-4 w-4 text-primary" />
-                <span>1st of the Month Billing</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Billing periods renew on the 1st of every calendar month. Digital VAT and GST-compliant invoices and payment receipts are issued directly to your account email upon every successful transaction.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-border/70 bg-card/60 p-5 backdrop-blur-sm space-y-2.5">
-              <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
-                <RefreshCcw className="h-4 w-4 text-primary" />
-                <span>Debit Failure Protocol</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                If bank debiting or card collection fails, tier throughput adjusts immediately to Starter limits. Retrying payment or updating billing credentials from your profile restores Builder entitlements instantly.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-border/70 bg-card/60 p-5 backdrop-blur-sm space-y-2.5">
-              <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
-                <CreditCard className="h-4 w-4 text-primary" />
-                <span>Cancellation & Retention</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                You retain complete control to cancel anytime via your Account Profile. Paid benefits remain active through the final day of your paid cycle. All schemas and form webhook tokens remain safe.
-              </p>
-            </div>
-          </div>
-
-          {/* Support & Invoicing Inquiries */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 rounded-xl border border-border/60 bg-muted/20 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-primary" />
-              <span>Need custom enterprise SLAs or enterprise invoicing?</span>
-            </div>
-            <a 
-              href="mailto:support@postpipe.in" 
-              className="font-medium text-foreground hover:text-primary transition-colors underline underline-offset-4"
+        {isHome ? (
+          <div className="mt-16 flex justify-center">
+            <Link 
+              href="/pricing#terms" 
+              className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
             >
-              Contact Support (support@postpipe.in) →
-            </a>
+              Read Subscription & Billing Terms Conditions →
+            </Link>
           </div>
-        </div>
+        ) : (
+          <div id="terms" className="mt-16 max-w-6xl mx-auto space-y-6">
+            {/* Prominent Warning Callout */}
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-6 sm:p-8 backdrop-blur-sm relative overflow-hidden">
+              <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-[radial-gradient(circle,rgba(245,158,11,0.12)_0%,transparent_70%)] pointer-events-none" />
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 mt-0.5">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="space-y-2.5 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-base sm:text-lg font-bold text-foreground">
+                      Subscription & Billing Terms Notice
+                    </h4>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                      Important Clause
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    All recurring subscription payments are debited automatically on the <strong className="text-foreground font-semibold">1st of each calendar month</strong>. In the event that an automated debit fails or payment cannot be processed, your paid subscription tier will be <strong className="text-foreground font-semibold">revoked immediately</strong> and your account will automatically revert to the <strong className="text-foreground font-semibold">Starter Plan</strong>.
+                  </p>
+                  <div className="flex items-start sm:items-center gap-2 pt-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                    <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5 sm:mt-0" />
+                    <span>
+                      <strong>Uninterrupted Service Continuity:</strong> Downgrading never terminates your active pipeline. You can continue utilizing Postpipe with all features included under the Starter plan (up to 1,000 monthly submissions and 2 database connectors) without loss of data.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Clauses Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-border/70 bg-card/60 p-5 backdrop-blur-sm space-y-2.5">
+                <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <span>1st of the Month Billing</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Billing periods renew on the 1st of every calendar month. Digital VAT and GST-compliant invoices and payment receipts are issued directly to your account email upon every successful transaction.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-card/60 p-5 backdrop-blur-sm space-y-2.5">
+                <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
+                  <RefreshCcw className="h-4 w-4 text-primary" />
+                  <span>Debit Failure Protocol</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  If bank debiting or card collection fails, tier throughput adjusts immediately to Starter limits. Retrying payment or updating billing credentials from your profile restores Builder entitlements instantly.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-card/60 p-5 backdrop-blur-sm space-y-2.5">
+                <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  <span>Cancellation & Retention</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  You retain complete control to cancel anytime via your Account Profile. Paid benefits remain active through the final day of your paid cycle. All schemas and form webhook tokens remain safe.
+                </p>
+              </div>
+            </div>
+
+            {/* Support & Invoicing Inquiries */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 rounded-xl border border-border/60 bg-muted/20 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <span>Need custom enterprise SLAs or enterprise invoicing?</span>
+              </div>
+              <a 
+                href="mailto:support@postpipe.in" 
+                className="font-medium text-foreground hover:text-primary transition-colors underline underline-offset-4"
+              >
+                Contact Support (support@postpipe.in) →
+              </a>
+            </div>
+          </div>
+        )}
       </div>
     </section>
     </>

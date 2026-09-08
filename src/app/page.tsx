@@ -172,7 +172,7 @@ export default function Home() {
       </div>
 
       <Suspense fallback={null}>
-        <PricingSection hideIfPurchased={true} />
+        <PricingSection hideIfPurchased={true} isHome={true} />
       </Suspense>
       <section id="faq" className="bg-background py-20 md:py-32">
         <div className="container mx-auto px-4 max-w-4xl">

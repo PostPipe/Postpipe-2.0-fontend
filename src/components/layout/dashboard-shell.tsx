@@ -22,6 +22,13 @@ import {
     ChevronDown,
     ChevronUp,
 } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
 import dashboardIconData from "../../../public/logos/dashboard.json";
@@ -229,12 +236,82 @@ export default function DashboardShell({
             </Sidebar>
 
             {/* Main Content Area */}
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 overflow-hidden pb-[88px] md:pb-0 relative">
                 <div 
-                    className="p-2 md:p-10 md:bg-white md:dark:bg-neutral-900 flex flex-col gap-2 flex-1 w-full h-full overflow-y-auto overflow-x-hidden"
+                    className="p-4 sm:p-6 md:p-10 md:bg-white md:dark:bg-neutral-900 flex flex-col gap-4 md:gap-2 flex-1 w-full h-full overflow-y-auto overflow-x-hidden"
                     data-lenis-prevent="true"
                 >
                     {children}
+                </div>
+
+                {/* Mobile Floating Bottom Nav Pill */}
+                <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[92%] max-w-[420px]">
+                    <div className="flex items-center justify-between bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl p-2 rounded-[2rem] shadow-2xl border border-zinc-200/50 dark:border-white/10">
+                        {navItems.map((item, idx) => {
+                            const isActive = pathname === item.href;
+                            return (
+                                <Link 
+                                    key={idx} 
+                                    href={item.href}
+                                    className={cn(
+                                        "flex items-center justify-center h-[46px] w-[46px] rounded-full transition-all duration-300 group/sidebar",
+                                        isActive ? "bg-black/10 dark:bg-white/15 scale-110 shadow-sm" : "opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 active:scale-95"
+                                    )}
+                                    title={item.label}
+                                >
+                                    <div className="h-[22px] w-[22px] pointer-events-none flex items-center justify-center">
+                                        {item.icon}
+                                    </div>
+                                </Link>
+                            );
+                        })}
+
+                        {/* Profile & Analytics Dropdown */}
+                        <div className="w-[1px] h-8 bg-black/15 dark:bg-white/15 mx-0.5 shrink-0"></div>
+                        
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button 
+                                    className={cn(
+                                        "flex items-center justify-center h-[46px] w-[46px] rounded-full transition-all duration-300 shrink-0 outline-none",
+                                        (pathname === "/dashboard/profile" || pathname === "/dashboard/usage") ? "bg-black/10 dark:bg-white/15 scale-110 shadow-sm" : "opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 active:scale-95"
+                                    )}
+                                    title="Profile & More"
+                                >
+                                    {user?.image ? (
+                                        <img
+                                            src={user.image}
+                                            alt={user?.name || "Profile"}
+                                            className="h-6 w-6 rounded-full object-cover pointer-events-none"
+                                        />
+                                    ) : (
+                                        <UserCog className="h-5 w-5 text-black dark:text-white pointer-events-none" />
+                                    )}
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent side="top" align="end" className="w-52 mb-4 rounded-2xl shadow-2xl border border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-2">
+                                <DropdownMenuItem asChild className="rounded-xl cursor-pointer py-2.5 hover:bg-black/5 dark:hover:bg-white/10">
+                                    <Link href="/dashboard/profile" className="w-full flex items-center gap-3">
+                                        <User className="h-4 w-4 text-neutral-500" /> 
+                                        <span className="font-medium text-sm">Account Profile</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild className="rounded-xl cursor-pointer py-2.5 hover:bg-black/5 dark:hover:bg-white/10">
+                                    <Link href="/dashboard/usage" className="w-full flex items-center gap-3">
+                                        <Activity className="h-4 w-4 text-neutral-500" /> 
+                                        <span className="font-medium text-sm">Analytics & Usage</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="my-1.5 bg-neutral-200 dark:bg-white/10" />
+                                <DropdownMenuItem onClick={logout} className="rounded-xl cursor-pointer py-2.5 text-red-600 dark:text-red-400 focus:bg-red-50 dark:focus:bg-red-500/10 focus:text-red-600 dark:focus:text-red-400">
+                                    <div className="w-full flex items-center gap-3">
+                                        <LogOut className="h-4 w-4" /> 
+                                        <span className="font-medium text-sm">Sign Out</span>
+                                    </div>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
             </div>
         </div>

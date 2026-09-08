@@ -26,7 +26,7 @@ const contactEmails = [
 export function AppFooter() {
     return (
         <footer className="border-t bg-background overflow-hidden relative">
-            <div className="w-full max-w-none px-4 md:px-12 py-16 md:py-24">
+            <div className="w-full max-w-none px-4 md:px-12 pt-16 pb-32 md:pt-24 md:pb-40">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16 md:mb-24">
 
                     {/* Brand + tagline */}
@@ -146,12 +146,12 @@ export function AppFooter() {
                 </div>
 
                 {/* Rotating endpoint showcase */}
-                <div className="mb-10 flex flex-col items-center justify-center">
+                <div className="mb-10 flex flex-col items-center justify-center overflow-hidden">
                     <p className="text-xs uppercase tracking-widest text-muted-foreground/40 mb-5 text-center font-mono">Route anything. Capture everything.</p>
-                    <div className="flex items-baseline justify-center gap-0 font-mono">
-                        <span className="text-2xl sm:text-3xl md:text-4xl text-muted-foreground/30 font-medium">postpipe.in/submissions/</span>
+                    <div className="flex flex-wrap items-baseline justify-center gap-0 font-mono text-center">
+                        <span className="text-base sm:text-2xl md:text-4xl text-muted-foreground/30 font-medium break-all">postpipe.in/submissions/</span>
                         <WordRotate
-                            className="text-2xl sm:text-3xl md:text-4xl text-foreground/80 font-bold"
+                            className="text-base sm:text-2xl md:text-4xl text-foreground/80 font-bold"
                             words={["feedback", "waitlist", "contact", "newsletter", "surveys", "users"]}
                             duration={2000}
                         />

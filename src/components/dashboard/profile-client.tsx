@@ -223,16 +223,16 @@ export default function ProfileClient() {
         <div className="flex flex-col gap-8 w-full max-w-6xl mx-auto pb-16">
             
             {/* ─── 1. BREADCRUMBS & SECTION TITLE ─── */}
-            <div className="flex flex-col gap-1 border-b border-border/70 pb-6">
+            <div className="flex flex-col gap-1 mb-2">
                 <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-1">
                     <span>Workspace</span>
-                    <span>/</span>
-                    <span className="text-foreground font-semibold">Account & Settings</span>
+                    <span className="text-muted-foreground/50">/</span>
+                    <span className="text-foreground font-medium">Account & Settings</span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
                     Account Profile
                 </h1>
-                <p className="text-sm text-muted-foreground max-w-2xl">
+                <p className="text-sm text-muted-foreground max-w-2xl mt-1">
                     Manage your personal identity details, workspace credentials, active subscription tier, and quota allowances.
                 </p>
             </div>
