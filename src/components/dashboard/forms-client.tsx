@@ -1098,8 +1098,8 @@ export default function FormsClient(props: FormsClientProps) {
                                                 <Terminal className='h-3 w-3' />{' '}
                                                 ENDPOINT URL
                                             </label>
-                                            <div className='flex items-center gap-2'>
-                                                <div className='flex-1 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black/40 px-3.5 py-2.5 font-mono text-xs text-neutral-600 dark:text-white/70 truncate flex items-center'>
+                                            <div className='flex items-center gap-2 min-w-0'>
+                                                <div className='flex-1 min-w-0 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black/40 px-3.5 py-2.5 font-mono text-xs text-neutral-600 dark:text-white/70 truncate'>
                                                     {endpoint}
                                                 </div>
                                                 <Button
@@ -1218,7 +1218,7 @@ export default function FormsClient(props: FormsClientProps) {
                 onDragEnd={handleDragEnd}
             >
                 {/* ── Main content ── */}
-                <div className='relative z-10 flex flex-col gap-6 md:gap-10 pb-16'>
+                <div className='relative z-10 flex flex-col gap-6 md:gap-10 pb-32 md:pb-16'>
                     {/* ══ HEADER ══ */}
                 <div className='relative rounded-xl overflow-hidden mb-2 bg-neutral-100/80 dark:bg-transparent border border-neutral-200 dark:border-white/5'>
                     {/* Animated canvas background */}
@@ -1880,7 +1880,7 @@ export default function FormsClient(props: FormsClientProps) {
                                 )}
                             </div>
                         ) : (
-                            <div className='rounded-lg border border-neutral-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] p-6 backdrop-blur-xl animate-in zoom-in-95 duration-200'>
+                            <div className='sm:rounded-lg sm:border sm:border-neutral-200 sm:dark:border-white/[0.08] sm:bg-white sm:dark:bg-white/[0.03] sm:p-6 animate-in zoom-in-95 duration-200'>
                                 <div className='flex items-center justify-between mb-6 border-b border-neutral-200 dark:border-white/[0.08] pb-4'>
                                     <div>
                                         <h2 className='text-base font-bold text-neutral-800 dark:text-white/80'>

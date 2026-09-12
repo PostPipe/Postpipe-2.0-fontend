@@ -244,7 +244,7 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                             </DialogContent>
                         </Dialog>
 
-                        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 max-w-xs">
+                        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 w-full md:max-w-xs">
                             <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
                             <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-relaxed">
                                 Never share your secrets. Credentials never leave your infrastructure.
@@ -308,20 +308,20 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                             </span>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
+                                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0 mt-1 sm:mt-0">
                                         <Activity className="h-3.5 w-3.5" />
-                                        Last used:&nbsp;<span className="font-semibold text-foreground">{connector.lastUsed}</span>
+                                        Last used:&nbsp;<span className="font-semibold text-foreground">{connector.lastUsed || 'Never'}</span>
                                     </div>
                                 </div>
 
                                 {/* Card Body */}
                                 <div className="pl-7 pr-6 py-5 grid gap-4 md:grid-cols-2">
                                     {/* Deployment URL */}
-                                    <div>
+                                    <div className="min-w-0">
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Deployment URL</p>
-                                        <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/50 px-3.5 py-2.5">
+                                        <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/50 pl-3.5 pr-5 md:pr-3.5 py-2.5">
                                             <Globe className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                                            <span className="text-sm font-mono text-muted-foreground truncate flex-1">{connector.url}</span>
+                                            <span className="text-sm font-mono text-muted-foreground break-all flex-1 min-w-0 pr-2">{connector.url}</span>
                                             
                                             <Dialog open={editingUrlId === connector.id} onOpenChange={(open: boolean) => {
                                                 if (open) {
@@ -369,7 +369,7 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                     </div>
 
                                     {/* Connector Secret */}
-                                    <div>
+                                    <div className="min-w-0">
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Connector Secret</p>
                                         <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3.5 py-2.5">
                                             <Lock className={cn("h-3.5 w-3.5 shrink-0", "text-emerald-500")} />
@@ -392,7 +392,7 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                     </div>
 
                                     {/* Connector ID */}
-                                    <div>
+                                    <div className="min-w-0">
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Connector ID</p>
                                         <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/50 px-3.5 py-2.5">
                                             <Database className="h-3.5 w-3.5 text-violet-500 shrink-0" />
@@ -408,7 +408,7 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                 <div className="pl-7 pr-6 pb-5">
                                     <div className="rounded-xl border border-border overflow-hidden">
                                         {/* Terminal titlebar */}
-                                        <div className="flex items-center justify-between px-4 py-2.5 bg-neutral-900 border-b border-white/5">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-2.5 bg-neutral-900 border-b border-white/5 gap-3 sm:gap-0">
                                             <div className="flex items-center gap-2">
                                                 <div className="flex gap-1.5">
                                                     <div className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
@@ -468,7 +468,7 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                 </div>
 
                                 {/* Footer */}
-                                <div className="flex items-center justify-between pl-7 pr-6 py-3 border-t border-border bg-muted/20">
+                                <div className="flex flex-row items-center justify-between pl-7 pr-6 py-3 border-t border-border bg-muted/20 gap-3">
                                     <Dialog>
                                         <DialogTrigger asChild>
                                             <Button variant="ghost" className="text-muted-foreground hover:text-destructive text-xs h-8 gap-1.5">
