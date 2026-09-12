@@ -39,6 +39,35 @@ type ReleaseItem = {
 
 const releases: ReleaseItem[] = [
     {
+        version: "v3.1.0",
+        title: "v3.1.0: Documentation Overhaul, UI Fixes & Stability Improvements",
+        date: "September 12, 2026",
+        image: "[INSERT_SCREENSHOT_LINK_HERE]",
+        excerpt:
+            "A comprehensive update featuring a completely rewritten documentation site, fixes for Next.js 15 CSR bailouts, resolved form deletion bugs, and mobile UI enhancements.",
+        tags: ["Documentation", "Bug Fixes", "UI Enhancements", "Next.js"],
+        isLatest: true,
+        contributors: [
+            "https://github.com/Sourodip-1",
+        ],
+        content: (
+            <div className="prose dark:prose-invert max-w-none space-y-4">
+                <h3 className="text-xl font-bold text-foreground">Documentation Overhaul</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                    The entire documentation section has been rewritten to adopt a clean, minimal SaaS aesthetic. Emojis and casual phrasing have been removed to ensure a professional developer experience.
+                </p>
+                <h3 className="text-xl font-bold text-foreground pt-3">UI & Stability Fixes</h3>
+                <ul className="list-disc pl-5 space-y-1.5 text-sm text-muted-foreground">
+                    <li><strong>Form Deletion</strong>: Fixed the 404 error during form submission deletion by correctly passing form identifiers to the database adapter.</li>
+                    <li><strong>Next.js 15 Fixes</strong>: Wrapped components using <code>useSearchParams</code> in Suspense boundaries to prevent static prerendering build failures, and removed global scroll-smooth rules causing warnings.</li>
+                    <li><strong>Mobile Dashboard</strong>: Resolved horizontal overflow and truncation issues in the Connectors and Forms client tables.</li>
+                    <li><strong>Accessibility</strong>: Fixed Radix UI warnings in the mobile Docs navigation by adding hidden title and description elements.</li>
+                    <li><strong>Forge Desktop UI</strong>: Restored the missing ExploreSidebar and search icon in the desktop view.</li>
+                </ul>
+            </div>
+        ),
+    },
+    {
         version: "v3.0.0",
         title: "v3.0.0: New Form Builder, Connector Verification & Riven Deploy Partnership",
         date: "August 17, 2026",
@@ -46,7 +75,6 @@ const releases: ReleaseItem[] = [
         excerpt:
             "A massive update featuring a completely redesigned Form Builder, new connector verification flows, and an official partnership with Riven Deploy for seamless 1-click deployments.",
         tags: ["Major Release", "Form Builder", "Partnership", "Verification"],
-        isLatest: true,
         contributors: [
             "https://github.com/Sourodip-1",
         ],
