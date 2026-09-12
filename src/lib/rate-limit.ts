@@ -1,5 +1,5 @@
 import User from './auth/User';
-import { getConnectors } from './server-db';
+
 import { sendQuotaWarningEmail } from './auth/email';
 import dbConnect from './auth/mongodb';
 import { ObjectId } from 'mongodb';
@@ -9,7 +9,7 @@ import { PLAN_LIMITS } from '@/config/plans';
 /**
  * Checks if the user has reached their connector limit based on their plan.
  */
-export async function checkConnectorLimit(userId: string): Promise<boolean> {
+export async function checkConnectorLimit(userId: string, connectorsCount: number): Promise<boolean> {
   await dbConnect();
   // Use raw collection to bypass Mongoose schema cache
   const userDoc = await User.collection.findOne({ _id: new ObjectId(userId) });
@@ -18,8 +18,7 @@ export async function checkConnectorLimit(userId: string): Promise<boolean> {
   const plan = (userDoc.plan as string) || 'starter';
   const limit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS].connectors;
 
-  const connectors = await getConnectors(userId);
-  return connectors.length < limit;
+  return connectorsCount < limit;
 }
 
 /**

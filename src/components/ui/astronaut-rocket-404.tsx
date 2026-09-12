@@ -97,30 +97,6 @@ export function AstronautRocket404({ currentPath = '/unknown-coordinate' }: Astr
                 {/* Soft Vignette Border */}
                 <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none' />
 
-                {/* ================= POSTPIPE BRANDING EMBLEM OVERLAY ON ROCKET ================= */}
-                <div className='absolute top-[52%] left-[36%] -translate-x-1/2 -translate-y-1/2 pointer-events-none'>
-                    <motion.div
-                        animate={{ scale: [1, 1.05, 1] }}
-                        transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                        className='flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-neutral-950/90 border border-purple-400/90 shadow-[0_0_15px_rgba(157,78,221,0.7)] backdrop-blur-md rotate-[-22deg]'
-                    >
-                        {/* Postpipe SVG Logo */}
-                        <svg
-                            viewBox='0 0 500 500'
-                            className='w-3.5 h-3.5 sm:w-4 sm:h-4 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]'
-                        >
-                            <path
-                                fillRule='evenodd'
-                                fill='#ffffff'
-                                d='m105 9l338.9 57.7c-292.3 108.5-331 394.6-331.6 429.2z'
-                            />
-                        </svg>
-                        <span className='text-[9px] sm:text-[11px] font-black tracking-widest text-white uppercase font-mono'>
-                            POSTPIPE
-                        </span>
-                    </motion.div>
-                </div>
-
                 {/* ================= ANIMATED RETRO RADIO TRANSMISSION RINGS ================= */}
                 <div className='absolute top-[54%] left-[60.5%] sm:left-[60.8%] pointer-events-none'>
                     {/* Blinking Red Pixel Antenna Beacon */}

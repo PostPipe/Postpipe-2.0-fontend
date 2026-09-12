@@ -191,7 +191,8 @@ export async function registerConnector(url: string | null, name: string = 'My C
   // --- Rate Limit Check ---
   // We lazily import to avoid circular dependencies
   const { checkConnectorLimit } = await import('./rate-limit');
-  const canCreate = await checkConnectorLimit(userId);
+  const connectors = await getConnectors(userId);
+  const canCreate = await checkConnectorLimit(userId, connectors.length);
   if (!canCreate) {
     throw new Error("PLAN_LIMIT_REACHED: You have reached the maximum number of connectors for your current plan. Please upgrade to create more.");
   }

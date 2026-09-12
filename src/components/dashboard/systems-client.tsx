@@ -23,8 +23,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { getSystems } from '@/lib/actions/systems';
 import { ExploreModal } from '@/components/explore/ExploreModal';
-import { BeamsBackground } from '@/components/ui/beams-background';
-import { Particles } from '@/components/ui/particles';
 import { SystemsSkeleton } from '@/components/dashboard/systems-skeleton';
 import { useTheme } from 'next-themes';
 
@@ -136,21 +134,30 @@ export default function SystemsClient({ initialSystems = [] }: SystemsClientProp
 
     return (
         <div className='flex flex-col gap-8 w-full max-w-7xl mx-auto'>
-            {/* Hero Section - Matching /explore */}
-            <div className='relative w-full rounded-2xl overflow-hidden border border-neutral-200 dark:border-white/10 bg-white dark:bg-neutral-950 shadow-2xl'>
-                <BeamsBackground
-                    className='absolute inset-0 z-0 h-full w-full hidden dark:block'
-                    intensity='subtle'
-                />
-                <div className='relative z-10 p-6 sm:p-10 md:p-14 flex flex-col items-start gap-6'>
-                    <Particles
-                        className='absolute inset-0 z-0 opacity-30'
-                        quantity={35}
-                        ease={80}
-                        color={mounted && resolvedTheme === 'dark' ? '#ffffff' : '#000000'}
-                        refresh
-                    />
+            {/* Hero Section - Performant Design */}
+            <div className='relative overflow-hidden rounded-2xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-neutral-950 shadow-sm flex flex-col p-6 sm:p-10 md:p-14 gap-6'>
 
+
+                {/* Ambient Glowing Orbs */}
+                <div className="absolute -top-24 right-0 w-96 h-96 bg-primary/10 dark:bg-primary/20 rounded-full blur-[100px] pointer-events-none z-0" />
+                <div className="absolute -bottom-24 right-1/3 w-96 h-96 bg-blue-500/10 dark:bg-blue-600/15 rounded-full blur-[100px] pointer-events-none z-0" />
+
+                {/* Concentric Circles Left Aligned */}
+                <div 
+                    className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-[20%] pointer-events-none flex items-center justify-center z-0"
+                    style={{ maskImage: 'radial-gradient(circle at center, black 30%, transparent 75%)', WebkitMaskImage: 'radial-gradient(circle at center, black 30%, transparent 75%)' }}
+                >
+                    <div className="w-[300px] h-[300px] rounded-full border border-neutral-900/10 dark:border-white/10 absolute shadow-[0_0_30px_rgba(157,78,221,0.1)] dark:shadow-[0_0_30px_rgba(157,78,221,0.2)] animate-[pulse_4s_ease-in-out_infinite]" />
+                    <div className="w-[450px] h-[450px] rounded-full border border-neutral-900/10 dark:border-white/10 absolute border-dashed" />
+                    <div className="w-[600px] h-[600px] rounded-full border border-neutral-900/10 dark:border-white/10 absolute" />
+                    <div className="w-[750px] h-[750px] rounded-full border border-neutral-900/10 dark:border-white/10 absolute border-dashed" />
+                    <div className="w-[900px] h-[900px] rounded-full border border-neutral-900/10 dark:border-white/10 absolute" />
+                    <div className="w-[1050px] h-[1050px] rounded-full border border-neutral-900/10 dark:border-white/10 absolute border-dashed" />
+                    <div className="w-[1200px] h-[1200px] rounded-full border border-neutral-900/10 dark:border-white/10 absolute" />
+                    <div className="w-[1350px] h-[1350px] rounded-full border border-neutral-900/10 dark:border-white/10 absolute border-dashed" />
+                </div>
+
+                <div className='relative z-10 flex flex-col items-start gap-6'>
                     <div className='flex flex-col gap-3 relative z-10 max-w-3xl'>
                         {/* Pill Badge */}
                         <div className='inline-flex items-center rounded-full border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-white/5 px-3 py-1 text-xs font-medium text-neutral-900 dark:text-white backdrop-blur-md w-fit mb-1'>
@@ -193,8 +200,6 @@ export default function SystemsClient({ initialSystems = [] }: SystemsClientProp
                         </div>
                     </div>
                 </div>
-
-                <div className='absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white dark:from-neutral-950 to-transparent pointer-events-none' />
             </div>
 
             {/* Search & Action Controls */}

@@ -1856,12 +1856,12 @@ export default function RBSCAdminPanel() {
 
     return (
         <div className='p-6 bg-indigo-50/30 dark:bg-indigo-950/5 border-t border-neutral-200/60 dark:border-white/[0.04]'>
-            <div className='flex justify-between items-center mb-6 border-b border-neutral-200 dark:border-white/10 pb-4'>
-                <div className='flex items-center gap-2'>
-                    <Button variant={activeTab === 'overview' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('overview')} className={activeTab === 'overview' ? 'bg-violet-600 hover:bg-violet-500' : ''}>Overview</Button>
-                    <Button variant={activeTab === 'react' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('react')} className={activeTab === 'react' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> React Snippet</Button>
-                    <Button variant={activeTab === 'html' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('html')} className={activeTab === 'html' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> Master Admin Panel HTML</Button>
-                    <Button variant={activeTab === 'portal' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('portal')} className={activeTab === 'portal' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}><Code2 className='w-4 h-4 mr-2'/> Admin Panel HTML</Button>
+            <div className='flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 mb-6 border-b border-neutral-200 dark:border-white/10 pb-4 min-w-0'>
+                <div className='flex items-center gap-2 overflow-x-auto w-full min-w-0 hide-scrollbar snap-x pb-2 sm:pb-0'>
+                    <Button variant={activeTab === 'overview' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('overview')} className={`shrink-0 snap-start ${activeTab === 'overview' ? 'bg-violet-600 hover:bg-violet-500' : ''}`}>Overview</Button>
+                    <Button variant={activeTab === 'react' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('react')} className={`shrink-0 snap-start ${activeTab === 'react' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}`}><Code2 className='w-4 h-4 mr-2'/> React Snippet</Button>
+                    <Button variant={activeTab === 'html' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('html')} className={`shrink-0 snap-start ${activeTab === 'html' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}`}><Code2 className='w-4 h-4 mr-2'/> Master Admin Panel HTML</Button>
+                    <Button variant={activeTab === 'portal' ? 'default' : 'ghost'} size='sm' onClick={() => setActiveTab('portal')} className={`shrink-0 snap-start ${activeTab === 'portal' ? 'bg-violet-600 hover:bg-violet-500 text-white' : ''}`}><Code2 className='w-4 h-4 mr-2'/> Admin Panel HTML</Button>
                 </div>
                 <Button variant='outline' size='sm' onClick={() => setIsEditModalOpen(true)}><Settings className='w-4 h-4 mr-2' /> Edit Settings</Button>
             </div>

@@ -21,10 +21,12 @@ import {
     Boxes,
     Cpu,
     Flame,
+    X,
 } from 'lucide-react';
 import {
     getCatalogItemByIndex,
 } from '@/lib/actions/explore';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { createSystem } from '@/lib/actions/systems';
 import { cn } from '@/lib/utils';
@@ -69,6 +71,7 @@ export function ExplorePageContent({
     selectedTag,
 }: ExplorePageContentProps) {
     const { toast } = useToast();
+    const router = useRouter();
 
     // Dynamic Category Filter Chips from DB
     const categoryTabs = React.useMemo(() => {
@@ -269,7 +272,7 @@ export function ExplorePageContent({
     }, [handleNext, handlePrev, selectedItem]);
 
     return (
-        <div className='flex-1 space-y-10 p-4 pt-6 md:p-8 max-w-7xl mx-auto'>
+        <div className='flex-1 space-y-10 p-4 pt-6 md:p-8 max-w-7xl mx-auto w-full min-w-0'>
             {/* ReactBits Optimized Hero Section */}
             <SpotlightCard
                 className='relative w-full rounded-2xl overflow-hidden border border-neutral-200 dark:border-white/10 bg-white/70 dark:bg-neutral-950/80 backdrop-blur-sm p-6 md:p-12 shadow-xl'
@@ -448,17 +451,29 @@ export function ExplorePageContent({
             )}
 
             {/* Catalog Single-Card Showcase */}
-            <section className='space-y-6'>
-                <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-neutral-200 dark:border-white/10 pb-4'>
-                    <div className='flex items-center gap-2'>
+            <section className='space-y-6 w-full min-w-0'>
+                <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-neutral-200 dark:border-white/10 pb-4 w-full min-w-0'>
+                    <div className='flex flex-wrap items-center gap-2'>
                         <div className='h-5 w-1 rounded-full bg-primary/60' />
                         <h2 className='text-lg font-bold tracking-tight'>
-                            Explore Catalog
+                            {searchQuery ? `Search Results for "${searchQuery}"` : 'Explore Catalog'}
                         </h2>
+                        {searchQuery && (
+                            <button
+                                onClick={() => {
+                                    const params = new URLSearchParams(window.location.search);
+                                    params.delete('q');
+                                    router.push(`/explore?${params.toString()}`);
+                                }}
+                                className='ml-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-300 dark:hover:bg-neutral-700 transition-colors'
+                            >
+                                Clear search <X className='h-3 w-3' />
+                            </button>
+                        )}
                     </div>
 
                     {/* Category Filter Chips */}
-                    <div className='flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-full'>
+                    <div className='flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full min-w-0 pb-1'>
                         {categoryTabs.map((tab) => (
                             <button
                                 key={tab.label}

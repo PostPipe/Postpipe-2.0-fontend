@@ -398,7 +398,7 @@ export default function DatabasePage() {
                     <div className="flex flex-col lg:flex-row items-start gap-8">
                         
                         {/* Master Column (Left Sidebar for Connectors) */}
-                        <div className="w-full lg:w-1/3 xl:w-1/4 flex flex-col gap-4 shrink-0 h-[650px]">
+                        <div className="w-full lg:w-1/3 xl:w-1/4 flex flex-col gap-4 shrink-0 h-[400px] lg:h-[650px]">
                             <div className="relative shrink-0">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input 
@@ -446,7 +446,7 @@ export default function DatabasePage() {
                         </div>
 
                         {/* Detail Column (Right Panel for Databases) */}
-                        <div className="flex-1 w-full min-w-0 h-[650px]">
+                        <div className="flex-1 w-full min-w-0 h-[500px] lg:h-[650px]">
                             {!activeConnector ? (
                                 <div className="flex h-full flex-col items-center justify-center py-24 text-center border-2 border-dashed border-border rounded-3xl bg-card">
                                     <Database className="h-12 w-12 text-muted-foreground opacity-30 mb-4" />

@@ -256,7 +256,7 @@ export default function StaticConnectorClient({ liveConnectorsCount = 0 }: { liv
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/80 to-background" />
             </div>
 
-            <div className="relative z-10 flex-1 flex flex-col w-full max-w-7xl mx-auto px-6 py-12 md:py-24 gap-12">
+            <div className="relative z-10 flex-1 flex flex-col w-full max-w-7xl mx-auto px-6 pt-12 pb-28 md:py-24 gap-12">
                 {/* Header */}
                 <div className="space-y-4 max-w-2xl">
                     <div className="inline-flex items-center gap-2 rounded-full border bg-card/50 px-3 py-1 text-xs font-semibold text-muted-foreground backdrop-blur-sm">
@@ -274,9 +274,9 @@ export default function StaticConnectorClient({ liveConnectorsCount = 0 }: { liv
                     </p>
                 </div>
 
-                <div ref={setupRef} className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+                <div ref={setupRef} className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-start w-full min-w-0">
                     {/* Left Col: Wizard */}
-                    <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-8">
+                    <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-8 min-w-0">
                         {/* Steps UI */}
                         {!isDashboardReady && (
                             <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -315,7 +315,7 @@ export default function StaticConnectorClient({ liveConnectorsCount = 0 }: { liv
                         )}
 
                         {/* Wizard Content Card */}
-                        <div className="rounded-2xl border bg-card shadow-sm p-6 sm:p-8 min-h-[400px] flex flex-col justify-center relative">
+                        <div className="rounded-2xl border bg-card shadow-sm p-6 sm:p-8 min-h-[400px] flex flex-col justify-center relative w-full min-w-0">
                             
                             {/* ── Step 1: Generate ── */}
                             {step === 1 && !isDashboardReady && (

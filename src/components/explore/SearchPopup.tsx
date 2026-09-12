@@ -113,24 +113,37 @@ export function SearchPopup({ open, setOpen }: SearchPopupProps) {
 
     const categoryTabs = ['All', ...categories.slice(0, 7)];
 
+    const handleClose = () => {
+        setOpen(false);
+        const searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.has('q')) {
+            searchParams.delete('q');
+            router.push(`/explore?${searchParams.toString()}`);
+        }
+        setQuery('');
+    };
+
     return (
         <>
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className='overflow-hidden p-0 shadow-2xl bg-neutral-950 border-neutral-800 sm:rounded-2xl max-w-4xl h-[85vh] max-h-[85vh] flex flex-col [&>button]:hidden'>
+            <Dialog open={open} onOpenChange={(isOpen) => {
+                if (!isOpen) handleClose();
+                else setOpen(true);
+            }}>
+                <DialogContent className='overflow-hidden p-0 shadow-2xl bg-neutral-950 border-neutral-800 rounded-none sm:rounded-2xl max-w-4xl w-full h-[100dvh] sm:h-[85vh] max-h-[100dvh] sm:max-h-[85vh] flex flex-col [&>button]:hidden'>
                     <DialogTitle className='sr-only'>Search Templates</DialogTitle>
                     <DialogDescription className='sr-only'>
                         Search for backend templates, systems, and categories.
                     </DialogDescription>
 
-                    <div className='bg-transparent text-white h-full w-full flex flex-col min-h-0'>
+                    <div className='bg-transparent text-white h-full w-full flex flex-col min-h-0 relative pb-safe'>
                         {/* Top Header Bar with Close Icon */}
-                        <div className='flex items-center justify-between px-4 py-2.5 border-b border-neutral-800/80 bg-neutral-900/60 shrink-0'>
+                        <div className='order-1 flex items-center justify-between px-4 py-2.5 border-b border-neutral-800/80 bg-neutral-900/60 shrink-0'>
                             <div className='flex items-center gap-2'>
                                 <span className='text-xs font-semibold text-neutral-300 tracking-wide'>Search Templates</span>
                             </div>
                             <button
                                 type='button'
-                                onClick={() => setOpen(false)}
+                                onClick={handleClose}
                                 className='p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors'
                                 title='Close modal'
                             >
@@ -139,12 +152,12 @@ export function SearchPopup({ open, setOpen }: SearchPopupProps) {
                         </div>
 
                         {/* Search Input Bar */}
-                        <div className='flex items-center border-b border-neutral-800/80 px-4 bg-neutral-900/30 shrink-0'>
+                        <div className='order-4 sm:order-2 flex items-center border-t sm:border-t-0 sm:border-b border-neutral-800/80 px-4 bg-neutral-900/90 sm:bg-neutral-900/30 shrink-0 z-10 sticky bottom-0'>
                             <Search className='mr-3 h-5 w-5 shrink-0 text-neutral-400' />
                             <input
                                 autoFocus
-                                placeholder='Search templates by name, category, or tags (e.g. Auth, Ecommerce, CMS)...'
-                                className='flex h-13 w-full bg-transparent py-3 outline-none placeholder:text-neutral-500 text-sm sm:text-base font-normal text-white'
+                                placeholder='Search templates (e.g. Auth)...'
+                                className='flex h-14 w-full bg-transparent py-3 outline-none placeholder:text-neutral-500 text-base font-normal text-white'
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={handleKeyDown}
@@ -162,7 +175,7 @@ export function SearchPopup({ open, setOpen }: SearchPopupProps) {
                         </div>
 
                         {/* Quick Category / Tag Filter Chips */}
-                        <div className='flex items-center gap-1.5 px-4 py-2.5 border-b border-neutral-800/60 overflow-x-auto no-scrollbar bg-neutral-900/20 shrink-0'>
+                        <div className='order-3 flex items-center gap-1.5 px-4 py-2.5 border-t sm:border-t-0 sm:border-b border-neutral-800/60 overflow-x-auto no-scrollbar bg-neutral-900/60 sm:bg-neutral-900/20 shrink-0 z-10'>
                             {categoryTabs.map((cat) => {
                                 const isSelected = selectedCategory.toLowerCase() === cat.toLowerCase();
                                 return (
@@ -171,7 +184,7 @@ export function SearchPopup({ open, setOpen }: SearchPopupProps) {
                                         type='button'
                                         onClick={() => setSelectedCategory(cat)}
                                         className={cn(
-                                            'px-3.5 py-1 rounded-full text-xs font-medium transition-all shrink-0 border',
+                                            'px-3.5 py-1.5 sm:py-1 rounded-full text-xs font-medium transition-all shrink-0 border',
                                             isSelected
                                                 ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                                                 : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:bg-neutral-800 hover:text-neutral-200 hover:border-neutral-700'
@@ -185,17 +198,17 @@ export function SearchPopup({ open, setOpen }: SearchPopupProps) {
 
                         {/* Scrollable Results Grid */}
                         <div
-                            className='flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 pr-3.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-800 hover:[&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full transition-colors'
+                            className='order-2 sm:order-4 flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 pr-3.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-800 hover:[&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full transition-colors flex flex-col-reverse sm:block'
                             style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.18) transparent' }}
                             data-lenis-prevent='true'
                         >
                             {loading ? (
-                                <div className='flex flex-col items-center justify-center py-16 text-neutral-500 gap-2'>
+                                <div className='flex flex-col items-center justify-center py-16 text-neutral-500 gap-2 h-full'>
                                     <div className='h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin' />
                                     <span className='text-xs'>Loading templates...</span>
                                 </div>
                             ) : filteredTemplates.length === 0 ? (
-                                <div className='text-center py-16 text-neutral-500 flex flex-col items-center gap-2'>
+                                <div className='text-center py-16 text-neutral-500 flex flex-col items-center justify-center gap-2 h-full'>
                                     <Search className='h-8 w-8 text-neutral-700' />
                                     <p className='text-sm'>No templates found for &quot;{query || selectedCategory}&quot;.</p>
                                     <p className='text-xs text-neutral-600'>Try searching with a different keyword or category.</p>
@@ -254,7 +267,7 @@ export function SearchPopup({ open, setOpen }: SearchPopupProps) {
                         </div>
 
                         {/* Footer hint pinned at bottom */}
-                        <div className='shrink-0 flex items-center justify-center px-4 py-3 border-t border-neutral-800/80 bg-neutral-900/30 text-[11px] sm:text-xs text-neutral-500'>
+                        <div className='order-5 hidden sm:flex shrink-0 items-center justify-center px-4 py-3 border-t border-neutral-800/80 bg-neutral-900/30 text-[11px] sm:text-xs text-neutral-500'>
                             <span>Click any card to inspect details, copy CLI, or configure DB</span>
                         </div>
                     </div>

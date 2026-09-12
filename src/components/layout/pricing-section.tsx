@@ -383,7 +383,7 @@ export function PricingSection({ hideIfPurchased, isHome }: PricingSectionProps 
                         )}
                     >
                         <Link
-                            href={!user ? "/login?redirect=/pricing" : plan.href}
+                            href={(!mounted || !user) ? "/login?redirect=/pricing" : plan.href}
                             target="_self"
                         >
                             {plan.buttonText} 
