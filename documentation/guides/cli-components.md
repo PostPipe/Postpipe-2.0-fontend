@@ -1,39 +1,41 @@
 ---
 title: CLI Components
-description: Scaffold production-ready systems.
+description: Scaffold production-ready architectural systems.
 ---
 
-The PostPipe CLI helps you generate complex systems instantly.
+# PostPipe CLI Ecosystem
 
-## Usage
+The PostPipe CLI enables rapid generation of complex, production-ready modules directly into your Next.js application.
 
-Run any tool with \`npx\` to scaffold a new project or module.
+## Execution Pattern
 
-\`\`\`bash
+Execute any module via `npx` to scaffold the selected infrastructure into your working directory.
+
+```bash
 npx [component-name]
-\`\`\`
+```
 
-## Available Components
+## Available Modules
 
-### Core
+### Core Infrastructure
 
-- **`create-postpipe-connector`**: The standard DB connector agent.
+- **`create-postpipe-connector`**: Generates the standard Express-based database proxy server.
 
 ### Authentication
 
-- **`create-postpipe-auth`**: Complete Login/Signup system with Database and Email.
+- **`create-postpipe-auth`**: Scaffolds a complete Authentication service, including session management, database schemas, and email integration.
 
-### E-commerce
+### E-commerce Ecosystem
 
-- **`create-postpipe-ecommerce`**: Full shopping platform (Cart, Product, Orders).
-- **`create-postpipe-shop`**: Single-store features.
-- **`create-postpipe-delivery`**: Shipment tracking.
-- **`create-postpipe-payment`**: Payment gateway integration.
+- **`create-postpipe-ecommerce`**: Scaffolds a full e-commerce backend (Carts, Products, Orders).
+- **`create-postpipe-shop`**: Generates single-store frontend logic and state management.
+- **`create-postpipe-delivery`**: Installs shipment tracking schemas and logic.
+- **`create-postpipe-payment`**: Integrates payment gateway adapters.
 
-  ### Features
+### Specialized Features
 
-- **`create-postpipe-appointment`**: Booking system.
-- **`create-postpipe-form`**: Dynamic form builder APIs.
-- **`create-postpipe-profile`**: User profile management.
-- **`create-postpipe-cms`**: Simple Content Management.
-- **`create-postpipe-notify`**: Notification system.
+- **`create-postpipe-appointment`**: Installs a calendar and booking system.
+- **`create-postpipe-form`**: Generates dynamic form validation schemas and submission endpoints.
+- **`create-postpipe-profile`**: Scaffolds user profile and settings management.
+- **`create-postpipe-cms`**: Installs a lightweight Content Management interface.
+- **`create-postpipe-notify`**: Sets up scalable notification architectures.

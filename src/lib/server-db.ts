@@ -188,6 +188,16 @@ export async function registerConnector(url: string | null, name: string = 'My C
     if (existingConnector) return existingConnector;
   }
 
+  // --- Rate Limit Check ---
+  // We lazily import to avoid circular dependencies
+  const { checkConnectorLimit } = await import('./rate-limit');
+  const connectors = await getConnectors(userId);
+  const canCreate = await checkConnectorLimit(userId, connectors.length);
+  if (!canCreate) {
+    throw new Error("PLAN_LIMIT_REACHED: You have reached the maximum number of connectors for your current plan. Please upgrade to create more.");
+  }
+  // ------------------------
+
   const newConnector: Connector = {
     id: `conn_${Math.random().toString(36).substr(2, 9)}`,
     secret: `sk_live_${Math.random().toString(36).substr(2, 16)}${Math.random().toString(36).substr(2, 16)}`,
@@ -404,13 +414,15 @@ export async function getForm(id: string): Promise<Form | undefined> {
   const db = await getDB();
   const res = await db.collection<UserFormsDocument>('user_forms').findOne(
     { forms: { $elemMatch: { id: id, is_deleted: { $ne: true } } } },
-    { projection: { "forms.$": 1 } }
+    { projection: { userId: 1, "forms.$": 1 } }
   );
 
   if (res && res.forms && res.forms.length > 0) {
-    // We need to return the specific form, not the first one if multiple matches (though ID should be unique)
-    // projection "forms.$" returns only the FIRST matching element from the array
-    return res.forms[0];
+    const form = res.forms[0];
+    if (!form.userId) {
+      form.userId = res.userId;
+    }
+    return form;
   }
   return undefined;
 }
@@ -626,6 +638,27 @@ export async function deleteRBACSystem(id: string, userId: string): Promise<void
 // --- Usage Stats ---
 export async function getUserUsageStats(userId: string) {
   const db = await getDB();
+  
+  // 0. Get User Plan Limits
+  let plan = 'starter';
+  let monthlySubmissions = 0;
+  try {
+    const { default: dbConnect } = await import('./auth/mongodb');
+    await dbConnect();
+    const { default: User } = await import('./auth/User');
+    const { ObjectId } = await import('mongodb');
+    const userDoc = await User.collection.findOne({ _id: new ObjectId(userId) });
+    if (userDoc) {
+      plan = (userDoc.plan as string) || 'starter';
+      monthlySubmissions = (userDoc.monthlySubmissions as number) || 0;
+    }
+  } catch (e) {
+    console.error("Failed to fetch User plan limits", e);
+  }
+
+  const { PLAN_LIMITS } = await import('@/config/plans');
+  const limitSubmissions = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS]?.submissions || 1000;
+  const limitConnectors = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS]?.connectors || 2;
 
   // 1. Get Forms & Submissions
   const formsDoc = await db.collection<UserFormsDocument>('user_forms').findOne({ userId });
@@ -639,24 +672,26 @@ export async function getUserUsageStats(userId: string) {
     }
   });
 
+  const activeForms = forms.filter(f => !f.is_deleted).length;
+
   // 2. Get Connectors count
   const connectorsDoc = await db.collection<UserConnectorsDocument>('user_connectors').findOne({ userId });
   const activeConnectors = connectorsDoc?.connectors?.length || 0;
 
-  // 3. Estimate Storage (Mock calculation: ~2KB per submission + overhead)
-  const storageBytes = (totalSubmissions * 2048) + (forms.length * 5120) + 51200;
-
-  // 4. Mock Error Rate & Latency (deterministic-ish or random)
-  // Using random for demo "variance" as requested
+  // 3. Mock Error Rate & Latency (deterministic-ish or random)
   const errorRate = (Math.random() * 0.3).toFixed(2); // 0.00% - 0.30%
   const avgLatency = Math.floor(Math.random() * (80 - 30) + 30); // 30ms - 80ms
 
   return {
+    plan,
+    monthlySubmissions,
+    limitSubmissions,
+    limitConnectors,
     totalRequests: totalSubmissions,
     errorRate: parseFloat(errorRate),
     avgLatency,
-    storageBytes,
-    activeConnectors
+    activeConnectors,
+    activeForms
   };
 }
 

@@ -1098,8 +1098,8 @@ export default function FormsClient(props: FormsClientProps) {
                                                 <Terminal className='h-3 w-3' />{' '}
                                                 ENDPOINT URL
                                             </label>
-                                            <div className='flex items-center gap-2'>
-                                                <div className='flex-1 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black/40 px-3.5 py-2.5 font-mono text-xs text-neutral-600 dark:text-white/70 truncate flex items-center'>
+                                            <div className='flex items-center gap-2 min-w-0'>
+                                                <div className='flex-1 min-w-0 rounded-xl border border-neutral-200 dark:border-white/10 bg-white dark:bg-black/40 px-3.5 py-2.5 font-mono text-xs text-neutral-600 dark:text-white/70 truncate'>
                                                     {endpoint}
                                                 </div>
                                                 <Button
@@ -1218,7 +1218,7 @@ export default function FormsClient(props: FormsClientProps) {
                 onDragEnd={handleDragEnd}
             >
                 {/* ── Main content ── */}
-                <div className='relative z-10 flex flex-col gap-10 pb-16'>
+                <div className='relative z-10 flex flex-col gap-6 md:gap-10 pb-32 md:pb-16'>
                     {/* ══ HEADER ══ */}
                 <div className='relative rounded-xl overflow-hidden mb-2 bg-neutral-100/80 dark:bg-transparent border border-neutral-200 dark:border-white/5'>
                     {/* Animated canvas background */}
@@ -1231,10 +1231,10 @@ export default function FormsClient(props: FormsClientProps) {
                     {/* Soft overlay */}
                     <div className='absolute inset-0 bg-gradient-to-b from-transparent via-neutral-100/20 to-neutral-100/80 dark:from-black/20 dark:via-black/30 dark:to-black/60 pointer-events-none z-10' />
 
-                    <div className='relative z-20 flex flex-col gap-6 px-8 py-8 border-b border-black/10 dark:border-white/5'>
+                    <div className='relative z-20 flex flex-col gap-4 md:gap-6 px-4 py-5 md:px-8 md:py-8 border-b border-black/10 dark:border-white/5'>
                         {/* Top row: pill + button */}
                         <div className='flex items-center justify-between flex-wrap gap-3'>
-                            <div className='flex items-center gap-2 rounded-full border border-black/15 dark:border-white/20 bg-white/60 dark:bg-black/30 backdrop-blur-md px-4 py-1.5 text-xs font-semibold text-neutral-700 dark:text-white/70'>
+                            <div className='flex items-center gap-2 rounded-full border border-black/15 dark:border-white/20 bg-white/60 dark:bg-black/30 backdrop-blur-md px-3 md:px-4 py-1.5 text-[10px] md:text-xs font-semibold text-neutral-700 dark:text-white/70'>
                                 <span className='relative flex h-1.5 w-1.5'>
                                     <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75' />
                                     <span className='relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500' />
@@ -1242,15 +1242,15 @@ export default function FormsClient(props: FormsClientProps) {
                                 Postpipe · Static Endpoints
                             </div>
                             <Link href='/dashboard/forms/new'>
-                                <RainbowButton className='h-10 rounded-lg px-6 text-sm font-semibold'>
-                                    <Plus className='mr-2 h-4 w-4' /> New Endpoint
+                                <RainbowButton className='h-8 md:h-10 rounded-lg px-4 md:px-6 text-xs md:text-sm font-semibold'>
+                                    <Plus className='mr-1.5 h-3.5 w-3.5' /> <span className='hidden sm:inline'>New Endpoint</span><span className='sm:hidden'>New</span>
                                 </RainbowButton>
                             </Link>
                         </div>
 
                         {/* Title */}
                         <div>
-                            <h1 className='text-5xl font-black tracking-tighter leading-none drop-shadow-lg'>
+                            <h1 className='text-3xl md:text-5xl font-black tracking-tighter leading-none drop-shadow-lg'>
                                 <span className='bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-600 dark:from-white dark:via-white/95 dark:to-white/50 bg-clip-text text-transparent'>
                                     Static
                                 </span>{' '}
@@ -1258,7 +1258,7 @@ export default function FormsClient(props: FormsClientProps) {
                                     Forms
                                 </span>
                             </h1>
-                            <p className='mt-3 max-w-md text-sm text-neutral-600 dark:text-white/50 leading-relaxed'>
+                            <p className='mt-2 md:mt-3 max-w-md text-xs md:text-sm text-neutral-600 dark:text-white/50 leading-relaxed'>
                                 Instantly collect data with backendless form
                                 endpoints — routed directly to MongoDB,
                                 Supabase, or any connector.
@@ -1266,7 +1266,7 @@ export default function FormsClient(props: FormsClientProps) {
                         </div>
 
                         {/* Stat pills */}
-                        <div className='flex flex-wrap gap-3'>
+                        <div className='flex overflow-x-auto pb-2 md:flex-wrap md:overflow-visible gap-2 md:gap-3 hide-scrollbar snap-x'>
                             {[
                                 {
                                     label: 'Total',
@@ -1307,20 +1307,20 @@ export default function FormsClient(props: FormsClientProps) {
                             ].map((s) => (
                                 <div
                                     key={s.label}
-                                    className='flex items-center gap-2.5 rounded-lg border border-black/10 dark:border-white/10 bg-white/50 dark:bg-black/30 backdrop-blur-md px-4 py-2.5 hover:bg-white/70 dark:hover:bg-black/40 transition-all'
+                                    className='flex shrink-0 snap-start items-center gap-2.5 rounded-lg border border-black/10 dark:border-white/10 bg-white/50 dark:bg-black/30 backdrop-blur-md px-3 md:px-4 py-2 hover:bg-white/70 dark:hover:bg-black/40 transition-all'
                                 >
                                     <s.icon
-                                        className={cn('h-4 w-4', s.color)}
+                                        className={cn('h-3.5 w-3.5 md:h-4 md:w-4', s.color)}
                                     />
                                     <span
                                         className={cn(
-                                            'text-xl font-bold tabular-nums',
+                                            'text-lg md:text-xl font-bold tabular-nums',
                                             s.color,
                                         )}
                                     >
                                         {s.value}
                                     </span>
-                                    <span className='text-xs font-medium text-neutral-500 dark:text-white/40 uppercase tracking-widest'>
+                                    <span className='text-[10px] md:text-xs font-medium text-neutral-500 dark:text-white/40 uppercase tracking-widest'>
                                         {s.label}
                                     </span>
                                 </div>
@@ -1356,33 +1356,33 @@ export default function FormsClient(props: FormsClientProps) {
 
                             <TabsTrigger
                                 value='endpoints'
-                                className='relative flex-1 rounded-lg text-xs font-semibold text-muted-foreground data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-8 transition-colors select-none z-10'
+                                className='relative flex-1 rounded-lg text-[10px] md:text-xs font-semibold text-muted-foreground data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 md:px-4 h-8 transition-colors select-none z-10 whitespace-nowrap'
                             >
                                 <span className='flex items-center justify-center'>
-                                    <Globe className='mr-2 h-3.5 w-3.5' /> Endpoints
+                                    <Globe className='hidden sm:inline-block mr-2 h-3.5 w-3.5' /> Endpoints
                                 </span>
                             </TabsTrigger>
                             <TabsTrigger
                                 value='presets'
-                                className='relative flex-1 rounded-lg text-xs font-semibold text-muted-foreground data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-8 transition-colors select-none z-10'
+                                className='relative flex-1 rounded-lg text-[10px] md:text-xs font-semibold text-muted-foreground data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 md:px-4 h-8 transition-colors select-none z-10 whitespace-nowrap'
                             >
                                 <span className='flex items-center justify-center'>
-                                    <Shield className='mr-2 h-3.5 w-3.5' /> Auth Presets
+                                    <Shield className='hidden sm:inline-block mr-2 h-3.5 w-3.5' /> <span className='sm:hidden'>Auth</span><span className='hidden sm:inline'>Auth Presets</span>
                                 </span>
                             </TabsTrigger>
                             <TabsTrigger
                                 value='RBAC'
-                                className='relative flex-1 rounded-lg text-xs font-semibold text-muted-foreground data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 h-8 transition-colors select-none z-10'
+                                className='relative flex-1 rounded-lg text-[10px] md:text-xs font-semibold text-muted-foreground data-[state=active]:text-neutral-900 dark:data-[state=active]:text-white data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 md:px-4 h-8 transition-colors select-none z-10 whitespace-nowrap'
                             >
                                 <span className='flex items-center justify-center'>
-                                    <ShieldAlert className='mr-2 h-3.5 w-3.5' /> RBAC Systems
+                                    <ShieldAlert className='hidden sm:inline-block mr-2 h-3.5 w-3.5' /> <span className='sm:hidden'>RBAC</span><span className='hidden sm:inline'>RBAC Systems</span>
                                 </span>
                             </TabsTrigger>
                         </TabsList>
                     </div>
 
                     {/* ── Endpoints tab ── */}
-                    <TabsContent value='endpoints' className='space-y-5 mt-0'>
+                    <TabsContent value='endpoints' className='space-y-4 md:space-y-5 mt-0'>
                         {/* Search + Filters */}
                         <div className='flex flex-col sm:flex-row items-center gap-3'>
                             <FormSearchBar
@@ -1390,13 +1390,13 @@ export default function FormsClient(props: FormsClientProps) {
                                 suggestions={forms.map((f) => f.name)}
                                 placeholder='Search by name or endpoint ID…'
                             />
-                            <div className='flex gap-2 shrink-0'>
+                            <div className='flex gap-2 w-full sm:w-auto shrink-0 overflow-x-auto pb-2 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar snap-x'>
                                 <Select
                                     value={connectorFilter}
                                     onValueChange={setConnectorFilter}
                                 >
-                                    <SelectTrigger className='h-10 rounded-lg bg-muted border-border text-xs text-muted-foreground w-[150px] focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-700 hover:bg-accent hover:text-foreground transition-colors'>
-                                        <Power className='mr-2 h-3.5 w-3.5' />
+                                    <SelectTrigger className='h-9 md:h-10 shrink-0 snap-start rounded-lg bg-muted border-border text-xs text-muted-foreground w-[140px] md:w-[150px] focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-700 hover:bg-accent hover:text-foreground transition-colors'>
+                                        <Power className='mr-1.5 h-3.5 w-3.5' />
                                         <SelectValue placeholder='All Connectors' />
                                     </SelectTrigger>
                                     <SelectContent className='rounded-lg border-border bg-popover backdrop-blur-xl'>
@@ -1417,8 +1417,8 @@ export default function FormsClient(props: FormsClientProps) {
                                     value={dbFilter}
                                     onValueChange={setDbFilter}
                                 >
-                                    <SelectTrigger className='h-10 rounded-lg bg-muted border-border text-xs text-muted-foreground w-[150px] focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-700 hover:bg-accent hover:text-foreground transition-colors'>
-                                        <Database className='mr-2 h-3.5 w-3.5' />
+                                    <SelectTrigger className='h-9 md:h-10 shrink-0 snap-start rounded-lg bg-muted border-border text-xs text-muted-foreground w-[140px] md:w-[150px] focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-700 hover:bg-accent hover:text-foreground transition-colors'>
+                                        <Database className='mr-1.5 h-3.5 w-3.5' />
                                         <SelectValue placeholder='All Databases' />
                                     </SelectTrigger>
                                     <SelectContent className='rounded-lg border-border bg-popover backdrop-blur-xl'>
@@ -1436,8 +1436,8 @@ export default function FormsClient(props: FormsClientProps) {
                                     value={statusFilter}
                                     onValueChange={setStatusFilter}
                                 >
-                                    <SelectTrigger className='h-10 rounded-lg bg-muted border-border text-xs text-muted-foreground w-[120px] focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-700 hover:bg-accent hover:text-foreground transition-colors'>
-                                        <Filter className='mr-2 h-3.5 w-3.5' />
+                                    <SelectTrigger className='h-9 md:h-10 shrink-0 snap-start rounded-lg bg-muted border-border text-xs text-muted-foreground w-[110px] md:w-[120px] focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-700 hover:bg-accent hover:text-foreground transition-colors'>
+                                        <Filter className='mr-1.5 h-3.5 w-3.5' />
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className='rounded-lg border-border bg-popover backdrop-blur-xl'>
@@ -1456,8 +1456,8 @@ export default function FormsClient(props: FormsClientProps) {
                                     value={sortBy}
                                     onValueChange={setSortBy}
                                 >
-                                    <SelectTrigger className='h-10 rounded-lg bg-muted border-border text-xs text-muted-foreground w-[140px] focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-700 hover:bg-accent hover:text-foreground transition-colors'>
-                                        <ArrowUpDown className='mr-2 h-3.5 w-3.5' />
+                                    <SelectTrigger className='h-9 md:h-10 shrink-0 snap-start rounded-lg bg-muted border-border text-xs text-muted-foreground w-[130px] md:w-[140px] focus:ring-1 focus:ring-neutral-400 dark:focus:ring-neutral-700 hover:bg-accent hover:text-foreground transition-colors'>
+                                        <ArrowUpDown className='mr-1.5 h-3.5 w-3.5' />
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className='rounded-lg border-border bg-popover backdrop-blur-xl'>
@@ -1475,7 +1475,7 @@ export default function FormsClient(props: FormsClientProps) {
                                     }
                                     size='sm'
                                     className={cn(
-                                        'h-10 rounded-lg px-4 text-xs font-semibold transition-all',
+                                        'h-9 md:h-10 shrink-0 snap-start rounded-lg px-3 md:px-4 text-xs font-semibold transition-all',
                                         isSelectionMode
                                             ? 'bg-violet-600 text-white hover:bg-violet-500'
                                             : 'bg-muted border-border text-muted-foreground hover:bg-accent',
@@ -1495,13 +1495,13 @@ export default function FormsClient(props: FormsClientProps) {
                                     <Button
                                         variant='outline'
                                         size='sm'
-                                        className='h-10 rounded-lg px-4 text-xs font-semibold transition-all bg-muted border-border text-muted-foreground hover:bg-accent ml-2'
+                                        className='h-9 md:h-10 shrink-0 snap-start rounded-lg px-3 md:px-4 text-xs font-semibold transition-all bg-muted border-border text-muted-foreground hover:bg-accent'
                                         onClick={() => {
                                             setIsSelectionMode(true);
                                             setSelectedFormIds(new Set());
                                         }}
                                     >
-                                        <Trash2 className='mr-2 h-3.5 w-3.5' />
+                                        <Trash2 className='mr-1.5 h-3.5 w-3.5' />
                                         Bulk Delete
                                     </Button>
                                 )}
@@ -1510,7 +1510,7 @@ export default function FormsClient(props: FormsClientProps) {
                                         <>
                                             <Button
                                                 size='sm'
-                                                className='h-10 rounded-lg px-4 text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 transition-all animate-in fade-in slide-in-from-left-2'
+                                                className='h-9 md:h-10 shrink-0 snap-start rounded-lg px-3 md:px-4 text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 transition-all animate-in fade-in slide-in-from-left-2'
                                                 onClick={() =>
                                                     setIsGroupDialogOpen(true)
                                                 }
@@ -1520,12 +1520,24 @@ export default function FormsClient(props: FormsClientProps) {
                                             </Button>
                                             <Button
                                                 size='sm'
-                                                className='h-10 rounded-lg px-4 text-xs font-bold bg-red-600 text-white hover:bg-red-500 shadow-lg shadow-red-500/20 transition-all animate-in fade-in slide-in-from-left-2 ml-2'
-                                                onClick={() => setIsBulkDeleteDialogOpen(true)}
+                                                variant='destructive'
+                                                className='h-9 md:h-10 shrink-0 snap-start rounded-lg px-3 md:px-4 text-xs font-bold transition-all animate-in fade-in slide-in-from-left-2'
+                                                onClick={() =>
+                                                    setIsBulkDeleteDialogOpen(true)
+                                                }
                                             >
-                                                <Trash2 className='mr-2 h-3.5 w-3.5' />
-                                                Delete (
+                                                Delete Selected (
                                                 {selectedFormIds.size})
+                                            </Button>
+                                            <Button
+                                                size='sm'
+                                                variant='outline'
+                                                className='h-9 md:h-10 shrink-0 snap-start rounded-lg px-3 md:px-4 text-xs font-bold bg-muted border-border text-muted-foreground hover:bg-accent transition-all animate-in fade-in slide-in-from-left-2'
+                                                onClick={
+                                                    handleBulkRemoveFromGroup
+                                                }
+                                            >
+                                                Remove from Group
                                             </Button>
                                         </>
                                     )}
@@ -1868,7 +1880,7 @@ export default function FormsClient(props: FormsClientProps) {
                                 )}
                             </div>
                         ) : (
-                            <div className='rounded-lg border border-neutral-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] p-6 backdrop-blur-xl animate-in zoom-in-95 duration-200'>
+                            <div className='sm:rounded-lg sm:border sm:border-neutral-200 sm:dark:border-white/[0.08] sm:bg-white sm:dark:bg-white/[0.03] sm:p-6 animate-in zoom-in-95 duration-200'>
                                 <div className='flex items-center justify-between mb-6 border-b border-neutral-200 dark:border-white/[0.08] pb-4'>
                                     <div>
                                         <h2 className='text-base font-bold text-neutral-800 dark:text-white/80'>

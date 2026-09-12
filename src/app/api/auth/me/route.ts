@@ -35,10 +35,20 @@ export async function GET(req: NextRequest) {
         }
 
         await dbConnect();
-        const user = await User.findById(userId).select('-password -__v -forgotPasswordToken -verifyToken -resetTokenHash');
+        const { ObjectId } = await import('mongodb');
+        const user = await User.collection.findOne({ _id: new ObjectId(userId) });
 
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        // Explicitly backfill 'plan' field if missing so it shows up in database queries
+        if (!user.plan) {
+            await User.collection.updateOne(
+                { _id: new ObjectId(userId) },
+                { $set: { plan: 'starter' } }
+            );
+            user.plan = 'starter';
         }
 
         // Determine provider (simplified logic based on standard schema)
@@ -51,7 +61,13 @@ export async function GET(req: NextRequest) {
             name: user.name,
             email: user.email,
             provider: provider,
-            image: user.image
+            image: user.image,
+            plan: user.plan || 'starter',
+            monthlySubmissions: user.monthlySubmissions || 0,
+            usageResetDate: user.usageResetDate,
+            hasActiveSubscription: !!user.razorpaySubscriptionId,
+            cancelAtPeriodEnd: !!user.cancelAtPeriodEnd,
+            currentPeriodEnd: user.currentPeriodEnd
         }, { status: 200 });
 
     } catch (error) {

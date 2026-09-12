@@ -29,9 +29,9 @@ export function HeroParticles() {
       <div className="z-10 flex flex-col items-center text-center gap-6 px-4">
         <MagneticText text="PostPipe" hoverText="Pro!" className="font-body text-6xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black" />
         <div className="flex flex-col sm:flex-row text-lg text-muted-foreground max-w-3xl items-center justify-center gap-1 sm:gap-2">
-          <span>The largest Next.js backend component</span>
+          <span>The ultimate Static Form Submission & Ingest</span>
           <WordRotate
-            words={["library", "Scaffold", "CLIs", "loader", "boilerplate"]}
+            words={["Architecture", "Pipelines", "Forms", "Database", "Security"]}
             className="text-lg text-foreground dark:text-white"
           />
         </div>
@@ -53,7 +53,7 @@ export function HeroParticles() {
       </div>
       <Particles
         className="absolute inset-0 -z-10"
-        quantity={280}
+        quantity={50}
         size={0.8}
         staticity={30}
         ease={50}

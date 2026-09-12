@@ -1,57 +1,35 @@
-"use client";
+import { useEffect } from 'react';
+import Lenis from 'lenis';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-import { useEffect } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 export function useSmoothScroll() {
   useEffect(() => {
-    const body = document.body;
-    const wrapper = document.querySelector("#smooth-wrapper");
-
-    if (!wrapper) return;
-
-    let height: number;
-    const setHeight = () => {
-      height = wrapper.clientHeight;
-      body.style.height = `${height}px`;
-    };
-
-    ScrollTrigger.addEventListener("refreshInit", setHeight);
-
-    gsap.set(wrapper, {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100%',
+    const lenis = new Lenis({
+      lerp: 0.08,
+      smoothWheel: true,
     });
 
-    const scrollTween = gsap.to(wrapper, {
-      y: () => -(wrapper.clientHeight - window.innerHeight),
-      ease: 'none',
-      scrollTrigger: {
-        trigger: body,
-        start: 'top top',
-        end: 'bottom bottom',
-        scrub: 0.5,
-        invalidateOnRefresh: true,
-      },
-    });
+    (window as any).__lenis = lenis;
 
-    const resizeObserver = new ResizeObserver(() => {
-      ScrollTrigger.refresh();
-    });
-    resizeObserver.observe(wrapper);
+    lenis.on('scroll', ScrollTrigger.update);
 
-    // Cleanup function
+    function update(time: number) {
+      lenis.raf(time * 1000);
+    }
+
+    gsap.ticker.add(update);
+    gsap.ticker.lagSmoothing(0);
+
     return () => {
-      ScrollTrigger.removeEventListener("refreshInit", setHeight);
-      resizeObserver.disconnect();
-      scrollTween.kill();
-      gsap.killTweensOf(wrapper);
-      body.style.height = ''; 
+      delete (window as any).__lenis;
+      gsap.ticker.remove(update);
+      lenis.off('scroll', ScrollTrigger.update);
+      lenis.destroy();
     };
   }, []);
 }

@@ -20,7 +20,10 @@ export async function registerConnectorAction(formData: FormData) {
       connectorId: connector.id,
       connectorSecret: connector.secret
     };
-  } catch (e) {
+  } catch (e: any) {
+    if (e.message && e.message.includes('PLAN_LIMIT_REACHED')) {
+      return { error: e.message.replace('PLAN_LIMIT_REACHED: ', '') };
+    }
     return { error: 'Failed to register connector' };
   }
 }

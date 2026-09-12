@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'PostPipe',
     short_name: 'PostPipe',
-    description: 'The Ultimate Next.js Backend Component Library',
+    description: 'Default Backend for Modern Web',
     start_url: '/',
     display: 'standalone',
     background_color: '#000000',

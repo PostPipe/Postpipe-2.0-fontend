@@ -1,56 +1,56 @@
 ---
 title: Choosing Your Path
-description: Learn which PostPipe integration is right for your project.
+description: Determine the appropriate PostPipe integration model for your architecture.
 ---
 
-# 🧭 Choosing Your Path
+# Choosing Your Integration Path
 
-PostPipe offers two primary ways to integrate backend logic into your projects. Choosing the right one depends on your current setup and goals.
+PostPipe provides two distinct integration models depending on your existing infrastructure and project lifecycle stage.
 
-## 📊 Comparison Table
+## Feature Comparison
 
-| Feature | **Static (Connector)** | **Dynamic (CLI)** |
+| Capability | **Static (Connector)** | **Dynamic (CLI)** |
 | :--- | :--- | :--- |
-| **Best For** | Existing apps, static sites | New projects, Next.js apps |
-| **Setup Time** | 5-10 minutes | 2 minutes (Scaffolding) |
-| **Control** | High (Your own DB/Server) | Full (Generated Code) |
-| **Infrastructure** | Your Server + DB | Ready-to-use Modules |
-| **Customization** | Via the Connector code | Direct code editing |
-| **Pricing** | Free (Self-hosted bridge) | Free (Standard Modules) |
+| **Target Use Case** | Existing applications, static sites | New applications, Next.js projects |
+| **Setup Duration** | ~5-10 minutes | ~2 minutes (Scaffold generation) |
+| **Infrastructure Control**| High (Self-hosted bridge and database) | Full (Complete code ownership) |
+| **Core Delivery** | Express-based proxy middleware | Pre-configured application modules |
+| **Customization Method**| Editing the local Connector configuration | Direct source code modification |
+| **Cost** | Free (Open-source connector) | Free (Open-source modules) |
 
 ---
 
-## 🔌 Static: The Connector
+## Model 1: Static Connector
 
-Use this if you already have a database and a frontend, but you want to securely ingest data (like form submissions) without writing complex API routes or handling SMTP yourself.
+The Static Connector is intended for teams that already operate a database and frontend but require secure data ingestion (e.g., form handling, event tracking) without deploying custom API endpoints or managing integrations like SMTP.
 
-**The Workflow:**
-1.  Deploy the **PostPipe Connector** (a small Express bridge).
-2.  Configure your DB credentials in the Connector's environment.
-3.  Link the Connector URL in your PostPipe Dashboard.
-4.  Embed a simple script or use our Fetch API.
+**Integration Workflow:**
+1. Deploy the **PostPipe Connector** (a lightweight Node.js/Express service) to your infrastructure.
+2. Provide your database connection URI via environment variables on the Connector.
+3. Register the Connector's public URL within the PostPipe Dashboard.
+4. Transmit data via standard HTTP requests or the PostPipe Fetch API.
 
-[Read Static Setup Guide](/docs/guides/static-connector)
-
----
-
-## 🚀 Dynamic: CLI Components
-
-Use this if you are starting a new Next.js project and want to "borrow" professional-grade backend logic for Auth, Payments, or Databases.
-
-**The Workflow:**
-1.  Run `npx create-postpipe-app@latest` in your terminal.
-2.  Choose the components you need (e.g., Auth, Dashboard).
-3.  The CLI scaffolds a complete, ready-to-use Next.js application.
-4.  Deploy to Vercel/Netlify instantly.
-
-[Read CLI Components Guide](/docs/guides/cli-components)
+[Review the Static Connector Documentation](/docs/guides/static-connector)
 
 ---
 
-## 🤔 Still Unsure?
+## Model 2: Dynamic CLI Components
 
-If you want to **keep your existing server**, go with the **Static Connector**. 
-If you want to **build something brand new** with the best practices already baked in, go with the **CLI**.
+The Dynamic CLI is designed for bootstrapping new Next.js projects with robust, pre-configured backend architecture, such as authentication flows, dashboard layouts, and database schemas.
 
-[Back to Introduction](/docs/introduction)
+**Integration Workflow:**
+1. Execute `npx create-postpipe-app@latest` in your development environment.
+2. Select the necessary architectural components during the prompt.
+3. The CLI generates a fully configured Next.js repository.
+4. Deploy the generated application to your hosting provider (e.g., Vercel, AWS).
+
+[Review the CLI Components Documentation](/docs/guides/cli-components)
+
+---
+
+## Decision Matrix
+
+- If your goal is to **bridge existing infrastructure** to PostPipe services, select the **Static Connector**.
+- If your goal is to **bootstrap a new architecture** with standardized patterns, select the **Dynamic CLI**.
+
+[Return to Introduction](/docs/introduction)

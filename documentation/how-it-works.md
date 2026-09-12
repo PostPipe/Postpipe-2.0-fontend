@@ -1,81 +1,80 @@
 ---
 title: How It Works
-description: Under the hood of PostPipe's Hybrid Architecture.
+description: Technical overview of the PostPipe Hybrid Architecture.
 ---
 
-> [!NOTE] > **Developer Deep Dive**  
-> This page explains the technical philosophy behind PostPipe's "Static" and "Dynamic" components.
+> [!NOTE]
+> **Developer Reference**  
+> This document explains the architecture behind PostPipe's Static and Dynamic integration paths.
 
 ## The Hybrid Model
 
-PostPipe is not just a UI library or a backend-as-a-service. It is a **Hybrid Development Platform** that bridges the gap between:
+PostPipe is a Hybrid Development Platform that connects:
 
-1.  **Static Data Sources** (Your existing databases)
-2.  **Dynamic Applications** (New Full-stack apps you build)
+1. **Static Data Sources**: Existing databases (MongoDB or PostgreSQL).
+2. **Dynamic Applications**: Custom full-stack applications built from scratch.
 
 ---
 
-## Part 1: The Static Connector (The "Tunnel")
+## Part 1: Static Connector (Secure Proxy)
 
-The **Static Connector** is for developers who _already have a database_ and just want a way to interact with it securely from a modern frontend or dashboard, without building a custom API.
+The Static Connector provides a secure bridge to your existing database, allowing interaction with modern frontends without custom API development.
 
-### How it works visually
+### Request Flow
 
 ```mermaid
 graph LR
-    A[PostPipe Dashboard] -- Encrypted Request --> B(Your Connector)
-    B -- Query --> C[(Your MongoDB)]
+    A[PostPipe Platform] -- Signed Request --> B(Your Connector)
+    B -- Query --> C[(Your Database)]
     C -- Data --> B
     B -- JSON Response --> A
 ```
 
-### The Technical Flow
+### Core Mechanisms
 
-1.  **No Direct Access**: PostPipe servers **never** touch your database directly. We don't want your IP whitelisting.
-2.  **The Connector**: You run a lightweight Node.js server (the "Connector") on your own infrastructure (Vercel, Railway, EC2).
-3.  **The Tunnel**: This connector listens for cryptographically signed requests from PostPipe, executes the query on _your_ local network/VPC, and returns the result.
-4.  **Security**: Every request is verified using SHA-256 HMAC signatures (`X-PostPipe-Signature`).
-5.  **Smart Resolution**: The connector automatically detects if a request is for **MongoDB** or **PostgreSQL** based on the form configuration or naming conventions.
-6.  **Cross-Database Routing**: Using target database IDs (e.g., `marketing`), the connector can route data to different physical databases by mapping to environment variable suffixes (e.g., `MONGODB_URI_MARKETING`).
+1. **Indirect Access**: PostPipe infrastructure never directly accesses your database, eliminating the need for IP whitelisting.
+2. **Connector Deployment**: A lightweight Node.js service (the Connector) runs within your own infrastructure (e.g., Vercel, AWS, Railway).
+3. **Secure Tunneling**: The Connector listens for cryptographically signed requests from PostPipe and executes queries locally within your VPC.
+4. **Authentication**: All incoming requests are validated using SHA-256 HMAC signatures (`X-PostPipe-Signature`).
+5. **Adapter Resolution**: The Connector automatically determines the database type (MongoDB or PostgreSQL) based on configuration parameters.
+6. **Dynamic Routing**: Requests are routed to specific databases by mapping target IDs to corresponding environment variables (e.g., `MONGODB_URI_MARKETING`).
 
-**Why use this?**
-
-- Zero Vendor Lock-in (It's just your DB).
-- Data Sovereignty (Data never leaves your control except to be displayed).
-- "Instant API" for legacy databases.
+**Advantages**:
+- Zero Vendor Lock-in.
+- Strict data sovereignty.
+- Immediate API access to legacy schemas.
 
 ---
 
-## Part 2: The Dynamic CLI (The "Factory")
+## Part 2: Dynamic CLI (Scaffolding Engine)
 
-The **Dynamic Ecosystem** is for building _new_ applications from scratch. Instead of piecing together Auth, ORM, and CSS frameworks, you use our CLI.
+The Dynamic Ecosystem accelerates the development of new applications by scaffolding complete, production-ready Next.js backends.
 
-### The Command
+### Command Initialization
 
 ```bash
-npx create-postpipe-app my-startup
+npx create-postpipe-app my-project
 ```
 
-### What happens under the hood?
+### Internal Process
 
-1.  **Scaffolding**: The CLI pulls a "Golden Template" based on your choices (Next.js, Tailwind, MongoDB/Postgres).
-2.  **Pre-Configuration**: It pre-configures Authentication (Auth.js), Database Connections, and API Routes.
-3.  **Components**: It installs the core "Dynamic Components" (e.g., `<UserProfile />`, `<PaymentForm />`) that are _ready to use_.
+1. **Scaffolding**: The CLI generates a repository based on selected parameters (Next.js, Tailwind, Database Engine).
+2. **Pre-Configuration**: Authentication (Auth.js), database connections, and API routes are automatically configured.
+3. **Component Injection**: Core Dynamic Components (e.g., authentication, forms) are installed and ready for integration.
 
-**Why use this?**
-
-- **Speed**: Save 2-3 weeks of setup time.
-- **Consistency**: All your projects share a robust, proven architecture.
-- **Ownership**: You own the code. It's not a "No-Code" tool that traps you; it's a "Pro-Code" tool that starts you at 80% completion.
+**Advantages**:
+- **Speed**: Reduces initial setup overhead.
+- **Consistency**: Standardizes architecture across projects.
+- **Ownership**: You retain full control of the generated source code.
 
 ---
 
-## Summary
+## Summary Comparison
 
-| Feature        | Static Connector          | Dynamic CLI           |
-| :------------- | :------------------------ | :-------------------- |
-| **Best For**   | Existing Databases        | New Projects          |
-| **Deployment** | You deploy a small server | You deploy a full app |
-| **Data Flow**  | Tunneling (Proxy)         | Direct App-to-DB      |
-| **DB Support** | Mongo / Postgres / Neon   | Framework-dependent   |
-| **Philosophy** | "Connect to what exists"  | "Build what's next"   |
+| Feature | Static Connector | Dynamic CLI |
+| :--- | :--- | :--- |
+| **Primary Use Case** | Existing Databases | New Projects |
+| **Deployment Model** | Middleware Server | Full Application |
+| **Data Flow** | Proxy Tunneling | Direct Application-to-Database |
+| **Database Support** | MongoDB / PostgreSQL | Framework-dependent |
+| **Design Philosophy** | Integration | Generation |

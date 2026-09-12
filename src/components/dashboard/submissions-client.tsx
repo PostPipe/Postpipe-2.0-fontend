@@ -305,92 +305,94 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
     const extraKeysArray = Array.from(extraKeys);
 
     return (
-        <div className="flex flex-col gap-8 max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
-            <div className="flex items-center gap-4">
-                <Link href="/dashboard/forms">
-                    <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
-                </Link>
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Form Submissions</h1>
-                    <p className="text-muted-foreground text-sm">Viewing data for <span className="font-semibold">{formName}</span> ({id})</p>
+        <div className="flex flex-col gap-8 max-w-6xl mx-auto p-4 pb-24 sm:p-6 lg:p-8 lg:pb-8 w-full min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4 min-w-0">
+                    <Link href="/dashboard/forms" className="shrink-0">
+                        <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+                    </Link>
+                    <div className="min-w-0">
+                        <h1 className="text-2xl font-bold tracking-tight truncate">Form Submissions</h1>
+                        <p className="text-muted-foreground text-sm truncate">Viewing data for <span className="font-semibold">{formName}</span> ({id})</p>
+                    </div>
                 </div>
-                <div className="ml-auto flex gap-2">
-                    <Button variant="outline" onClick={fetchSubmissions} disabled={loading}>
+                <div className="flex gap-2 shrink-0 self-start sm:self-auto">
+                    <Button variant="outline" onClick={fetchSubmissions} disabled={loading} className="bg-transparent border-white/10">
                         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh
                     </Button>
                 </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card>
+            <div className="grid gap-6 sm:grid-cols-2 w-full min-w-0">
+                <Card className="min-w-0">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                            <LinkIcon className="h-4 w-4 text-muted-foreground shrink-0" />
                             GET Endpoint
                         </CardTitle>
                         <CardDescription>Retrieve submissions via API</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center gap-2">
-                            <Input value={endpoint} readOnly className="font-mono text-xs" />
-                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(endpoint, "Endpoint")}>
+                            <Input value={endpoint} readOnly className="font-mono text-xs min-w-0" />
+                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(endpoint, "Endpoint")} className="shrink-0">
                                 <Copy className="h-4 w-4" />
                             </Button>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="min-w-0">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <Key className="h-4 w-4 text-muted-foreground" />
+                            <Key className="h-4 w-4 text-muted-foreground shrink-0" />
                             API Token
                         </CardTitle>
                         <CardDescription>Bearer token for authentication</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center gap-2">
-                            <Input value={token} readOnly className="font-mono text-xs" type="password" />
-                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(token, "Token")}>
+                            <Input value={token} readOnly className="font-mono text-xs min-w-0" type="password" />
+                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(token, "Token")} className="shrink-0">
                                 <Copy className="h-4 w-4" />
                             </Button>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="min-w-0">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <RefreshCw className="h-4 w-4 text-violet-400" />
+                            <RefreshCw className="h-4 w-4 text-violet-400 shrink-0" />
                             Update Record (PATCH)
                         </CardTitle>
                         <CardDescription>Overwrites specific fields in a submission</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="flex items-center gap-2">
-                            <Input value={endpoint} readOnly className="font-mono text-xs" />
-                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(endpoint, "Endpoint")}>
+                            <Input value={endpoint} readOnly className="font-mono text-xs min-w-0" />
+                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(endpoint, "Endpoint")} className="shrink-0">
                                 <Copy className="h-4 w-4" />
                             </Button>
                         </div>
-                        <div className="bg-black/40 p-2 rounded border border-white/5 font-mono text-[10px] text-violet-300/70">
+                        <div className="bg-black/40 p-2 rounded border border-white/5 font-mono text-[10px] text-violet-300/70 overflow-x-auto whitespace-nowrap min-w-0">
                             {"{ \"submissionId\": \"id\", \"patch\": { \"field\": \"value\" } }"}
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="min-w-0">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
-                            <Trash2 className="h-4 w-4 text-red-400" />
+                            <Trash2 className="h-4 w-4 text-red-400 shrink-0" />
                             Delete Record (DELETE)
                         </CardTitle>
                         <CardDescription>Soft or hard delete a submission</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="flex items-center gap-2">
-                            <Input value={`${endpoint}?submissionId=...&hard=true`} readOnly className="font-mono text-xs" />
-                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(`${endpoint}?submissionId=...`, "Delete Endpoint")}>
+                            <Input value={`${endpoint}?submissionId=...&hard=true`} readOnly className="font-mono text-xs min-w-0" />
+                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(`${endpoint}?submissionId=...`, "Delete Endpoint")} className="shrink-0">
                                 <Copy className="h-4 w-4" />
                             </Button>
                         </div>
@@ -399,21 +401,21 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                 </Card>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-4 items-center bg-white/[0.03] p-4 rounded-xl border border-white/5">
-                <div className="flex flex-col gap-1.5 flex-1 w-full">
+            <div className="flex flex-col md:flex-row gap-4 items-center bg-white/[0.03] p-4 rounded-xl border border-white/5 w-full min-w-0">
+                <div className="flex flex-col gap-1.5 flex-1 w-full min-w-0">
                     <div className="h-[15px]" /> {/* Phantom spacer to align with Date Range label */}
-                    <div className="relative flex-1 w-full">
+                    <div className="relative flex-1 w-full min-w-0">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
                             placeholder="Search by ID or keys..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 h-10 bg-black/20 border-white/10"
+                            className="pl-9 h-10 bg-black/20 border-white/10 w-full min-w-0"
                         />
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-4 w-full md:w-auto">
+                <div className="flex items-center gap-4 w-full md:w-auto shrink-0">
                     <div className="flex flex-col gap-1.5 min-w-[140px]">
                         <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground pl-1">Date Range</label>
                         <Select value={dateFilter} onValueChange={setDateFilter}>
@@ -440,7 +442,7 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
             </div>
 
             {!fetchError && (
-                <Alert variant="default" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                <Alert variant="default" className="bg-blue-500/10 text-blue-600 border-blue-500/20 w-full min-w-0">
                     <Database className="h-4 w-4" />
                     <AlertTitle>Data Source Info</AlertTitle>
                     <AlertDescription>
@@ -449,8 +451,8 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                 </Alert>
             )}
 
-            <div className="rounded-md border">
-                <Table>
+            <div className="rounded-md border overflow-x-auto w-full min-w-0">
+                <Table className="min-w-[800px] w-full">
                     <TableHeader>
                         <TableRow className="border-white/5">
                             <TableHead className="w-[180px] text-xs font-semibold tracking-wider text-neutral-400">Submission ID</TableHead>
@@ -479,11 +481,11 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                                 </TableCell>
                             </TableRow>
                         ) : submissions.map((sub: any) => (
-                            <TableRow key={sub.submissionId || sub.id} className="border-white/5 hover:bg-white/[0.02]">
+                            <TableRow key={sub._id || sub.submissionId || sub.id} className="border-white/5 hover:bg-white/[0.02]">
                                 <TableCell className="w-[180px] align-top">
                                     <div className="flex flex-col gap-1 mt-1">
                                         <div className="font-mono text-xs text-muted-foreground break-all">
-                                            {sub.submissionId || sub.id}
+                                            {sub._id || sub.submissionId || sub.id}
                                         </div>
                                         {sub._dbType && (
                                             <div className="mt-1">
@@ -529,7 +531,7 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                                     
                                     return (
                                         <TableCell key={col.id || col.label || idx} className="align-top py-4">
-                                            {renderCell(col, val, sub.submissionId || sub.id)}
+                                            {renderCell(col, val, sub._id || sub.submissionId || sub.id)}
                                         </TableCell>
                                     );
                                 })}
@@ -553,14 +555,14 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                                 )}
                                 <TableCell className="text-right align-top py-4">
                                     <div className="flex justify-end gap-1">
-                                        {editingId === (sub.submissionId || sub.id) ? (
+                                        {editingId === (sub._id || sub.submissionId || sub.id) ? (
                                             <>
                                                 <Button 
                                                     size="icon" 
                                                     variant="ghost" 
                                                     className="h-7 w-7 text-green-500 hover:text-green-400 hover:bg-green-500/10"
-                                                    onClick={() => handleUpdate(sub.submissionId || sub.id)}
-                                                    disabled={actionLoading === (sub.submissionId || sub.id)}
+                                                    onClick={() => handleUpdate(sub._id || sub.submissionId || sub.id)}
+                                                    disabled={actionLoading === (sub._id || sub.submissionId || sub.id)}
                                                 >
                                                     <Check className="h-4 w-4" />
                                                 </Button>
@@ -580,7 +582,7 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                                                     variant="ghost" 
                                                     className="h-7 w-7 text-indigo-400/70 hover:text-indigo-300 hover:bg-indigo-500/10"
                                                     onClick={() => {
-                                                        setEditingId(sub.submissionId || sub.id);
+                                                        setEditingId(sub._id || sub.submissionId || sub.id);
                                                         // Initialize editData with all fields from schema mapped to current values
                                                         const initialEditData: Record<string, any> = {};
                                                         const subData = sub.data || sub || {};
@@ -610,7 +612,7 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                                                     size="icon" 
                                                     variant="ghost" 
                                                     className="h-7 w-7 text-red-400/50 hover:text-red-300 hover:bg-red-500/15"
-                                                    onClick={() => setDeleteConfirm({ id: sub.submissionId || sub.id, hard: false })}
+                                                    onClick={() => setDeleteConfirm({ id: sub._id || sub.submissionId || sub.id, hard: false })}
                                                 >
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
@@ -619,7 +621,7 @@ export default function SubmissionsClient({ id, formName, schema = [], endpoint,
                                                     variant="ghost" 
                                                     className="h-7 w-7 text-red-600/40 hover:text-red-500 hover:bg-red-900/20"
                                                     title="Hard Delete"
-                                                    onClick={() => setDeleteConfirm({ id: sub.submissionId || sub.id, hard: true })}
+                                                    onClick={() => setDeleteConfirm({ id: sub._id || sub.submissionId || sub.id, hard: true })}
                                                 >
                                                     <AlertCircle className="h-3.5 w-3.5" />
                                                 </Button>

@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { AuthButton } from '../layout/auth-button';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 
 import {
@@ -18,7 +17,7 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from '@/components/ui/sheet';
-import { Menu, HelpCircle } from 'lucide-react';
+import { Menu, HelpCircle, ChevronRight } from 'lucide-react';
 import {
 	Tooltip,
 	TooltipContent,
@@ -32,11 +31,12 @@ export function Header2() {
 	const [isOpen, setIsOpen] = React.useState(false);
 
 	const links = [
-		{ href: "/explore", label: "Forge" },
 		{ href: "/static", label: "Static" },
 		{ href: "https://kontext.postpipe.in", label: "Kontext" },
+		{ href: "/explore", label: "Forge" },
 		{ href: "/dashboard/changelog", label: "Change Log" },
 		{ href: "/docs", label: "Docs" },
+		{ href: "/pricing", label: "Pricing" },
 	];
 
 	return (
@@ -86,7 +86,6 @@ export function Header2() {
 								</Tooltip>
 							</TooltipProvider>
 						)}
-						<ThemeToggle />
 					</div>
 				</div>
 
@@ -102,7 +101,6 @@ export function Header2() {
 							<HelpCircle className="h-5 w-5 transition-all duration-300 group-hover:text-primary group-hover:drop-shadow-[0_0_8px_hsl(var(--primary))]" />
 						</Button>
 					)}
-					<ThemeToggle />
 					<Sheet open={isOpen} onOpenChange={setIsOpen}>
 						<SheetTrigger asChild>
 							<Button variant="ghost" size="icon" className="shrink-0">
@@ -110,27 +108,39 @@ export function Header2() {
 								<span className="sr-only">Toggle menu</span>
 							</Button>
 						</SheetTrigger>
-						<SheetContent side="right">
-							<SheetHeader>
-								<SheetTitle className="text-left">Menu</SheetTitle>
-								<SheetDescription className="sr-only">
-									Navigation links for PostPipe.
-								</SheetDescription>
-							</SheetHeader>
-							<div className="flex flex-col gap-4 mt-8">
-								{links.map((link, i) => (
-									<Link
-										key={i}
-										href={link.href}
-										className="text-lg font-medium hover:text-primary transition-colors"
-										onClick={() => setIsOpen(false)}
-									>
-										{link.label}
-									</Link>
-								))}
-								<div className="pt-4 mt-4 border-t flex flex-col gap-3">
-									<div className="flex justify-between items-center">
-										<AuthButton />
+						<SheetContent side="right" className="w-[85vw] sm:w-[400px] border-l border-border/50 bg-background/95 backdrop-blur-xl p-0">
+							<div className="flex flex-col h-full">
+								<div className="p-6 pb-4 border-b border-border/50">
+									<SheetHeader>
+										<SheetTitle className="text-left text-2xl font-bold tracking-tight">Navigation</SheetTitle>
+										<SheetDescription className="sr-only">
+											Navigation links for PostPipe.
+										</SheetDescription>
+									</SheetHeader>
+								</div>
+								
+								<div className="flex-1 overflow-y-auto py-4 px-3">
+									<div className="flex flex-col gap-1">
+										{links.map((link, i) => (
+											<Link
+												key={i}
+												href={link.href}
+												onClick={() => setIsOpen(false)}
+												className="group flex items-center justify-between rounded-xl px-4 py-4 text-base font-medium transition-all hover:bg-muted/50 active:scale-[0.98]"
+											>
+												<span className="text-muted-foreground group-hover:text-foreground transition-colors">{link.label}</span>
+												<ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-1 group-hover:text-foreground" />
+											</Link>
+										))}
+									</div>
+								</div>
+
+								<div className="p-6 pb-32 border-t border-border/50 bg-muted/20">
+									<div className="flex flex-col gap-4">
+										<p className="text-xs uppercase tracking-widest text-muted-foreground/50 font-mono font-semibold">Account</p>
+										<div className="w-full">
+											<AuthButton className="w-full justify-center" onClick={() => setIsOpen(false)} />
+										</div>
 									</div>
 								</div>
 							</div>

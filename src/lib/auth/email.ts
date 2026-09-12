@@ -119,3 +119,27 @@ export async function sendMasterAdminSetupEmail(email: string, link: string) {
     }
 }
 
+export async function sendQuotaWarningEmail(email: string, plan: string, remaining: number) {
+    const link = `${appUrl}/#pricing`;
+
+    if (!resend) {
+        console.log(`[DEV MODE] Quota Warning Email to ${email}: Only ${remaining} submissions left on ${plan} plan. Upgrade at ${link}`);
+        return;
+    }
+
+    try {
+        await resend.emails.send({
+            from: 'PostPipe <no-reply@postpipe.in>',
+            replyTo: 'no-reply@postpipe.in',
+            to: email,
+            subject: 'Action Required: You are approaching your submission limit',
+            html: EmailTemplate(
+                `You have only ${remaining} form submissions left this month on your ${plan} plan. Once you reach your limit, new submissions will be rejected. Upgrade your plan to ensure uninterrupted service.`,
+                link,
+                'Upgrade Plan'
+            ),
+        });
+    } catch (error) {
+        console.error('Email sending failed:', error);
+    }
+}

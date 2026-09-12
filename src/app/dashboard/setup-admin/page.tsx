@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getDashboardData } from '@/app/actions/dashboard';
 import { ensureFullUrl } from '@/lib/utils';
 
-export default function SetupAdminPage() {
+function SetupAdminContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
@@ -153,5 +153,17 @@ export default function SetupAdminPage() {
                 </form>
             </div>
         </div>
+    );
+}
+
+export default function SetupAdminPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex h-[80vh] items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        }>
+            <SetupAdminContent />
+        </Suspense>
     );
 }

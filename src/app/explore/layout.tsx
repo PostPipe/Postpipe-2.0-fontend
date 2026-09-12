@@ -18,8 +18,6 @@ export default function ExploreLayout({
         }
     }, [loading, isAuthenticated, router]);
 
-    if (loading) return null;
-
     return (
         <ExploreLayoutWrapper>
             {children}

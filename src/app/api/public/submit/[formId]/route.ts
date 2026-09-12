@@ -33,6 +33,23 @@ export async function POST(
       return NextResponse.json({ error: 'Form is paused and not accepting submissions.' }, { status: 423, headers: corsHeaders });
     }
 
+    // --- Rate Limit Check ---
+    console.log(`[RateLimit] form.userId = "${form.userId}", formId = "${formId}"`);
+    if (form.userId) {
+      const { incrementAndCheckSubmissionLimit } = await import('../../../../../lib/rate-limit');
+      const isAllowed = await incrementAndCheckSubmissionLimit(form.userId);
+      console.log(`[RateLimit] incrementAndCheckSubmissionLimit result = ${isAllowed}`);
+      
+      if (!isAllowed) {
+        return NextResponse.json({ 
+          error: 'Rate Limit Exceeded: The owner of this form has reached their monthly submission limit. Please contact the administrator.' 
+        }, { status: 429, headers: corsHeaders });
+      }
+    } else {
+      console.warn(`[RateLimit] SKIPPED: form.userId is missing for formId="${formId}"`);
+    }
+    // ------------------------
+
     const connector = await getConnector(form.connectorId);
     if (!connector) {
       return NextResponse.json({ error: 'Connector not provisioned' }, { status: 503, headers: corsHeaders });

@@ -34,17 +34,26 @@ export function WordRotate({
     return () => clearInterval(interval);
   }, [words, duration]);
 
+  // Find the longest word to set static dimensions and prevent layout shifts
+  const longestWord = words.reduce((a, b) => (a.length > b.length ? a : b), "");
+
   return (
-    <div className="overflow-hidden" style={{ perspective: '100px' }}>
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={words[index]}
-          className={cn("inline-block text-left", className)}
-          {...framerProps}
-        >
-          {words[index]}
-        </motion.span>
-      </AnimatePresence>
+    <div className="relative inline-flex overflow-hidden" style={{ perspective: '100px' }}>
+      {/* Invisible element to force container width and height */}
+      <span className={cn("invisible pointer-events-none", className)}>
+        {longestWord}
+      </span>
+      <div className="absolute inset-0 flex items-center justify-start">
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={words[index]}
+            className={cn("inline-block text-left", className)}
+            {...framerProps}
+          >
+            {words[index]}
+          </motion.span>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

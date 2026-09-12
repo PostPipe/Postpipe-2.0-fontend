@@ -1,9 +1,10 @@
-
 "use client";
 
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { AppFooter } from "./app-footer";
+
+import { usePathname } from "next/navigation";
 
 export function AnimatedFooter() {
   const ref = useRef(null);

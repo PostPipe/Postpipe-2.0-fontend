@@ -6,15 +6,21 @@ import { RainbowButton } from "@/components/ui/rainbow-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter,
-    DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
-import {
     Eye, EyeOff, Copy, RefreshCw, AlertTriangle,
     CheckCircle2, Trash2, Database, Globe, Lock, Zap,
-    Plus, Shield, Server, Activity, Edit2
+    Plus, Shield, Server, Activity, Edit2, Check
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { registerConnectorAction } from "@/app/actions/register";
 import { deleteConnectorAction, updateConnectorUrlAction, verifyConnectorAction } from "@/app/actions/dashboard";
@@ -120,7 +126,17 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
         try {
             const res = await registerConnectorAction(FormDataObj);
             if (res.error) {
-                toast({ title: "Registration Failed", description: res.error, variant: "destructive" });
+                const isLimitError = res.error.toLowerCase().includes('limit');
+                toast({ 
+                    title: "Registration Failed", 
+                    description: res.error, 
+                    variant: "destructive",
+                    action: isLimitError ? (
+                        <ToastAction altText="Upgrade Plan" asChild>
+                            <a href="/pricing">Upgrade Plan</a>
+                        </ToastAction>
+                    ) : undefined
+                });
             } else {
                 setConnectors(prev => [...prev, {
                     id: res.connectorId || "",
@@ -148,55 +164,57 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
     return (
         <div className="flex flex-col gap-8">
 
-            {/* ══ HERO HEADER ══ */}
-            <div className="relative rounded-2xl overflow-hidden border border-border bg-gradient-to-br from-neutral-950 via-neutral-900 to-indigo-950 shadow-2xl">
-                <div className="absolute inset-0 opacity-[0.04]"
-                    style={{
-                        backgroundImage: `linear-gradient(rgba(255,255,255,.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.8) 1px, transparent 1px)`,
-                        backgroundSize: "40px 40px"
-                    }}
-                />
-                <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl" />
-                <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-violet-500/10 rounded-full blur-3xl" />
+            {/* ══ HERO CARD ══ */}
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm flex flex-col md:flex-row md:items-center justify-between p-6 lg:p-8 gap-6 mt-2 mb-4">
+                {/* Subtle Background Pattern */}
+                <div className="absolute inset-0 pointer-events-none opacity-5 dark:opacity-[0.03]">
+                    <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <pattern id="connectors-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                <circle cx="2" cy="2" r="1.5" className="fill-foreground" />
+                            </pattern>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#connectors-grid)" />
+                    </svg>
+                </div>
 
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 px-8 py-8">
-                    <div className="flex flex-col gap-4">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/60 w-fit backdrop-blur-sm">
-                            <span className="relative flex h-1.5 w-1.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
-                            </span>
-                            {verifiedCount} of {connectors.length} connected
-                        </div>
-                        <div>
-                            <h1 className="text-4xl font-black tracking-tighter text-white">
-                                Connectors<span className="text-indigo-400">.</span>
-                            </h1>
-                            <p className="mt-2 text-sm text-white/40 max-w-sm leading-relaxed">
-                                Securely bridge your Postpipe forms to any database or backend service.
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap gap-3 mt-1">
-                            {[
-                                { icon: Database, label: `${connectors.length} Total`, color: "text-white/50" },
-                                { icon: CheckCircle2, label: `${verifiedCount} Verified`, color: "text-emerald-400" },
-                                { icon: Shield, label: "End-to-end encrypted", color: "text-indigo-400" },
-                            ].map(s => (
-                                <div key={s.label} className="flex items-center gap-1.5 text-[11px] font-medium">
-                                    <s.icon className={cn("h-3.5 w-3.5", s.color)} />
-                                    <span className={s.color}>{s.label}</span>
-                                </div>
-                            ))}
-                        </div>
+                <div className="relative z-10 flex flex-col gap-4">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-muted-foreground w-fit">
+                        <span className="relative flex h-1.5 w-1.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                        </span>
+                        {verifiedCount} of {connectors.length} connected
                     </div>
+                    <div>
+                        <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
+                            Connectors
+                        </h1>
+                        <p className="mt-2 text-sm text-muted-foreground max-w-sm leading-relaxed">
+                            Securely bridge your Postpipe forms to any database or backend service.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3 mt-1">
+                        {[
+                            { icon: Database, label: `${connectors.length} Total`, color: "text-muted-foreground" },
+                            { icon: CheckCircle2, label: `${verifiedCount} Verified`, color: "text-emerald-600 dark:text-emerald-500" },
+                            { icon: Shield, label: "End-to-end encrypted", color: "text-primary" },
+                        ].map(s => (
+                            <div key={s.label} className="flex items-center gap-1.5 text-[11px] font-medium">
+                                <s.icon className={cn("h-3.5 w-3.5", s.color)} />
+                                <span className={s.color}>{s.label}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
 
-                    <div className="flex flex-col gap-3 shrink-0">
-                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                            <DialogTrigger asChild>
-                                <RainbowButton className="h-10 px-5 text-sm font-semibold gap-2 text-white">
-                                    <Plus className="h-4 w-4" /> New Connector
-                                </RainbowButton>
-                            </DialogTrigger>
+                <div className="relative z-10 flex flex-col gap-3 shrink-0">
+                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="h-10 px-5 text-sm font-semibold gap-2">
+                                <Plus className="h-4 w-4" /> New Connector
+                            </Button>
+                        </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader>
                                     <DialogTitle>Register New Connector</DialogTitle>
@@ -226,15 +244,14 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                             </DialogContent>
                         </Dialog>
 
-                        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/8 px-3 py-2.5 max-w-xs">
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
-                            <p className="text-[10px] text-amber-300/80 leading-relaxed">
+                        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 w-full md:max-w-xs">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-relaxed">
                                 Never share your secrets. Credentials never leave your infrastructure.
                             </p>
                         </div>
                     </div>
                 </div>
-            </div>
 
             {/* ══ CONNECTOR CARDS ══ */}
             {connectors.length === 0 ? (
@@ -291,22 +308,22 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                             </span>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
+                                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0 mt-1 sm:mt-0">
                                         <Activity className="h-3.5 w-3.5" />
-                                        Last used:&nbsp;<span className="font-semibold text-foreground">{connector.lastUsed}</span>
+                                        Last used:&nbsp;<span className="font-semibold text-foreground">{connector.lastUsed || 'Never'}</span>
                                     </div>
                                 </div>
 
                                 {/* Card Body */}
                                 <div className="pl-7 pr-6 py-5 grid gap-4 md:grid-cols-2">
                                     {/* Deployment URL */}
-                                    <div>
+                                    <div className="min-w-0">
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Deployment URL</p>
-                                        <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/50 px-3.5 py-2.5">
+                                        <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/50 pl-3.5 pr-5 md:pr-3.5 py-2.5">
                                             <Globe className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                                            <span className="text-sm font-mono text-muted-foreground truncate flex-1">{connector.url}</span>
+                                            <span className="text-sm font-mono text-muted-foreground break-all flex-1 min-w-0 pr-2">{connector.url}</span>
                                             
-                                            <Dialog open={editingUrlId === connector.id} onOpenChange={(open) => {
+                                            <Dialog open={editingUrlId === connector.id} onOpenChange={(open: boolean) => {
                                                 if (open) {
                                                     setEditUrlValue(connector.url);
                                                     setEditingUrlId(connector.id);
@@ -352,7 +369,7 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                     </div>
 
                                     {/* Connector Secret */}
-                                    <div>
+                                    <div className="min-w-0">
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Connector Secret</p>
                                         <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3.5 py-2.5">
                                             <Lock className={cn("h-3.5 w-3.5 shrink-0", "text-emerald-500")} />
@@ -375,7 +392,7 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                     </div>
 
                                     {/* Connector ID */}
-                                    <div>
+                                    <div className="min-w-0">
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Connector ID</p>
                                         <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/50 px-3.5 py-2.5">
                                             <Database className="h-3.5 w-3.5 text-violet-500 shrink-0" />
@@ -391,7 +408,7 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                 <div className="pl-7 pr-6 pb-5">
                                     <div className="rounded-xl border border-border overflow-hidden">
                                         {/* Terminal titlebar */}
-                                        <div className="flex items-center justify-between px-4 py-2.5 bg-neutral-900 border-b border-white/5">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-2.5 bg-neutral-900 border-b border-white/5 gap-3 sm:gap-0">
                                             <div className="flex items-center gap-2">
                                                 <div className="flex gap-1.5">
                                                     <div className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
@@ -451,7 +468,7 @@ export default function ConnectorsClient({ initialConnectors, databaseConfig }: 
                                 </div>
 
                                 {/* Footer */}
-                                <div className="flex items-center justify-between pl-7 pr-6 py-3 border-t border-border bg-muted/20">
+                                <div className="flex flex-row items-center justify-between pl-7 pr-6 py-3 border-t border-border bg-muted/20 gap-3">
                                     <Dialog>
                                         <DialogTrigger asChild>
                                             <Button variant="ghost" className="text-muted-foreground hover:text-destructive text-xs h-8 gap-1.5">

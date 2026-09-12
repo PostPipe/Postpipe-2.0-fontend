@@ -48,6 +48,35 @@ const UserSchema = new mongoose.Schema({
         unique: true,
         sparse: true,
     },
+    // Billing & Rate Limiting
+    plan: {
+        type: String,
+        enum: ['starter', 'builder', 'enterprise'],
+        default: 'starter',
+    },
+    razorpayCustomerId: {
+        type: String,
+        sparse: true,
+    },
+    razorpaySubscriptionId: {
+        type: String,
+        sparse: true,
+    },
+    cancelAtPeriodEnd: {
+        type: Boolean,
+        default: false,
+    },
+    currentPeriodEnd: {
+        type: Date,
+    },
+    monthlySubmissions: {
+        type: Number,
+        default: 0,
+    },
+    usageResetDate: {
+        type: Date,
+        default: Date.now,
+    },
 }, { timestamps: true });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

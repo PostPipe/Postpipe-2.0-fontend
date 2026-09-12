@@ -1,10 +1,14 @@
 "use server"
 
+import mongoose from "mongoose";
 import { getSession } from "@/lib/auth/actions";
 import { revalidatePath } from "next/cache";
 import { createSystem as createSystemDB, getSystems as getSystemsDB } from "@/lib/server-db";
 import dbConnect from "@/lib/auth/mongodb";
 import Template from "@/lib/models/Template";
+
+// In-memory cache for template metadata to avoid redundant database roundtrips
+const globalTemplateCache = new Map<string, any>();
 
 export async function createSystem(name: string, type: string, templateId?: string) {
     const session = await getSession();
@@ -28,45 +32,99 @@ export async function getSystems() {
 
     try {
         const systems = await getSystemsDB(session.userId);
+        if (!systems || systems.length === 0) return [];
         
-        // Enrich with template data
-        let templateMap = new Map();
-        try {
-            await dbConnect();
-            const templateIds = systems.map((s: any) => s.templateId).filter(Boolean);
-            
-            if (templateIds.length > 0) {
-                const templates = await Template.find({ _id: { $in: templateIds } }).lean();
-                templateMap = new Map(templates.map((t: any) => [t._id.toString(), t]));
+        // Find template IDs that are not in memory cache
+        const uncachedTemplateIds: string[] = systems
+            .map((s: any) => s.templateId)
+            .filter((id: string) => id && typeof id === 'string' && !globalTemplateCache.has(id));
+
+        if (uncachedTemplateIds.length > 0) {
+            try {
+                await dbConnect();
+                
+                // Separate valid 24-hex ObjectIds from slugs/custom IDs to prevent CastError
+                const validObjectIds = uncachedTemplateIds.filter((id) =>
+                    mongoose.Types.ObjectId.isValid(id) && id.length === 24
+                );
+                const stringSlugs = uncachedTemplateIds.filter(
+                    (id) => !mongoose.Types.ObjectId.isValid(id) || id.length !== 24
+                );
+
+                const queryConditions: any[] = [];
+                if (validObjectIds.length > 0) {
+                    queryConditions.push({ _id: { $in: validObjectIds } });
+                }
+                if (stringSlugs.length > 0) {
+                    queryConditions.push({ slug: { $in: stringSlugs } });
+                }
+
+                if (queryConditions.length > 0) {
+                    const templates = await Template.find(
+                        queryConditions.length === 1 ? queryConditions[0] : { $or: queryConditions },
+                        'name slug category tags author thumbnailUrl cli aiPrompt npmPackageUrl databaseConfigurations'
+                    ).lean();
+
+                    templates.forEach((t: any) => {
+                        // Sanitize databaseConfigurations sub-document to avoid BSON _id ObjectId buffers
+                        const sanitizedDbConfigs = t.databaseConfigurations
+                            ? t.databaseConfigurations.map((db: any) => ({
+                                  databaseName: String(db.databaseName || ''),
+                                  logo: String(db.logo || ''),
+                                  prompt: String(db.prompt || ''),
+                              }))
+                            : [];
+
+                        const sanitizedTemplate = {
+                            ...t,
+                            _id: t._id ? t._id.toString() : undefined,
+                            databaseConfigurations: sanitizedDbConfigs,
+                        };
+
+                        if (t._id) globalTemplateCache.set(t._id.toString(), sanitizedTemplate);
+                        if (t.slug) globalTemplateCache.set(t.slug, sanitizedTemplate);
+                    });
+                }
+            } catch (enrichError) {
+                console.error("Failed to enrich systems with templates:", enrichError);
             }
-        } catch (enrichError) {
-             console.error("Failed to enrich systems with templates:", enrichError);
-             // Continue without enrichment
         }
 
-        return systems.map((sys: any) => {
-            const template: any = sys.templateId ? templateMap.get(sys.templateId) : null;
+        const mappedSystems = systems.map((sys: any) => {
+            const template: any = sys.templateId ? globalTemplateCache.get(sys.templateId) : null;
             
+            const dbConfigs = template?.databaseConfigurations
+                ? template.databaseConfigurations.map((db: any) => ({
+                      databaseName: String(db.databaseName || ''),
+                      logo: String(db.logo || ''),
+                      prompt: String(db.prompt || ''),
+                  }))
+                : undefined;
+
             return {
-                id: sys.id,
-                name: sys.name,
-                type: sys.type,
-                database: template?.databaseConfigurations?.[0]?.databaseName || 'MongoDB', 
-                status: 'Active',
-                environment: 'Dev',
-                lastUsed: new Date(sys.createdAt).toLocaleDateString(),
+                id: String(sys.id || ''),
+                name: String(sys.name || ''),
+                type: String(sys.type || 'System'),
+                database: String(dbConfigs?.[0]?.databaseName || 'MongoDB'), 
+                status: 'Active' as const,
+                environment: 'Dev' as const,
+                lastUsed: sys.createdAt ? new Date(sys.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
                 isFavorite: false,
-                image: template?.thumbnailUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=60", 
+                image: String(template?.thumbnailUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=60"), 
                 author: { 
-                    name: template?.author?.name || 'PostPipe',
-                    profileUrl: template?.author?.profileUrl 
+                    name: String(template?.author?.name || 'PostPipe'),
+                    profileUrl: template?.author?.profileUrl ? String(template.author.profileUrl) : undefined
                 },
-                tags: template?.tags || [],
-                cli: template?.cli,
-                aiPrompt: template?.aiPrompt,
-                npmPackageUrl: template?.npmPackageUrl
+                tags: Array.isArray(template?.tags) ? template.tags.map((t: any) => String(t)) : [],
+                cli: template?.cli ? String(template.cli) : undefined,
+                aiPrompt: template?.aiPrompt ? String(template.aiPrompt) : undefined,
+                npmPackageUrl: template?.npmPackageUrl ? String(template.npmPackageUrl) : undefined,
+                databaseConfigurations: dbConfigs
             };
         });
+
+        // Ensure purely serializable plain JSON object array for React Server Components
+        return JSON.parse(JSON.stringify(mappedSystems));
     } catch (error) {
         console.error("Error fetching systems:", error);
         return [];

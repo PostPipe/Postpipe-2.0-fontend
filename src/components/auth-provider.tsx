@@ -7,9 +7,17 @@ import { signOut } from "@/lib/auth/actions";
 const AUTH_COOKIE_NAME = "postpipe_auth";
 
 type User = {
+  id?: string;
+  _id?: string;
   name: string;
   email: string;
   image?: string;
+  plan?: string;
+  monthlySubmissions?: number;
+  usageResetDate?: string;
+  hasActiveSubscription?: boolean;
+  cancelAtPeriodEnd?: boolean;
+  currentPeriodEnd?: string | Date;
 };
 
 export type AuthContextType = {
@@ -29,11 +37,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const clearAuthCookies = () => {
+    if (typeof document !== 'undefined') {
+      document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=-1`;
+      document.cookie = `token=; path=/; max-age=-1`;
+      document.cookie = `${AUTH_COOKIE_NAME}=; path=/; domain=.postpipe.in; max-age=-1`;
+      document.cookie = `token=; path=/; domain=.postpipe.in; max-age=-1`;
+    }
+  };
+
+  const handleAuthFailure = useCallback(() => {
+    setUser(null);
+    clearAuthCookies();
+    const protectedRoutes = ['/dashboard', '/forms', '/workflows', '/explore', '/static'];
+    if (typeof window !== 'undefined' && protectedRoutes.some(route => pathname.startsWith(route))) {
+      router.push('/login');
+    }
+  }, [pathname, router]);
+
   const fetchUser = async () => {
-    // Skip the backend call if the user doesn't even have the auth cookie
     if (typeof document !== 'undefined' && !document.cookie.includes(AUTH_COOKIE_NAME)) {
       setUser(null);
       setLoading(false);
+      const protectedRoutes = ['/dashboard', '/forms', '/workflows', '/explore', '/static'];
+      if (protectedRoutes.some(route => pathname.startsWith(route))) {
+        router.push('/login');
+      }
       return;
     }
 
@@ -44,19 +73,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data && data.email) {
           setUser(data);
         } else {
-          setUser(null);
-          document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=-1`;
+          handleAuthFailure();
         }
       } else {
-        setUser(null);
-        document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=-1`;
+        handleAuthFailure();
       }
     } catch (error) {
       console.error("Failed to fetch user session", error);
-      setUser(null);
-      // Only clear cookie on explicit auth failure, but error might include 401. 
-      // Safest to clear if we can't verify identity.
-      document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=-1`;
+      handleAuthFailure();
     } finally {
       setLoading(false);
     }

@@ -1,112 +1,107 @@
 ---
 title: Auth Presets & Aliases
-description: Master the PostPipe authentication system using presets and environment variable aliases.
+description: Configure authentication settings and environment variable aliases across multiple environments.
 ---
 
-# 🔐 Auth Presets & Aliases
+# Auth Presets & Aliases
 
-PostPipe's authentication system is designed for flexibility. Whether you're running a single app or managing a fleet of microsites, **Auth Presets** and **Aliases** ensure your configuration is secure, organized, and scalable.
+The PostPipe authentication architecture is designed for multi-environment scalability. Using **Auth Presets** and **Aliases**, you can manage configuration securely across isolated deployments from a single codebase.
 
-## 🏗️ What is an Auth Preset?
+## What is an Auth Preset?
 
-An **Auth Preset** is a pre-configured set of authentication rules and providers. Instead of configuring auth from scratch for every project, you create a preset in the Dashboard and apply it wherever needed.
+An **Auth Preset** is a centralized configuration schema for authentication rules and providers. Rather than hardcoding authentication parameters per project, you define a preset in the PostPipe Dashboard and reference it dynamically.
 
-**A Preset contains:**
--   **Providers**: (Email, Google, GitHub, etc.)
--   **Redirection URLs**: Where users go after login/logout.
--   **Security Settings**: Token expiry, password complexity, etc.
--   **Database Target**: Which database this preset should use.
+**A Preset configuration includes:**
+- **Providers**: OAuth integrations (Google, GitHub, etc.) and email/password settings.
+- **Redirection URIs**: Callback paths for successful authentication and session termination.
+- **Security Policies**: JWT expiration limits, session duration, and password requirements.
+- **Database Target**: The specific database instance handling user records.
 
-## 📊 Visual Flow: Alias Mapping
+## Architecture Flow: Alias Mapping
 
 ```mermaid
 sequenceDiagram
-    participant FE as Frontend (CDN Script)
-    participant PP as PostPipe SaaS
-    participant CN as Connector (Your API)
+    participant FE as Frontend Client
+    participant PP as PostPipe Platform
+    participant CN as Static Connector
     participant DB as Database
 
     FE->>PP: Request Auth (data-alias="PROD")
     PP->>CN: Forward Request + Alias Headers
-    Note over CN: Connector checks .env
-    Note over CN: Finds JWT_SECRET_PROD
-    CN->>DB: Query User
-    DB-->>CN: User Data
-    CN-->>PP: Success Response
-    PP-->>FE: JWT Token + Session
+    Note over CN: Connector resolves .env
+    Note over CN: Identifies JWT_SECRET_PROD
+    CN->>DB: Execute Query
+    DB-->>CN: Return Record
+    CN-->>PP: Success Confirmation
+    PP-->>FE: JWT Token + Session Payload
 ```
 
 ---
 
-## 🕵️ The Alias System
+## The Alias System
 
-The **Alias System** is the secret sauce that allows PostPipe to scale. It maps your dashboard configurations to your server's environment variables using a unique suffix.
+The **Alias System** maps your PostPipe Dashboard configurations to the physical environment variables on your server infrastructure using deterministic suffixes.
 
-### Why use an Alias?
-Imagine you have two projects: `Store` and `Blog`. Both need a `JWT_SECRET`.
--   **Without Aliases**: You'd have a collision in your global `.env`.
--   **With Aliases**: You define an alias `STORE` for one and `BLOG` for the other.
+### Problem Context
+If an infrastructure hosts multiple distinct projects or environments (e.g., `Staging` and `Production`), they require distinct secret keys (e.g., `JWT_SECRET`). Hardcoding these globally creates collisions.
 
-PostPipe will then look for:
--   `JWT_SECRET_STORE`
--   `JWT_SECRET_BLOG`
+### Solution
+By defining an alias (e.g., `STG` and `PROD`), PostPipe dynamically resolves variables based on the request origin:
+- `JWT_SECRET_STG`
+- `JWT_SECRET_PROD`
 
 ---
 
-## 🚀 Setting Up Your First Preset
+## Creating an Auth Preset
 
-1.  **Navigate to Dashboard**: Go to the **Auth Preset Generator**.
-2.  **Configure Basics**: Give your preset a name (e.g., "Main Production").
-3.  **Set the Alias**: In Advanced Settings, enter an Uppercase identifier (e.g., `PROD`).
-4.  **Save & Generate**: PostPipe will provide you with a `projectId` and a list of required environment variables.
+1. **Dashboard Access**: Navigate to the **Auth Preset Generator** in the PostPipe console.
+2. **Configuration**: Define the preset parameters (e.g., "Production Environment").
+3. **Alias Assignment**: Under Advanced Settings, assign an uppercase identifier (e.g., `PROD`).
+4. **Generation**: Save the preset to receive the unique `projectId` and the list of required environment variables.
 
 ### Environment Variable Mapping
-When using an alias like `PROD`, you must suffix your variables in your connector's `.env` file:
+
+When a preset utilizes an alias like `PROD`, you must append this suffix to the respective variables within your infrastructure's `.env` file:
 
 ```env
-# Global (no suffix)
+# Global variable (no suffix)
 DATABASE_URL=mongodb://...
 
-# Aliased (with _PROD suffix)
-FRONTEND_URL_PROD=https://myapp.com
-JWT_SECRET_PROD=your_unique_secret
-SMTP_PASSWORD_PROD=your_smtp_key
+# Aliased variables (with _PROD suffix)
+FRONTEND_URL_PROD=https://production-app.com
+JWT_SECRET_PROD=your_secure_random_string
+SMTP_PASSWORD_PROD=your_smtp_credential
 ```
 
 ---
 
-## 🛠️ Implementation in Your Frontend
+## Frontend Integration
 
-Once your preset and alias are configured, update your CDN script tag to include the `data-alias` and `data-project-alias` attributes.
+Upon configuring the preset and alias, update the authentication script tag on your client application to include the `data-alias` attribute.
 
 ```html
 <script 
   src="https://postpipe.in/api/public/cdn/auth.js" 
-  data-project-id="your-project-id"
+  data-project-id="your-unique-project-id"
   data-alias="PROD"
-  data-project-alias="MY_AWESOME_PROJECT"
+  data-project-alias="APPLICATION_NAME"
 ></script>
 ```
 
-### Script Parameter Breakdown:
--   **data-project-id**: The unique ID of your preset.
--   **data-alias**: Tells the backend which `_SUFFIX` to use for environment variables.
--   **data-project-alias**: Used for branding and project-wide identification.
+### Script Parameter Reference:
+- **`data-project-id`**: The unique identifier of the Auth Preset.
+- **`data-alias`**: Instructs the backend which `_SUFFIX` to apply during environment variable resolution.
+- **`data-project-alias`**: A semantic identifier used for internal branding and logging.
 
 ---
 
-## 💡 Best Practices
+## Operational Guidelines
 
 > [!TIP]
-> **Keep Aliases Short & Uppercase**: Use 3-5 character abbreviations for clarity (e.g., `DEV`, `STG`, `PROD`).
+> **Naming Conventions**: Maintain short, uppercase strings for aliases (3-5 characters) to ensure clarity across environments (e.g., `DEV`, `STG`, `PROD`).
 
 > [!IMPORTANT]
-> **Security First**: Never hardcode your secrets. Always use the aliased environment variables on your server/connector.
+> **Secret Management**: Never expose aliased secrets to the client. Environment variables must only reside on your secure server or connector instances.
 
 > [!NOTE]
-> **Consistent Branding**: Use the `projectAlias` to ensure that automated emails (like password resets) use the correct brand name.
-
----
-
-[Back to Introduction](/docs/introduction)
-| [View All Guides](/docs/guides)
+> **Brand Consistency**: The `projectAlias` value is embedded in automated communications (e.g., password reset emails). Ensure it accurately reflects the target application.

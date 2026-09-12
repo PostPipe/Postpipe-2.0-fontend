@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <!-- Define a reusable Satellite Server Node -->
+    <g id="satellite" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+      <!-- Dark Base -->
+      <polygon points="-40,-10 0,10 40,-10 40,-5 0,15 -40,-5" fill="#1e293b" />
+      
+      <!-- Bottom Box -->
+      <polygon points="-40,-20 0,0 40,-20 0,-40" fill="#f8fafc" />
+      <polygon points="-40,-20 0,0 0,-15 -40,-35" fill="#ffffff" />
+      <polygon points="40,-20 0,0 0,-15 40,-35" fill="#f1f5f9" />
+      
+      <!-- Top Box -->
+      <polygon points="-40,-45 0,-25 40,-45 0,-65" fill="#f8fafc" />
+      <polygon points="-40,-45 0,-25 0,-35 -40,-55" fill="#ffffff" />
+      <polygon points="40,-45 0,-25 0,-35 40,-55" fill="#f1f5f9" />
+      
+      <!-- Top Inner Detail -->
+      <polygon points="-25,-45 0,-32.5 25,-45 0,-57.5" fill="#e2e8f0" stroke="#1e293b" stroke-width="1.5"/>
+      <!-- Vertical Lines -->
+      <line x1="-40" y1="-55" x2="-40" y2="-85" stroke="#1e293b" stroke-width="1.5" />
+      <line x1="40" y1="-55" x2="40" y2="-85" stroke="#1e293b" stroke-width="1.5" />
+    </g>
+  </defs>
+
+  <!-- Background Lines / Data Tracks -->
+  <g stroke="#64748b" stroke-width="2" stroke-dasharray="6,6" fill="none" stroke-linejoin="round">
+    <path id="track1" d="M 250 350 L 150 300 L 100 325 L 200 375" />
+    <path id="track2" d="M 450 250 L 550 200 L 600 225 L 500 275" />
+    <path id="track3" d="M 350 420 L 450 470 L 550 420 L 600 445" />
+  </g>
+
+  <!-- Track Nodes (Static Dots) -->
+  <g stroke="#1e293b" stroke-width="2">
+    <circle cx="150" cy="300" r="5" fill="#ef4444" />
+    <circle cx="550" cy="200" r="5" fill="#3b82f6" />
+    <circle cx="450" cy="470" r="5" fill="#ef4444" />
+  </g>
+
+  <!-- Animated Data Packets -->
+  <g>
+    <circle r="4.5" fill="#3b82f6">
+      <animateMotion dur="3s" repeatCount="indefinite" path="M 250 350 L 150 300 L 100 325 L 200 375" />
+    </circle>
+    <circle r="4.5" fill="#ef4444">
+      <animateMotion dur="4s" repeatCount="indefinite" path="M 450 250 L 550 200 L 600 225 L 500 275" />
+    </circle>
+    <circle r="4.5" fill="#3b82f6">
+      <animateMotion dur="3.5s" repeatCount="indefinite" path="M 350 420 L 450 470 L 550 420 L 600 445" />
+    </circle>
+  </g>
+
+  <!-- Main Central Server -->
+  <g stroke="#1e293b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Main Chassis: Top, Left, Right -->
+    <polygon points="350,200 250,150 350,100 450,150" fill="#f1f5f9" />
+    <polygon points="350,420 250,370 250,150 350,200" fill="#ffffff" />
+    <polygon points="350,420 450,370 450,150 350,200" fill="#f8fafc" />
+    
+    <!-- Outer Shell Bezel Detail -->
+    <path d="M 260 160 L 350 205 L 440 160" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+    <path d="M 350 205 L 350 405" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+
+    <!-- Left Face: Server Slots -->
+    <g fill="#f8fafc">
+      <polygon points="265,180 335,215 335,245 265,210" />
+      <polygon points="265,230 335,265 335,295 265,260" />
+      <polygon points="265,280 335,315 335,345 265,310" />
+      <polygon points="265,330 335,365 335,395 265,360" />
+    </g>
+
+    <!-- Slot Indicators (Lights) -->
+    <g fill="#ef4444" stroke="none">
+      <ellipse cx="315" cy="225" rx="3" ry="1.5" transform="rotate(26.5 315 225)" />
+      <ellipse cx="315" cy="275" rx="3" ry="1.5" transform="rotate(26.5 315 275)" />
+      <ellipse cx="315" cy="325" rx="3" ry="1.5" transform="rotate(26.5 315 325)" fill="#3b82f6" />
+      <ellipse cx="315" cy="375" rx="3" ry="1.5" transform="rotate(26.5 315 375)" />
+    </g>
+
+    <!-- Right Face: Data Chart -->
+    <polygon points="375,225 435,195 435,275 375,305" fill="#ffffff" />
+    <g fill="#cbd5e1" stroke="none">
+      <polygon points="385,295 392,291.5 392,250 385,253.5" />
+      <polygon points="400,287.5 407,284 407,220 400,223.5" />
+      <polygon points="415,280 422,276.5 422,240 415,243.5" />
+    </g>
+  </g>
+
+  <!-- Satellite Nodes -->
+  <use href="#satellite" x="150" y="380" />
+  <use href="#satellite" x="550" y="275" />
+  <use href="#satellite" x="600" y="445" />
+
+</svg>

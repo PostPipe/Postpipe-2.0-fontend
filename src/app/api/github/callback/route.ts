@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
           userId: userId, // Link to actual authenticated User ID from session
           accountName,
           accountType,
+          repositorySelection: installation.repository_selection,
           updatedAt: new Date(),
         }
       },

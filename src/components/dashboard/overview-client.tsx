@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
-    Server, FileText, Key, Activity, Terminal, Zap,
+    Server, FileText, Key, Activity, Terminal,
     ArrowRight, Plus, Database, Globe, GitBranch, Clock,
     TrendingUp, ChevronRight, ExternalLink, HelpCircle
 } from "lucide-react";
@@ -183,7 +183,7 @@ export default function OverviewClient({ forms, connectors, systems = [] }: Over
         {
             label: "Generate Connector",
             desc: "Plug in any external data source",
-            icon: Zap,
+            icon: Globe,
             iconBg: "bg-amber-500/10",
             iconColor: "text-amber-500",
             hoverBorder: "hover:border-amber-300 dark:hover:border-amber-500/30",

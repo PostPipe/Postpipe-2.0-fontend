@@ -6,14 +6,22 @@ const AUTH_COOKIE_NAME = 'postpipe_auth';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isAuthenticated = request.cookies.has(AUTH_COOKIE_NAME);
+  const hasAuthCookie = request.cookies.has(AUTH_COOKIE_NAME);
+  const hasTokenCookie = request.cookies.has('token');
+  const isAuthenticated = hasAuthCookie && hasTokenCookie;
 
   const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
 
   if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect_to', pathname);
-    return NextResponse.redirect(loginUrl);
+    
+    const response = NextResponse.redirect(loginUrl);
+    // Clear stale cookies if only one exists
+    if (hasAuthCookie && !hasTokenCookie) {
+      response.cookies.delete(AUTH_COOKIE_NAME);
+    }
+    return response;
   }
 
   if (pathname.startsWith('/login') && isAuthenticated) {

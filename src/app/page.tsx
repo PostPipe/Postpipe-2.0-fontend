@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -15,8 +16,13 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { HeroParticles } from '@/components/layout/hero-particles';
 import { cn } from '@/lib/utils';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
-import { RadialIntro } from '@/components/ui/radial-intro';
+import { TerminalMakers } from '@/components/ui/terminal-makers';
 import { PathSelection } from '@/components/layout/path-selection';
+import { HowItWorks } from '@/components/layout/how-it-works';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { PricingSection } from '@/components/layout/pricing-section';
+import { Marquee } from '@/components/ui/marquee';
+import { LanyardMakers } from '@/components/ui/lanyard-makers';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero-image');
 
@@ -48,9 +54,28 @@ const features = [
   },
 ];
 
+const faqs = [
+  {
+    question: "How do I connect my database to a static form?",
+    answer: "Using the PostPipe Static Connector, you simply provide your database credentials (like MongoDB or PostgreSQL). We generate a secure, ready-to-use API endpoint that you can immediately plug into your frontend forms."
+  },
+  {
+    question: "How secure are the form submissions?",
+    answer: "We use a zero-trust architecture. Every form submission is verified using cryptographic signatures (HMAC) to guarantee that the request originated from your exact authorized domain, preventing spam and data injection."
+  },
+  {
+    question: "Can I embed these forms anywhere?",
+    answer: "Absolutely. Once your form is configured, you receive a simple HTML/JS snippet. You can embed this into any platform—WordPress, Webflow, plain HTML sites, or modern frameworks like React and Next.js."
+  },
+  {
+    question: "Which databases do you currently support?",
+    answer: "The Static Connector natively supports PostgreSQL (including Supabase, Neon, AWS RDS) and MongoDB (like MongoDB Atlas). We handle the connection pooling and data validation automatically."
+  }
+];
+
 export const metadata: Metadata = {
-  title: 'PostPipe | The Ultimate Next.js Backend Component Library',
-  description: 'Connect any database to your Next.js frontend in minutes. Visual form builder, agentic AI tools, and production-ready backend components.',
+  title: 'PostPipe | The Ultimate Static Form & Architecture Backend',
+  description: 'Connect any database to your frontend with our secure, zero-trust static form submission architecture in minutes.',
 };
 
 export default function Home() {
@@ -68,7 +93,7 @@ export default function Home() {
               '@type': 'WebApplication',
               name: 'PostPipe',
               url: 'https://www.postpipe.in',
-              description: 'The largest Next.js backend component library and static ingest system.',
+              description: 'The ultimate zero-trust static form submission and backend architecture.',
               applicationCategory: 'DeveloperApplication',
               genre: 'Software Development',
               browserRequirements: 'Requires JavaScript',
@@ -94,6 +119,8 @@ export default function Home() {
       </section>
 
       <PathSelection />
+
+      <HowItWorks />
 
       <section id="features" className="bg-background-muted py-20 md:py-32">
         <div className="container mx-auto px-4">
@@ -140,73 +167,39 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <div className="w-full bg-background relative overflow-hidden">
+        <Marquee text="Scale Infinite • Zero Infrastructure • PostPipe • " repeat={4} duration={40} fontSize="xl" />
+      </div>
 
-      <section id="makers" className="py-20 md:py-32 overflow-hidden bg-background">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-
-            {/* Left Side: Content & Terminal */}
-            <div className="flex flex-col gap-8 text-left">
-              <div>
-                <h2 className="font-headline text-3xl font-bold mb-4">
-                  Meet the Makers
-                </h2>
-                <p className="text-muted-foreground text-lg max-w-md">
-                  Built by developers, for developers. We are passionate about open source and creating tools that empower the community.
-                </p>
-              </div>
-
-              {/* Terminal Card */}
-              <div className="relative w-full max-w-md aspect-video rounded-xl border bg-black/90 shadow-2xl overflow-hidden flex flex-col">
-                {/* Terminal Header */}
-                <div className="flex items-center px-4 py-2 border-b border-white/10 bg-white/5">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                    <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                  </div>
-                  <div className="ml-4 text-xs text-white/40 font-mono">buffer — bash</div>
-                </div>
-                {/* Terminal Content */}
-                <div className="p-4 font-mono text-sm text-green-400 space-y-2">
-                  <div className="flex">
-                    <span className="text-blue-400 mr-2">~</span>
-                    <span className="text-white">$ git log --oneline</span>
-                  </div>
-                  <div className="text-white/70 pl-4 space-y-1">
-                    <p><span className="text-yellow-500">a1b2c3d</span> Initial commit</p>
-                    <p><span className="text-yellow-500">e5f6g7h</span> Added zero-trust connector</p>
-                    <p><span className="text-yellow-500">i8j9k0l</span> Sent to production 🚀</p>
-                  </div>
-                  <div className="flex mt-2">
-                    <span className="text-blue-400 mr-2">~</span>
-                    <span className="text-white animate-pulse">_</span>
-                  </div>
-                </div>
-
-                {/* Decorative Gradient Blob */}
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/20 blur-3xl rounded-full pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Right Side: Radial Intro */}
-            <div className="flex justify-center lg:justify-end w-full">
-              <RadialIntro
-                orbitItems={[
-                  { id: 1, name: 'Sourodip-1', src: 'https://github.com/Sourodip-1.png', href: 'https://github.com/Sourodip-1', size: 120 },
-                  { id: 2, name: 'yo-soyam', src: 'https://github.com/yo-soyam.png', href: 'https://github.com/yo-soyam', size: 110 },
-                  { id: 3, name: 'souvikvos', src: 'https://github.com/souvikvos.png', href: 'https://github.com/souvikvos', size: 110 },
-                  { id: 4, name: 'ghosthouse7', src: 'https://github.com/ghosthouse7.png', href: 'https://github.com/ghosthouse7', size: 110 },
-                  { id: 5, name: 'PINaKey', src: 'https://github.com/PINaKey.png', href: 'https://github.com/PINaKey', size: 110 },
-                ]}
-                stageSize={480}
-                imageSize={80}
-                className="mx-0"
-              />
-            </div>
+      <Suspense fallback={null}>
+        <PricingSection hideIfPurchased={true} isHome={true} />
+      </Suspense>
+      <section id="faq" className="bg-background py-20 md:py-32">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="mb-12 text-center">
+            <h2 className="font-headline text-3xl md:text-5xl font-bold mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto">
+              Everything you need to know about PostPipe and how it works.
+            </p>
           </div>
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((faq, index) => (
+              <AccordionItem key={index} value={`item-${index}`} className="border-border/50">
+                <AccordionTrigger className="text-left text-lg md:text-xl font-medium hover:no-underline hover:text-primary transition-colors py-6">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground text-base leading-relaxed pb-6">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </div>
       </section>
+
+      <LanyardMakers />
     </>
   );
 }

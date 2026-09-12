@@ -322,8 +322,8 @@ export default function PostpipeAuthProvider() {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-                <div className="bg-card dark:bg-white/[0.03] rounded-xl border border-border dark:border-white/5 p-6 shadow-sm space-y-6">
+            <div className="space-y-6 min-w-0">
+                <div className="bg-card dark:bg-white/[0.03] rounded-xl border border-border dark:border-white/5 p-3 sm:p-6 shadow-sm space-y-6">
                     <div>
                         <h2 className="text-xl font-semibold flex items-center gap-2">
                             Auth Configuration
@@ -336,7 +336,7 @@ export default function PostpipeAuthProvider() {
 
                     <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900 rounded-xl p-4 flex gap-3 text-orange-800 dark:text-orange-300 text-sm">
                         <AlertCircle className="h-5 w-5 shrink-0" />
-                        <div>
+                        <div className="min-w-0 w-full">
                             <p className="font-semibold mb-1">Deployment Checklist:</p>
                             <ul className="list-disc pl-5 space-y-1">
                                 <li>Make sure your remote Postpipe Connector is running and updated.</li>
@@ -660,7 +660,7 @@ export default function PostpipeAuthProvider() {
             </div>
 
             {/* Snippet Preview Panel */}
-            <div className="bg-[#0D1117] rounded-xl border border-[#30363D] overflow-hidden flex flex-col shadow-2xl">
+            <div className="bg-[#0D1117] rounded-xl border border-[#30363D] overflow-hidden flex flex-col shadow-2xl min-w-0">
                 <div className="flex items-center justify-between px-4 py-3 bg-[#161B22] border-b border-[#30363D]">
                     <div className="flex items-center gap-4">
                         <div className="flex gap-1.5">

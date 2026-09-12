@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { Mail, Instagram, Github } from "lucide-react";
+import { Mail, Instagram, Github, Coffee } from "lucide-react";
 import { AnimatedWords } from "../ui/animated-words";
+import { WordRotate } from "@/components/ui/word-rotate";
+import { CountrySelector } from "@/components/country-selector";
 
 const productLinks = [
     { href: "/login", label: "Product" },
-    { href: "https://kontext.postpipe.in", label: "KONTEXT" },
+    { href: "https://kontext.postpipe.in", label: "Kontext" },
     { href: "/docs", label: "Docs" },
     { href: "/explore", label: "Dynamic" },
 ];
@@ -13,19 +15,18 @@ const resourceLinks = [
     { href: "/blog", label: "Blog" },
     { href: "/static", label: "Static" },
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/sitemap", label: "Sitemap" },
 ];
 
 const contactEmails = [
     { label: "Founder", email: "founder@postpipe.in" },
-    { label: "Souvik", email: "souvik.dev@postpipe.in" },
-    { label: "Soyam", email: "soyam.dev@postpipe.in" },
     { label: "Pinaki", email: "cant-reveal@postpipe.in" },
 ];
 
 export function AppFooter() {
     return (
         <footer className="border-t bg-background overflow-hidden relative">
-            <div className="w-full max-w-none px-4 md:px-12 py-16 md:py-24">
+            <div className="w-full max-w-none px-4 md:px-12 pt-16 pb-32 md:pt-24 md:pb-40">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16 md:mb-24">
 
                     {/* Brand + tagline */}
@@ -124,24 +125,61 @@ export function AppFooter() {
                                         <p className="text-[10px] text-muted-foreground/60 mt-0.5">Open source · PRs welcome</p>
                                     </div>
                                 </a>
+
+                                <a
+                                    href="https://buymeacoffee.com/sourodip"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 group-hover:bg-[#FFDD00]/10 group-hover:border-[#FFDD00]/30 transition-all">
+                                        <Coffee className="h-4 w-4 group-hover:text-[#FFDD00] transition-colors" />
+                                    </span>
+                                    <div>
+                                        <p className="font-medium text-foreground/80 group-hover:text-foreground leading-none">Support This Project</p>
+                                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">Buy me a coffee</p>
+                                    </div>
+                                </a>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                {/* Rotating endpoint showcase */}
+                <div className="mb-10 flex flex-col items-center justify-center overflow-hidden">
+                    <p className="text-xs uppercase tracking-widest text-muted-foreground/40 mb-5 text-center font-mono">Route anything. Capture everything.</p>
+                    <div className="flex flex-wrap items-baseline justify-center gap-0 font-mono text-center">
+                        <span className="text-base sm:text-2xl md:text-4xl text-muted-foreground/30 font-medium break-all">postpipe.in/submissions/</span>
+                        <WordRotate
+                            className="text-base sm:text-2xl md:text-4xl text-foreground/80 font-bold"
+                            words={["feedback", "waitlist", "contact", "newsletter", "surveys", "users"]}
+                            duration={2000}
+                        />
+                    </div>
+                </div>
+
                 {/* Bottom divider + legal */}
                 <div className="border-t border-border/50 pt-8 mb-16 md:mb-24 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <p className="text-xs text-muted-foreground/50">
-                        © {new Date().getFullYear()} Postpipe. Built with ❤️ in India.
-                    </p>
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                        <p className="text-xs text-muted-foreground/50">
+                            © {new Date().getFullYear()} Postpipe. Built with ❤️ in India.
+                        </p>
+                        <CountrySelector />
+                        <Link
+                            href="/sitemap"
+                            className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors underline-offset-4 hover:underline flex items-center gap-1"
+                        >
+                            <span>Sitemap</span>
+                        </Link>
+                    </div>
                     <p className="text-xs text-muted-foreground/40">
-                        Made by Sourodip, Pinaki, Souvik &amp; Soyam
+                        Maintained by Sourodip &amp; Pinaki
                     </p>
                 </div>
 
                 <div className="text-center w-full flex justify-center overflow-hidden">
                     <AnimatedWords
-                        text="PostPiPe"
+                        text="PostPipe"
                         className="font-headline text-[20vw] md:text-[22vw] lg:text-[24vw] font-bold tracking-tighter leading-none whitespace-nowrap"
                     />
                 </div>

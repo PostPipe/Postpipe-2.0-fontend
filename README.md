@@ -1,5 +1,11 @@
 # PostPipe 2.0 🧪
 
+<a href="https://www.buymeacoffee.com/YOUR_USERNAME" target="_blank">
+  <img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" 
+       alt="Buy Me a Coffee" 
+       style="height: 41px !important;width: 174px !important;">
+</a>
+
 **Bridge the gap between your browser and your data, securely and efficiently.**
 
 PostPipe 2.0 is a cutting-edge platform designed to enable secure data access without exposing your database credentials. Built on the principle of **Zero Trust**, it ensures that your sensitive keys never leave your infrastructure.

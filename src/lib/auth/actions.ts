@@ -383,3 +383,132 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         return { success: false, message: 'Internal server error' };
     }
 }
+
+export async function cancelSubscription(): Promise<AuthState> {
+    try {
+        const session = await getSession();
+        if (!session) {
+            return { success: false, message: 'Unauthorized' };
+        }
+
+        await dbConnect();
+
+        const user = await User.findById(session.userId);
+        if (!user) {
+            return { success: false, message: 'User not found' };
+        }
+
+        if (!user.razorpaySubscriptionId) {
+            user.cancelAtPeriodEnd = true;
+            await user.save();
+            return { success: true, message: 'Subscription cancelled locally.' };
+        }
+
+        let nextBillingDate: Date | undefined;
+        try {
+            const DodoPayments = require('dodopayments').default;
+            const client = new DodoPayments({
+                bearerToken: process.env.DODO_PAYMENTS_API_KEY || 'dummy_token',
+                environment: process.env.DODO_PAYMENTS_ENVIRONMENT === 'live_mode' ? 'live_mode' : 'test_mode',
+            });
+
+            if (client.subscriptions && client.subscriptions.update) {
+                await client.subscriptions.update(user.razorpaySubscriptionId, {
+                    cancel_at_next_billing_date: true
+                });
+            }
+            if (client.subscriptions && client.subscriptions.retrieve) {
+                const sub = await client.subscriptions.retrieve(user.razorpaySubscriptionId);
+                if (sub.next_billing_date) {
+                    nextBillingDate = new Date(sub.next_billing_date);
+                }
+            }
+        } catch (e) {
+            console.warn('Could not programmatically cancel_at_next_billing_date via SDK, user might need to use portal.', e);
+        }
+
+        user.cancelAtPeriodEnd = true;
+        if (nextBillingDate) {
+            user.currentPeriodEnd = nextBillingDate;
+        }
+        await user.save();
+
+        return { success: true, message: 'Subscription will be cancelled at the end of your billing cycle.' };
+    } catch (error) {
+        console.error('Cancel Subscription error:', error);
+        return { success: false, message: 'Internal server error' };
+    }
+}
+
+export async function createCheckoutSession(planType: string, billingCycle: 'monthly' | 'quarterly' | 'yearly'): Promise<{ success: boolean; url?: string; message?: string }> {
+    try {
+        const session = await getSession();
+        if (!session) {
+            return { success: false, message: 'Unauthorized' };
+        }
+
+        // Initialize Dodo Payments
+        const DodoPayments = require('dodopayments').default;
+        const client = new DodoPayments({
+            bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+            environment: process.env.DODO_PAYMENTS_ENVIRONMENT || 'test_mode',
+        });
+
+        let productId = process.env.DODO_PRODUCT_ID_BUILDER_MONTHLY || 'pdt_builder_monthly';
+        if (billingCycle === 'quarterly') {
+            productId = process.env.DODO_PRODUCT_ID_BUILDER_QUARTERLY || 'pdt_builder_quarterly';
+        } else if (billingCycle === 'yearly') {
+            productId = process.env.DODO_PRODUCT_ID_BUILDER_YEARLY || 'pdt_builder_yearly';
+        }
+
+        const checkoutSession = await client.checkoutSessions.create({
+            product_cart: [
+                { product_id: productId, quantity: 1 }
+            ],
+            customer: {
+                email: session.email,
+            },
+            return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/pricing?success=true`,
+        });
+
+        return { success: true, url: checkoutSession.checkout_url };
+    } catch (error) {
+        console.error('Dodo Payments checkout error:', error);
+        return { success: false, message: 'Internal server error while creating checkout' };
+    }
+}
+
+export async function verifySubscription(subscriptionId: string): Promise<{ success: boolean; message?: string }> {
+    try {
+        const session = await getSession();
+        if (!session) {
+            return { success: false, message: 'Unauthorized' };
+        }
+
+        const DodoPayments = require('dodopayments').default;
+        const client = new DodoPayments({
+            bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+            environment: process.env.DODO_PAYMENTS_ENVIRONMENT === 'live_mode' ? 'live_mode' : 'test_mode',
+        });
+
+        const subscription = await client.subscriptions.retrieve(subscriptionId);
+
+        if (subscription.status === 'active' || subscription.status === 'pending') {
+            await dbConnect();
+            const user = await User.findById(session.userId);
+            if (user) {
+                user.plan = 'builder';
+                user.razorpaySubscriptionId = subscriptionId;
+                user.cancelAtPeriodEnd = false;
+                user.currentPeriodEnd = undefined;
+                await user.save();
+                return { success: true, message: 'Subscription verified and activated' };
+            }
+        }
+
+        return { success: false, message: 'Subscription not active' };
+    } catch (error) {
+        console.error('Verify subscription error:', error);
+        return { success: false, message: 'Failed to verify subscription' };
+    }
+}

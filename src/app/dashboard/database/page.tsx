@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Plus, Trash, Database, Server, Variable, Copy, Info, Search } from "lucide-react";
@@ -10,7 +10,6 @@ import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { ShaderBackground } from "@/components/ui/plasma-shader";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
     AlertDialog,
@@ -53,6 +52,38 @@ export default function DatabasePage() {
 
     const [newDbInputs, setNewDbInputs] = useState<Record<string, { uri: string, dbName: string, type: 'mongodb' | 'postgres' }>>({});
     const [openDialogs, setOpenDialogs] = useState<Record<string, boolean>>({});
+
+    // Hero Interactive State
+    const heroRef = useRef<HTMLDivElement>(null);
+    const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 });
+    const [clickWaves, setClickWaves] = useState<{ id: number, x: number, y: number }[]>([]);
+
+    const handleHeroMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!heroRef.current) return;
+        const rect = heroRef.current.getBoundingClientRect();
+        setMousePos({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        });
+    };
+
+    const handleHeroMouseLeave = () => {
+        setMousePos({ x: -1000, y: -1000 });
+    };
+
+    const handleHeroClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!heroRef.current) return;
+        const rect = heroRef.current.getBoundingClientRect();
+        const newWave = {
+            id: Date.now(),
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        };
+        setClickWaves(prev => [...prev.slice(-4), newWave]);
+        setTimeout(() => {
+            setClickWaves(prev => prev.filter(w => w.id !== newWave.id));
+        }, 2000);
+    };
 
     useEffect(() => {
         fetchConnectors();
@@ -154,22 +185,203 @@ export default function DatabasePage() {
 
     return (
         <div className="flex flex-col gap-10">
-            {/* ══ HEADER ══ */}
-            <div className="relative w-full rounded-3xl overflow-hidden border border-border/50 shadow-sm bg-card p-8 md:p-10 flex flex-col justify-end min-h-[220px]" style={{ contain: 'layout', willChange: 'contents' }}>
-                <ShaderBackground className="absolute inset-0 z-0 opacity-80 pointer-events-none mix-blend-screen" />
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-inner">
-                            <Database className="h-6 w-6" />
-                        </div>
-                        <h1 className="text-3xl md:text-4xl font-black tracking-tight text-foreground">
-                            Databases
-                        </h1>
+            {/* ══ HERO CARD ══ */}
+            <div 
+                ref={heroRef}
+                onMouseMove={handleHeroMouseMove}
+                onMouseLeave={handleHeroMouseLeave}
+                onClick={handleHeroClick}
+                className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm flex flex-col lg:flex-row items-center justify-between p-6 lg:p-8 gap-6 lg:gap-10 mt-2 mb-4 group cursor-crosshair"
+            >
+                {/* Background subtle SVG pattern with 3D wave effect */}
+                <div className="absolute inset-0 pointer-events-none">
+                    <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                                <circle cx="2" cy="2" r="1.5" className="fill-foreground" />
+                            </pattern>
+                            <radialGradient id="wave-gradient-1" r="35%">
+                                <stop offset="0%" stopColor="white" stopOpacity="1" />
+                                <stop offset="40%" stopColor="white" stopOpacity="0.8" />
+                                <stop offset="100%" stopColor="white" stopOpacity="0" />
+                                <animate 
+                                    attributeName="cx" 
+                                    values="-20%; 120%; 120%; 120%" 
+                                    keyTimes="0; 0.25; 0.5; 1" 
+                                    dur="12s" 
+                                    repeatCount="indefinite" 
+                                />
+                                <animate 
+                                    attributeName="cy" 
+                                    values="-20%; 120%; 120%; 120%" 
+                                    keyTimes="0; 0.25; 0.5; 1" 
+                                    dur="12s" 
+                                    repeatCount="indefinite" 
+                                />
+                            </radialGradient>
+                            <radialGradient id="wave-gradient-2" r="25%">
+                                <stop offset="0%" stopColor="white" stopOpacity="1" />
+                                <stop offset="100%" stopColor="white" stopOpacity="0" />
+                                <animate 
+                                    attributeName="cx" 
+                                    values="120%; -20%; -20%; -20%" 
+                                    keyTimes="0; 0.25; 0.5; 1" 
+                                    dur="14s" 
+                                    repeatCount="indefinite" 
+                                />
+                                <animate 
+                                    attributeName="cy" 
+                                    values="-20%; 120%; 120%; 120%" 
+                                    keyTimes="0; 0.25; 0.5; 1" 
+                                    dur="14s" 
+                                    repeatCount="indefinite" 
+                                />
+                            </radialGradient>
+                            <mask id="wave-mask">
+                                <rect width="100%" height="100%" fill="url(#wave-gradient-1)" />
+                                <rect width="100%" height="100%" fill="url(#wave-gradient-2)" />
+                            </mask>
+                            
+                            {/* Hover Spotlight Mask */}
+                            <radialGradient id="hover-spotlight" cx={mousePos.x} cy={mousePos.y} r="180" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stopColor="white" stopOpacity="1" />
+                                <stop offset="50%" stopColor="white" stopOpacity="0.5" />
+                                <stop offset="100%" stopColor="white" stopOpacity="0" />
+                            </radialGradient>
+                            <mask id="hover-mask">
+                                <rect width="100%" height="100%" fill="url(#hover-spotlight)" />
+                            </mask>
+
+                            {/* Click Waves Mask */}
+                            <mask id="click-mask">
+                                {clickWaves.map(wave => (
+                                    <circle key={wave.id} cx={wave.x} cy={wave.y} r="0" fill="none" stroke="white" strokeWidth="50">
+                                        <animate attributeName="r" from="0" to="600" dur="2s" fill="freeze" />
+                                        <animate attributeName="stroke-width" from="50" to="0" dur="2s" fill="freeze" />
+                                        <animate attributeName="opacity" from="1" to="0" dur="2s" fill="freeze" />
+                                    </circle>
+                                ))}
+                            </mask>
+                        </defs>
+                        {/* Base faint grid */}
+                        <rect width="100%" height="100%" fill="url(#grid-pattern)" className="opacity-5 dark:opacity-[0.03]" />
+                        {/* Intense wave grid */}
+                        <rect width="100%" height="100%" fill="url(#grid-pattern)" mask="url(#wave-mask)" className="opacity-40 dark:opacity-25" />
+                        {/* Hover spotlight grid */}
+                        <rect width="100%" height="100%" fill="url(#grid-pattern)" mask="url(#hover-mask)" className="opacity-70 dark:opacity-50 transition-opacity duration-300" />
+                        {/* Click shockwave grid */}
+                        <rect width="100%" height="100%" fill="url(#grid-pattern)" mask="url(#click-mask)" className="opacity-100" />
+                    </svg>
+                </div>
+
+                <div className="relative z-10 max-w-lg w-full">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-primary mb-2 uppercase tracking-widest">
+                        <Database className="h-3.5 w-3.5" />
+                        <span>Database Routing</span>
                     </div>
-                    <p className="text-base text-muted-foreground max-w-xl font-medium mt-2">
-                        Configure connection strings and aliases for multiple databases within your deployed connectors.
+                    <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground mb-3">
+                        Connect multiple <br className="hidden md:block" /> databases dynamically.
+                    </h1>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                        Map and configure distinct database connection strings and aliases for your deployed connectors. Segregate environments, tenants, or data zones without rewriting any server code.
                     </p>
+                </div>
+
+                {/* Animated SVG Graphic (Isometric) */}
+                <div className="relative z-10 shrink-0 w-full max-w-[200px] md:max-w-[260px] lg:max-w-[320px] flex items-center justify-center -my-4 lg:mr-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="100 80 550 420" className="w-full h-auto drop-shadow-xl overflow-visible">
+                        <defs>
+                            {/* Define a reusable Satellite Server Node */}
+                            <g id="satellite" className="stroke-foreground" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round">
+                                {/* Dark Base */}
+                                <polygon points="-40,-10 0,10 40,-10 40,-5 0,15 -40,-5" className="fill-foreground" />
+                                
+                                {/* Bottom Box */}
+                                <polygon points="-40,-20 0,0 40,-20 0,-40" className="fill-muted" />
+                                <polygon points="-40,-20 0,0 0,-15 -40,-35" className="fill-card" />
+                                <polygon points="40,-20 0,0 0,-15 40,-35" className="fill-background" />
+                                
+                                {/* Top Box */}
+                                <polygon points="-40,-45 0,-25 40,-45 0,-65" className="fill-muted" />
+                                <polygon points="-40,-45 0,-25 0,-35 -40,-55" className="fill-card" />
+                                <polygon points="40,-45 0,-25 0,-35 40,-55" className="fill-background" />
+                                
+                                {/* Top Inner Detail */}
+                                <polygon points="-25,-45 0,-32.5 25,-45 0,-57.5" className="fill-border stroke-foreground" strokeWidth="1.5"/>
+                                {/* Vertical Lines */}
+                                <line x1="-40" y1="-55" x2="-40" y2="-85" className="stroke-foreground" strokeWidth="1.5" />
+                                <line x1="40" y1="-55" x2="40" y2="-85" className="stroke-foreground" strokeWidth="1.5" />
+                            </g>
+                        </defs>
+
+                        {/* Background Lines / Data Tracks */}
+                        <g className="stroke-muted-foreground/60" strokeWidth="2" strokeDasharray="6,6" fill="none" strokeLinejoin="round">
+                            <path id="track1" d="M 250 350 L 150 300 L 100 325 L 200 375" />
+                            <path id="track2" d="M 450 250 L 550 200 L 600 225 L 500 275" />
+                            <path id="track3" d="M 350 420 L 450 470 L 550 420 L 600 445" />
+                        </g>
+
+                        {/* Track Nodes (Static Dots) */}
+                        <g className="stroke-foreground" strokeWidth="2">
+                            <circle cx="150" cy="300" r="5" className="fill-destructive" />
+                            <circle cx="550" cy="200" r="5" className="fill-primary" />
+                            <circle cx="450" cy="470" r="5" className="fill-emerald-500" />
+                        </g>
+
+                        {/* Animated Data Packets */}
+                        <g>
+                            <circle r="4.5" className="fill-primary drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]">
+                            <animateMotion dur="3s" repeatCount="indefinite" path="M 250 350 L 150 300 L 100 325 L 200 375" />
+                            </circle>
+                            <circle r="4.5" className="fill-destructive drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
+                            <animateMotion dur="4s" repeatCount="indefinite" path="M 450 250 L 550 200 L 600 225 L 500 275" />
+                            </circle>
+                            <circle r="4.5" className="fill-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">
+                            <animateMotion dur="3.5s" repeatCount="indefinite" path="M 350 420 L 450 470 L 550 420 L 600 445" />
+                            </circle>
+                        </g>
+
+                        {/* Main Central Server */}
+                        <g className="stroke-foreground" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round">
+                            {/* Main Chassis: Top, Left, Right */}
+                            <polygon points="350,200 250,150 350,100 450,150" className="fill-background" />
+                            <polygon points="350,420 250,370 250,150 350,200" className="fill-card" />
+                            <polygon points="350,420 450,370 450,150 350,200" className="fill-muted" />
+                            
+                            {/* Outer Shell Bezel Detail */}
+                            <path d="M 260 160 L 350 205 L 440 160" fill="none" className="stroke-border" strokeWidth="2"/>
+                            <path d="M 350 205 L 350 405" fill="none" className="stroke-border" strokeWidth="2"/>
+
+                            {/* Left Face: Server Slots */}
+                            <g className="fill-muted">
+                            <polygon points="265,180 335,215 335,245 265,210" />
+                            <polygon points="265,230 335,265 335,295 265,260" />
+                            <polygon points="265,280 335,315 335,345 265,310" />
+                            <polygon points="265,330 335,365 335,395 265,360" />
+                            </g>
+
+                            {/* Slot Indicators (Lights) */}
+                            <g stroke="none">
+                            <ellipse cx="315" cy="225" rx="3" ry="1.5" transform="rotate(26.5 315 225)" className="fill-destructive" />
+                            <ellipse cx="315" cy="275" rx="3" ry="1.5" transform="rotate(26.5 315 275)" className="fill-emerald-500" />
+                            <ellipse cx="315" cy="325" rx="3" ry="1.5" transform="rotate(26.5 315 325)" className="fill-primary" />
+                            <ellipse cx="315" cy="375" rx="3" ry="1.5" transform="rotate(26.5 315 375)" className="fill-destructive" />
+                            </g>
+
+                            {/* Right Face: Data Chart */}
+                            <polygon points="375,225 435,195 435,275 375,305" className="fill-card" />
+                            <g className="fill-muted-foreground/40" stroke="none">
+                            <polygon points="385,295 392,291.5 392,250 385,253.5" />
+                            <polygon points="400,287.5 407,284 407,220 400,223.5" />
+                            <polygon points="415,280 422,276.5 422,240 415,243.5" />
+                            </g>
+                        </g>
+
+                        {/* Satellite Nodes */}
+                        <use href="#satellite" x="150" y="380" />
+                        <use href="#satellite" x="550" y="275" />
+                        <use href="#satellite" x="600" y="445" />
+                    </svg>
                 </div>
             </div>
 
@@ -186,7 +398,7 @@ export default function DatabasePage() {
                     <div className="flex flex-col lg:flex-row items-start gap-8">
                         
                         {/* Master Column (Left Sidebar for Connectors) */}
-                        <div className="w-full lg:w-1/3 xl:w-1/4 flex flex-col gap-4 shrink-0 h-[650px]">
+                        <div className="w-full lg:w-1/3 xl:w-1/4 flex flex-col gap-4 shrink-0 h-[400px] lg:h-[650px]">
                             <div className="relative shrink-0">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input 
@@ -234,7 +446,7 @@ export default function DatabasePage() {
                         </div>
 
                         {/* Detail Column (Right Panel for Databases) */}
-                        <div className="flex-1 w-full min-w-0 h-[650px]">
+                        <div className="flex-1 w-full min-w-0 h-[500px] lg:h-[650px]">
                             {!activeConnector ? (
                                 <div className="flex h-full flex-col items-center justify-center py-24 text-center border-2 border-dashed border-border rounded-3xl bg-card">
                                     <Database className="h-12 w-12 text-muted-foreground opacity-30 mb-4" />
@@ -242,86 +454,78 @@ export default function DatabasePage() {
                                     <p className="text-muted-foreground text-sm mt-2 max-w-sm">Choose a connector from the list to manage its mapped databases.</p>
                                 </div>
                             ) : (
-                                <div className="relative h-full rounded-3xl border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),_0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-3xl bg-neutral-900/60 dark:bg-black/60 overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    
-                                    {/* Noise Texture Layer */}
-                                    <div className="absolute inset-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
-                                    
-
-
-                                    {/* Connector Detail Header */}
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 md:px-8 md:py-6 border-b border-white/10 bg-black/20 relative shrink-0 z-10">
-                                        <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none" />
-
-                                        <div className="flex items-center gap-4 relative z-10">
-                                            <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex flex-col items-center justify-center text-primary shadow-inner shrink-0">
-                                                <Server className="h-5 w-5" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <h3 className="text-xl font-bold tracking-tight truncate">{activeConnector.name}</h3>
-                                                <div className="flex flex-wrap items-center gap-2 mt-1.5 text-sm text-muted-foreground">
-                                                    <code className="text-xs bg-muted/80 border border-border px-1.5 py-0.5 rounded font-mono font-bold text-foreground shrink-0">
-                                                        {activeConnector.id}
-                                                    </code>
-                                                    <span className="truncate max-w-[200px] md:max-w-sm">{activeConnector.url}</span>
-                                                </div>
+                            <div className="relative h-full rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                
+                                {/* Connector Detail Header */}
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 border-b border-border bg-muted/20 shrink-0">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                            <Server className="h-5 w-5" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h3 className="text-lg font-semibold tracking-tight truncate text-foreground">{activeConnector.name}</h3>
+                                            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                                <code className="bg-muted border border-border px-1.5 py-0.5 rounded font-mono font-medium text-foreground shrink-0">
+                                                    {activeConnector.id}
+                                                </code>
+                                                <span className="truncate max-w-[200px] md:max-w-sm">{activeConnector.url}</span>
                                             </div>
                                         </div>
-
-                                        {activeConnector.envPrefix && (
-                                            <Badge variant="outline" className="relative z-10 bg-background/50 backdrop-blur-sm border-primary/20 text-primary py-1.5 px-3 gap-2 shrink-0 rounded-full font-mono font-semibold">
-                                                <Variable className="h-3.5 w-3.5" />
-                                                Prefix: {activeConnector.envPrefix}
-                                            </Badge>
-                                        )}
                                     </div>
 
-                                    {/* Connector Databases Grid */}
-                                    <ScrollArea className="flex-1 z-10 w-full">
-                                        <div className="p-6 md:p-8">
-                                            <div className="flex items-center gap-2 mb-6">
-                                                <Database className="h-5 w-5 text-primary" />
-                                                <h4 className="text-base font-bold uppercase tracking-wider text-white">Configured Databases</h4>
+                                    {activeConnector.envPrefix && (
+                                        <Badge variant="outline" className="text-muted-foreground font-mono font-medium shrink-0">
+                                            <Variable className="h-3.5 w-3.5 mr-1.5" />
+                                            Prefix: {activeConnector.envPrefix}
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                <ScrollArea className="flex-1 w-full">
+                                    <div className="p-6">
+                                        <div className="flex items-center gap-2 mb-6">
+                                            <Database className="h-4 w-4 text-muted-foreground" />
+                                            <h4 className="text-sm font-semibold text-foreground">Mapped Databases</h4>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
                                             
                                             {/* Existing DB Mappings */}
                                             {activeConnector.databases && Object.entries(activeConnector.databases).map(([alias, config]) => (
-                                                <div key={alias} className="group/db flex flex-col justify-between gap-4 p-5 rounded-2xl border border-border bg-card shadow-sm hover:border-primary/30 transition-colors h-full">
+                                                <div key={alias} className="group/db flex flex-col justify-between gap-4 p-5 rounded-xl border border-border bg-card shadow-xs hover:border-border/80 transition-colors h-full">
                                                     <div className="flex flex-col gap-3 min-w-0">
                                                         <div className="flex items-start justify-between gap-2">
                                                             <span 
                                                                 title={alias}
-                                                                className="font-bold text-xs font-mono bg-primary/10 border border-primary/30 text-primary px-2.5 py-1 rounded-lg tracking-tight truncate min-w-0 max-w-full"
+                                                                className="font-medium text-sm text-foreground truncate min-w-0 max-w-full"
                                                             >
                                                                 {alias}
                                                             </span>
                                                             <Badge variant="secondary" className={cn(
-                                                                "text-[10px] h-5 px-2 uppercase font-bold tracking-widest shrink-0 mt-0.5",
-                                                                config.type === 'postgres' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                                                "text-[10px] uppercase font-semibold tracking-wide shrink-0",
+                                                                config.type === 'postgres' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                                                             )}>
                                                                 {config.type || 'mongodb'}
                                                             </Badge>
                                                         </div>
                                                         <div className="flex flex-col gap-1">
-                                                            <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Target Database</span>
-                                                            <span className="text-sm font-bold font-mono text-foreground truncate">
+                                                            <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">Target Database</span>
+                                                            <span className="text-sm font-medium font-mono text-foreground truncate">
                                                                 {config.dbName}
                                                             </span>
                                                         </div>
-                                                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/50 border border-border/50 overflow-hidden">
+                                                        <div className="flex items-center gap-2 p-2.5 rounded-md bg-muted/50 border border-border overflow-hidden mt-1">
                                                             <Variable className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                                             <code className="text-xs text-muted-foreground font-mono truncate w-full">
                                                                 {config.uri}
                                                             </code>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
+                                                    <div className="flex items-center justify-between mt-auto pt-4">
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            className="h-8 gap-1.5 text-xs text-foreground bg-background hover:bg-muted"
+                                                            className="h-8 gap-1.5 text-xs text-foreground shadow-xs"
                                                             onClick={() => copyToClipboard(config.uri, "Variable Name")}
                                                         >
                                                             <Copy className="h-3.5 w-3.5" /> Copy Code
@@ -372,107 +576,84 @@ export default function DatabasePage() {
                                                 }}
                                             >
                                                 <DialogTrigger asChild>
-                                                    <button className="flex flex-col items-center justify-center gap-4 p-5 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-primary cursor-pointer min-h-[220px] h-full">
-                                                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shadow-inner">
-                                                            <Plus className="h-6 w-6" />
+                                                    <button className="flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 border-dashed border-border bg-card hover:bg-muted/50 hover:border-muted-foreground/30 transition-all text-muted-foreground hover:text-foreground cursor-pointer min-h-[160px] h-full group">
+                                                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center group-hover:scale-105 transition-transform">
+                                                            <Plus className="h-5 w-5" />
                                                         </div>
-                                                        <div className="text-center space-y-1">
-                                                            <div className="font-bold text-sm">Add Mapping</div>
-                                                            <div className="text-xs text-muted-foreground font-medium">New database route</div>
+                                                        <div className="text-center space-y-0.5">
+                                                            <div className="font-semibold text-sm text-foreground">Map Another Database</div>
+                                                            <div className="text-xs">Add a new routing configuration</div>
                                                         </div>
                                                     </button>
                                                 </DialogTrigger>
                                                 
-                                                {/* Glassmorphism / Claymorphism / Noise Modal */}
-                                                <DialogContent className="sm:max-w-[500px] border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),_inset_0_-2px_10px_rgba(0,0,0,0.5),_0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-3xl bg-neutral-900/60 overflow-hidden !rounded-3xl p-0 dark:border-white/10 dark:bg-black/60">
-                                                    
-                                                    {/* Noise Texture Layer */}
-                                                    <div className="absolute inset-0 opacity-[0.05] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
-                                                    
-                                                    {/* Ambient Glow */}
-                                                    <div className="absolute -top-32 -left-32 w-64 h-64 bg-primary/30 rounded-full blur-[80px] pointer-events-none" />
-                                                    
-                                                    {/* Modal Inner Content */}
-                                                    <div className="relative z-10 p-7 md:p-9 space-y-7">
-                                                        <DialogHeader className="text-left space-y-2">
-                                                            <DialogTitle className="text-2xl font-black text-white flex items-center gap-2.5 drop-shadow-md">
-                                                                <Database className="h-6 w-6 text-primary" /> Map Database Route
-                                                            </DialogTitle>
-                                                            <DialogDescription className="text-white/70 text-sm font-medium">
-                                                                Map an environment variable URI to an internal database name for <strong className="text-white">{activeConnector.name}</strong>.
-                                                            </DialogDescription>
-                                                        </DialogHeader>
+                                                <DialogContent className="sm:max-w-[450px]">
+                                                    <DialogHeader>
+                                                        <DialogTitle>Map Database Route</DialogTitle>
+                                                        <DialogDescription>
+                                                            Map an environment variable URI to an internal database name for <strong>{activeConnector.name}</strong>.
+                                                        </DialogDescription>
+                                                    </DialogHeader>
 
-                                                        <div className="grid gap-6">
-                                                            <div className="grid gap-2.5">
-                                                                <div className="flex items-center justify-between">
-                                                                    <label className="text-[11px] font-bold uppercase tracking-widest text-white/90 drop-shadow-sm">
-                                                                        URI Variable Name
-                                                                    </label>
-                                                                    <div className="group/tooltip relative">
-                                                                        <Info className="h-3.5 w-3.5 text-white/50 cursor-help" />
-                                                                        <div className="absolute bottom-full right-0 mb-2 w-56 p-2.5 bg-background text-foreground text-xs leading-relaxed rounded-xl shadow-xl border border-border opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-50">
-                                                                            Exact Vercel environment variable name that holds the connection string (e.g. MONGODB_URI_PROD).
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="relative">
-                                                                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40">
-                                                                        <Variable className="h-4 w-4" />
-                                                                    </div>
-                                                                    <Input
-                                                                        placeholder="e.g. MONGODB_URI_PRODUCTION"
-                                                                        className="h-12 pl-10 bg-black/20 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary focus-visible:border-primary shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] rounded-xl font-mono text-sm"
-                                                                        value={newDbInputs[activeConnector.id]?.uri || ""}
-                                                                        onChange={e => handleInputChange(activeConnector.id, 'uri', e.target.value)}
-                                                                    />
-                                                                </div>
+                                                    <div className="grid gap-6 py-4">
+                                                        <div className="grid gap-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <label className="text-xs font-semibold text-foreground">
+                                                                    URI Variable Name
+                                                                </label>
+                                                                <span className="text-[10px] text-muted-foreground">Vercel ENV var</span>
                                                             </div>
-
-                                                            <div className="grid gap-2.5">
-                                                                <label className="text-[11px] font-bold uppercase tracking-widest text-white/90 drop-shadow-sm">DB Engine</label>
-                                                                <Select
-                                                                    value={newDbInputs[activeConnector.id]?.type || "mongodb"}
-                                                                    onValueChange={val => handleInputChange(activeConnector.id, 'type', val)}
-                                                                >
-                                                                    <SelectTrigger className="h-12 text-sm bg-black/20 border-white/10 text-white focus:ring-primary focus:border-primary shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] rounded-xl">
-                                                                        <SelectValue placeholder="Engine" />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent className="bg-background/95 backdrop-blur-xl border-white/10">
-                                                                        <SelectItem value="mongodb">MongoDB</SelectItem>
-                                                                        <SelectItem value="postgres">PostgreSQL</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-
-                                                            <div className="grid gap-2.5">
-                                                                <label className="text-[11px] font-bold uppercase tracking-widest text-white/90 drop-shadow-sm">Target DB Name</label>
+                                                            <div className="relative">
+                                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                                                    <Variable className="h-4 w-4" />
+                                                                </div>
                                                                 <Input
-                                                                    placeholder="e.g. main_db"
-                                                                    className="h-12 bg-black/20 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-primary focus-visible:border-primary shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] rounded-xl text-sm"
-                                                                    value={newDbInputs[activeConnector.id]?.dbName || ""}
-                                                                    onChange={e => handleInputChange(activeConnector.id, 'dbName', e.target.value)}
+                                                                    placeholder="e.g. MONGODB_URI_PRODUCTION"
+                                                                    className="pl-9 font-mono text-sm"
+                                                                    value={newDbInputs[activeConnector.id]?.uri || ""}
+                                                                    onChange={e => handleInputChange(activeConnector.id, 'uri', e.target.value)}
                                                                 />
                                                             </div>
                                                         </div>
 
-                                                        <div className="pt-4">
-                                                            <Button
-                                                                onClick={() => handleAddDatabase(activeConnector.id)}
-                                                                className="h-14 w-full font-bold text-sm tracking-wide shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),_0_0_20px_rgba(82,39,255,0.4)] hover:shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),_0_0_30px_rgba(82,39,255,0.6)] gap-2 bg-primary hover:bg-primary/90 text-primary-foreground border border-white/20 transition-all rounded-xl relative overflow-hidden group"
+                                                        <div className="grid gap-2">
+                                                            <label className="text-xs font-semibold text-foreground">DB Engine</label>
+                                                            <Select
+                                                                value={newDbInputs[activeConnector.id]?.type || "mongodb"}
+                                                                onValueChange={val => handleInputChange(activeConnector.id, 'type', val)}
                                                             >
-                                                                <div className="absolute inset-0 bg-white/20 translate-y-[100%] group-hover:translate-y-[0%] transition-transform duration-300 pointer-events-none" />
-                                                                <Plus className="h-4 w-4 relative z-10" /> 
-                                                                <span className="relative z-10">Map Database Route</span>
-                                                            </Button>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Engine" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="mongodb">MongoDB</SelectItem>
+                                                                    <SelectItem value="postgres">PostgreSQL</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
                                                         </div>
+
+                                                        <div className="grid gap-2">
+                                                            <label className="text-xs font-semibold text-foreground">Target DB Name</label>
+                                                            <Input
+                                                                placeholder="e.g. main_db"
+                                                                className="text-sm"
+                                                                value={newDbInputs[activeConnector.id]?.dbName || ""}
+                                                                onChange={e => handleInputChange(activeConnector.id, 'dbName', e.target.value)}
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-end pt-2">
+                                                        <Button onClick={() => handleAddDatabase(activeConnector.id)}>
+                                                            Map Database
+                                                        </Button>
                                                     </div>
                                                 </DialogContent>
                                             </Dialog>
 
                                         </div>
-                                        </div>
-                                    </ScrollArea>
+                                    </div>
+                                </ScrollArea>
                                 </div>
                             )}
                         </div>

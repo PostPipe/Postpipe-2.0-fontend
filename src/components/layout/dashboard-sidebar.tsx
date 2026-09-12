@@ -17,13 +17,15 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/use-auth';
+import { PLAN_LIMITS } from '@/config/plans';
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 export function DashboardSidebar({ className }: SidebarProps) {
     const pathname = usePathname();
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const [collapsed, setCollapsed] = React.useState(false);
 
     // Navigation Items
@@ -103,37 +105,74 @@ export function DashboardSidebar({ className }: SidebarProps) {
                 )}
             </div>
 
-            <div className='flex-1'>
-                <nav className='grid items-start px-2 text-sm font-medium lg:px-4'>
-                    {items.map((item, index) => {
-                        const Icon = item.icon;
-                        const isActive =
-                            pathname === item.href ||
-                            (item.href !== '/dashboard' &&
-                                pathname.startsWith(item.href));
+            <div className='flex-1 relative min-h-0 overflow-hidden my-2'>
+                <div 
+                    className='h-full overflow-y-auto overflow-x-hidden no-scrollbar'
+                    style={{
+                        maskImage: 'linear-gradient(to bottom, transparent, black 16px, black calc(100% - 16px), transparent)',
+                        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 16px, black calc(100% - 16px), transparent)'
+                    }}
+                >
+                    <nav className='grid items-start px-2 py-4 text-sm font-medium lg:px-4 gap-1'>
+                        {items.map((item, index) => {
+                            const Icon = item.icon;
+                            const isActive =
+                                pathname === item.href ||
+                                (item.href !== '/dashboard' &&
+                                    pathname.startsWith(item.href));
 
-                        return (
-                            <Link
-                                key={index}
-                                href={item.href}
-                                className={cn(
-                                    'flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary',
-                                    isActive
-                                        ? 'bg-muted text-primary'
-                                        : 'text-muted-foreground',
-                                    collapsed && 'justify-center px-2',
-                                )}
-                                title={collapsed ? item.title : undefined}
-                            >
-                                <Icon className='h-4 w-4' />
-                                {!collapsed && item.title}
-                            </Link>
-                        );
-                    })}
-                </nav>
+                            return (
+                                <Link
+                                    key={index}
+                                    href={item.href}
+                                    className={cn(
+                                        'flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary',
+                                        isActive
+                                            ? 'bg-muted text-primary'
+                                            : 'text-muted-foreground',
+                                        collapsed && 'justify-center px-2',
+                                    )}
+                                    title={collapsed ? item.title : undefined}
+                                >
+                                    <Icon className='h-4 w-4 shrink-0' />
+                                    {!collapsed && item.title}
+                                </Link>
+                            );
+                        })}
+                    </nav>
+                </div>
             </div>
 
-            <div className='mt-auto border-t p-4'>
+            {!collapsed && user && (
+                <div className='px-4 mt-auto mb-4'>
+                    <div className='rounded-xl border bg-card text-card-foreground shadow-sm p-4 space-y-3'>
+                        <div>
+                            <p className='text-sm font-semibold'>Usage</p>
+                            <p className='text-xs text-muted-foreground'>
+                                {user.plan === 'enterprise' ? 'Unlimited Submissions' : `${user.monthlySubmissions || 0} / ${(PLAN_LIMITS[user.plan as keyof typeof PLAN_LIMITS]?.submissions || PLAN_LIMITS.starter.submissions).toLocaleString()} Submissions`}
+                            </p>
+                        </div>
+                        {user.plan !== 'enterprise' && (
+                            <Progress 
+                                value={Math.min(100, ((user.monthlySubmissions || 0) / (PLAN_LIMITS[user.plan as keyof typeof PLAN_LIMITS]?.submissions || PLAN_LIMITS.starter.submissions)) * 100)} 
+                                className='h-2 bg-muted-foreground/20' 
+                            />
+                        )}
+                        {user.plan === 'starter' && (
+                            <Link href="/pricing" className="block w-full">
+                                <Button size="sm" className="w-full h-8 text-xs font-bold mt-1 bg-gradient-to-r from-violet-500 to-primary text-white border-0">Upgrade to Builder</Button>
+                            </Link>
+                        )}
+                        {user.plan === 'builder' && (
+                            <Link href="mailto:founder@postpipe.in" className="block w-full">
+                                <Button variant="outline" size="sm" className="w-full h-8 text-xs font-bold mt-1">Contact Enterprise</Button>
+                            </Link>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            <div className='border-t p-4'>
                 <Button
                     variant='ghost'
                     className={cn(

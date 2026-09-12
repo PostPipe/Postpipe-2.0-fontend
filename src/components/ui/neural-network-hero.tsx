@@ -55,35 +55,26 @@ export default function NeuralNetworkHero({
     useGSAP(
         () => {
             // Scroll Animation
-            // Scroll Animation
-            // Scroll Animation (Manual implementation to verify fix)
-            const handleScroll = (e: Event) => {
-                if (!contentRef.current) return;
-
-                const target = e.target as HTMLElement;
-                const scrollTop = target.scrollTop || window.scrollY;
-                const maxScroll = 300; // Fade out over 300px
-
-                // Calculate opacity and scale based on scroll
-                const progress = Math.min(scrollTop / maxScroll, 1);
-                const opacity = 1 - progress;
-                const scale = 1 - (progress * 0.05); // slightly scale down to 0.95
-                const y = -(progress * 50); // move up by 50px
-
-                // Apply direct optimizations
-                contentRef.current.style.opacity = opacity.toString();
-                contentRef.current.style.transform = `translate3d(0, ${y}px, 0) scale(${scale})`;
-                contentRef.current.style.pointerEvents = opacity <= 0.1 ? 'none' : 'auto';
-            };
-
-            // Attach listener
-            const scroller = document.querySelector(".docs-scroller") || window;
-            scroller.addEventListener("scroll", handleScroll);
-
-            // Cleanup
-            return () => {
-                scroller.removeEventListener("scroll", handleScroll);
-            };
+            // Scroll Animation via ScrollTrigger to sync with Lenis
+            if (contentRef.current) {
+                gsap.to(contentRef.current, {
+                    opacity: 0,
+                    scale: 0.95,
+                    y: -50,
+                    ease: "none",
+                    scrollTrigger: {
+                        trigger: sectionRef.current,
+                        start: "top top",
+                        end: "+=300",
+                        scrub: true,
+                        onUpdate: (self) => {
+                            if (contentRef.current) {
+                                contentRef.current.style.pointerEvents = self.progress >= 0.9 ? 'none' : 'auto';
+                            }
+                        }
+                    }
+                });
+            }
 
             if (!headerRef.current) return;
 

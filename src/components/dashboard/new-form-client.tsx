@@ -840,18 +840,18 @@ export default function NewFormClient({
             <div className='flex flex-col w-full h-full relative overflow-hidden'>
                 {/* Top App Bar */}
                 <header className='h-14 border-b border-white/10 bg-[#0a0a0a] flex items-center justify-between px-4 lg:px-6 relative z-20'>
-                    <div className='flex items-center gap-3 flex-1'>
+                    <div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
                         {onBack ? (
                             <Button
                                 variant='ghost'
                                 size='icon'
                                 onClick={onBack}
-                                className='text-neutral-400 hover:text-white rounded-md bg-transparent hover:bg-white/5 h-8 w-8'
+                                className='text-neutral-400 hover:text-white rounded-md bg-transparent hover:bg-white/5 h-8 w-8 shrink-0'
                             >
                                 <ArrowLeft className='h-4 w-4' />
                             </Button>
                         ) : (
-                            <Link href='/dashboard/forms'>
+                            <Link href='/dashboard/forms' className="shrink-0">
                                 <Button
                                     variant='ghost'
                                     size='icon'
@@ -861,16 +861,16 @@ export default function NewFormClient({
                                 </Button>
                             </Link>
                         )}
-                        <div className='h-4 w-px bg-white/10 mx-1' />
+                        <div className='h-4 w-px bg-white/10 mx-0 sm:mx-1 shrink-0' />
                         <Input
                             value={formName}
                             onChange={(e) => setFormName(e.target.value)}
-                            className='bg-transparent border-transparent hover:border-white/10 focus:border-white/20 focus-visible:ring-0 text-sm font-medium text-white px-2 w-full max-w-[300px] transition-all h-8 rounded-md'
+                            className='bg-transparent border-transparent hover:border-white/10 focus:border-white/20 focus-visible:ring-0 text-sm font-medium text-white px-1 sm:px-2 w-full max-w-[300px] min-w-[80px] transition-all h-8 rounded-md'
                             placeholder='Untitled Form'
                         />
                     </div>
 
-                    <div className='flex items-center gap-2'>
+                    <div className='flex items-center gap-1 sm:gap-2 shrink-0'>
                         {generatedId && (
                             <div className='hidden md:flex items-center gap-1.5 text-[11px] font-medium text-neutral-400 bg-white/5 px-2.5 py-1 rounded-md border border-white/10 mr-2'>
                                 <div className='w-1.5 h-1.5 rounded-full bg-neutral-400' />
@@ -879,7 +879,7 @@ export default function NewFormClient({
                         )}
                         <Button
                             variant='ghost'
-                            className='text-neutral-400 hover:text-white xl:hidden bg-transparent hover:bg-white/5 h-8 px-3 text-xs'
+                            className='text-neutral-400 hover:text-white xl:hidden bg-transparent hover:bg-white/5 h-8 px-2 sm:px-3 text-xs'
                             onClick={() =>
                                 setActiveTab(
                                     activeTab === 'preview'
@@ -894,14 +894,14 @@ export default function NewFormClient({
                         </Button>
                         <Button
                             variant='ghost'
-                            className='h-8 px-3 text-xs text-neutral-400 hover:text-white hover:bg-white/5 transition-all mr-2 rounded-md'
+                            className='h-8 px-2 sm:px-3 text-xs text-neutral-400 hover:text-white hover:bg-white/5 transition-all mr-1 sm:mr-2 rounded-md'
                             onClick={handleReset}
                         >
-                            <RotateCcw className='w-3 h-3 mr-1.5' /> Reset
+                            <RotateCcw className='w-3 h-3 sm:mr-1.5' /> <span className="hidden sm:inline">Reset</span>
                         </Button>
                         <Button
                             onClick={handleSave}
-                            className='h-8 px-4 text-xs bg-white text-black hover:bg-neutral-200 rounded-md shadow-sm'
+                            className='h-8 px-3 sm:px-4 text-xs bg-white text-black hover:bg-neutral-200 rounded-md shadow-sm'
                             disabled={isSaving}
                         >
                             {isSaving ? (
@@ -910,10 +910,8 @@ export default function NewFormClient({
                                 </div>
                             ) : (
                                 <>
-                                    <Save className='w-3 h-3 mr-1.5' />
-                                    {initialData
-                                        ? 'Update'
-                                        : 'Deploy'}
+                                    <Save className='w-3 h-3 sm:mr-1.5' />
+                                    <span className="hidden sm:inline">{initialData ? 'Update' : 'Deploy'}</span>
                                 </>
                             )}
                         </Button>
@@ -1002,7 +1000,7 @@ export default function NewFormClient({
                         >
                             {/* Control Content */}
                             <div ref={contentScrollRef} className='flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full'>
-                                <div className='p-5 pb-6 max-w-3xl mx-auto w-full'>
+                                <div className='p-5 pb-24 lg:pb-6 max-w-3xl mx-auto w-full'>
                                 {/* BUILD TAB */}
                                 {activeTab === 'build' && (
                                     <div className='space-y-4'>
