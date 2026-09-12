@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { 
-    Copy, ExternalLink, GitPullRequest, Maximize2, 
-    Calendar, Search, Sparkles, Check, Tag, ChevronRight, 
-    Layers, ArrowUpRight 
+import {
+    Copy, ExternalLink, GitPullRequest, Maximize2,
+    Calendar, Search, Sparkles, Check, Tag, ChevronRight,
+    Layers, ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +42,7 @@ const releases: ReleaseItem[] = [
         version: "v3.1.0",
         title: "v3.1.0: Documentation Overhaul, UI Fixes & Stability Improvements",
         date: "September 12, 2026",
-        image: "[INSERT_SCREENSHOT_LINK_HERE]",
+        image: "https://res.cloudinary.com/dbaw86kzf/image/upload/v1789191712/8da1a117-f42e-411d-9b10-066430ee2c52.png",
         excerpt:
             "A comprehensive update featuring a completely rewritten documentation site, fixes for Next.js 15 CSR bailouts, resolved form deletion bugs, and mobile UI enhancements.",
         tags: ["Documentation", "Bug Fixes", "UI Enhancements", "Next.js"],
@@ -375,7 +375,7 @@ export default function ChangelogComponent() {
 
     const filteredReleases = useMemo(() => {
         return releases.filter(r => {
-            const matchesSearch = !searchQuery.trim() || 
+            const matchesSearch = !searchQuery.trim() ||
                 r.version.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 r.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -487,9 +487,9 @@ export default function ChangelogComponent() {
                             <p className="text-muted-foreground text-xs">
                                 No release notes match &quot;{searchQuery}&quot; in category &quot;{selectedTag}&quot;.
                             </p>
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => { setSearchQuery(""); setSelectedTag("All"); }}
                                 className="mt-2 text-xs"
                             >
@@ -755,11 +755,10 @@ export default function ChangelogComponent() {
                                     <button
                                         key={tag}
                                         onClick={() => setSelectedTag(tag)}
-                                        className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${
-                                            selectedTag.toLowerCase() === tag.toLowerCase()
+                                        className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${selectedTag.toLowerCase() === tag.toLowerCase()
                                                 ? "bg-primary text-primary-foreground font-semibold shadow-sm"
                                                 : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
-                                        }`}
+                                            }`}
                                     >
                                         {tag}
                                     </button>
