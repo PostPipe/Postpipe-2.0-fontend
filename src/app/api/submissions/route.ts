@@ -175,13 +175,15 @@ export async function DELETE(req: NextRequest) {
         const databaseConfig = userConfig?.databases?.[target] || connector.databases?.[target];
 
         const baseUrl = ensureFullUrl(connector.url);
+        console.log(`[API DELETE] url: ${baseUrl}/postpipe/data/${submissionId}`);
+        console.log(`[API DELETE] body:`, { formId, formName: form.name || '', hard, targetDatabase: target, databaseConfig });
         const res = await fetch(`${baseUrl}/postpipe/data/${submissionId}`, {
             method: 'DELETE',
             headers: { 
                 'Authorization': `Bearer ${connector.secret}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ formId, formName: form.name || '', hard, targetDatabase: target, databaseConfig })
+            body: JSON.stringify({ formId: form.name || formId, formName: form.name || '', hard, targetDatabase: target, databaseConfig })
         });
 
         const result = await res.json();
