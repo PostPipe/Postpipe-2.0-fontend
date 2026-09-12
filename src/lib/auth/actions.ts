@@ -127,26 +127,26 @@ export async function login(prevState: any, formData: FormData): Promise<AuthSta
     if (loginSuccess) {
         redirect('/dashboard/forms');
     }
-    
+
     return { success: true, message: 'Logged in successfully' };
 }
 
 export async function logout(prevState: any, formData: FormData): Promise<AuthState> {
     const cookieStore = await cookies();
     const isProd = process.env.NODE_ENV === 'production';
-    
+
     cookieStore.set('token', '', {
         maxAge: 0,
         path: '/',
         ...(isProd && { domain: '.postpipe.in' }),
     });
-    
+
     cookieStore.set('postpipe_auth', '', {
         maxAge: 0,
         path: '/',
         ...(isProd && { domain: '.postpipe.in' }),
     });
-    
+
     return { success: true, message: 'Logged out successfully' };
 }
 
@@ -154,13 +154,13 @@ export async function signOut() {
     'use server';
     const cookieStore = await cookies();
     const isProd = process.env.NODE_ENV === 'production';
-    
+
     cookieStore.set('token', '', {
         maxAge: 0,
         path: '/',
         ...(isProd && { domain: '.postpipe.in' }),
     });
-    
+
     cookieStore.set('postpipe_auth', '', {
         maxAge: 0,
         path: '/',
@@ -222,7 +222,7 @@ export async function resetPassword(prevState: any, formData: FormData): Promise
 
     try {
         await dbConnect();
-        
+
         const crypto = require('crypto');
         const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
@@ -493,7 +493,7 @@ export async function verifySubscription(subscriptionId: string): Promise<{ succ
 
         const subscription = await client.subscriptions.retrieve(subscriptionId);
 
-        if (subscription.status === 'active' || subscription.status === 'pending') {
+        if (subscription.status === 'active') {
             await dbConnect();
             const user = await User.findById(session.userId);
             if (user) {
