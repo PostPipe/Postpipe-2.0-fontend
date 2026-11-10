@@ -100,93 +100,143 @@ ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
   })();
 </script>` : '';
 
-    const imageUploadScript = (hasImageFields || hasReferenceFields || hasBooleanFields) ? `
+    const formSubmitScript = `
 <script>
-  document.getElementById('pp-form-${formId}').addEventListener('submit', async function(e) {
-    if (this.getAttribute('method') === 'POST' && !this.id) return; // skip if simple POST
-    e.preventDefault();
-    var btn = this.querySelector('button[type="submit"]');
-    var originalBtnText = btn.textContent;
-    btn.disabled = true; btn.textContent = 'Processing...';
-    var data = {}; var errors = [];
-    var uploads = Array.from(this.querySelectorAll('input,textarea,select')).map(async function(input) {
-      if (!input.name) return;
-      if (input.type === 'file' && input.files && input.files.length > 0) {
-        try {
-          var uploadedUrls = [];
-          for (var i = 0; i < input.files.length; i++) {
-            var fileInfo = input.files[i];
-            var compressed = fileInfo;
-            if (fileInfo.type.startsWith('image/')) {
-              compressed = await new Promise(function(resolve) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                  var img = new Image();
-                  img.onload = function() {
-                    var canvas = document.createElement('canvas');
-                    var w = img.width, h = img.height, max = 1000;
-                    if (w > max) { h = Math.round((h * max) / w); w = max; }
-                    canvas.width = w; canvas.height = h;
-                    var ctx = canvas.getContext('2d');
-                    if (!ctx) return resolve(fileInfo);
-                    ctx.drawImage(img, 0, 0, w, h);
-                    canvas.toBlob(function(b) {
-                      if (b) resolve(new File([b], fileInfo.name, {type: 'image/jpeg'}));
-                      else resolve(fileInfo);
-                    }, 'image/jpeg', 0.8);
-                  };
-                  img.onerror = function() { resolve(fileInfo); };
-                  img.src = e.target.result;
-                };
-                reader.onerror = function() { resolve(fileInfo); };
-                reader.readAsDataURL(fileInfo);
-              });
-            }
-            var fd = new FormData(); fd.append('file', compressed);
-            var r = await fetch('${connectorUrl}/postpipe/upload', { method: 'POST', body: fd });
-            var d = await r.json();
-            if (!r.ok || !d.url) throw new Error(d.error || 'Upload failed');
-            uploadedUrls.push(d.url);
-          }
-          if (input.multiple) { data[input.name] = uploadedUrls; } else { data[input.name] = uploadedUrls[0]; }
-        } catch(e) { errors.push(input.name + ': ' + e.message); }
-      } else if (input.type !== 'submit') { 
-        if (input.type === 'checkbox') data[input.name] = input.checked;
-        else data[input.name] = input.value; 
-      }
-    });
-    await Promise.all(uploads);
-    if (errors.length) { alert('Upload failed:\\n' + errors.join('\\n')); btn.disabled=false; btn.textContent=originalBtnText; return; }
-    btn.textContent = 'Submitting...';
-    try {
-      var res = await fetch('${embedUrl}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
-      if (res.ok) { btn.textContent='✓ Submitted!'; document.getElementById('pp-form-${formId}').reset(); document.querySelectorAll('[id^="preview-"]').forEach(function(el){if(el.tagName.toLowerCase()==='img'){el.src='';el.style.display='none';}else{el.innerHTML='';}}); setTimeout(function() { btn.textContent=originalBtnText; btn.disabled=false; }, 2000); }
-      else { var err=await res.json(); alert('Submission failed: '+(err.error||res.statusText)); btn.disabled=false; btn.textContent=originalBtnText; }
-    } catch(err) {
-      alert('Network error'); btn.disabled=false; btn.textContent=originalBtnText;
-    }
-  });
+  (function() {
+    var form = document.getElementById('pp-form-${formId}');
+    if (!form) return;
+    var successBox = document.getElementById('pp-success-${formId}');
+    var errorBox = document.getElementById('pp-error-${formId}');
 
-  document.querySelectorAll('input[type="file"]').forEach(function(input) {
-    input.addEventListener('change', function() {
-      var p = document.getElementById('preview-'+input.name);
-      if (p && input.files && input.files.length > 0) {
-        if (p.tagName.toLowerCase() === 'img') {
-          p.src = URL.createObjectURL(input.files[0]); p.style.display = 'block';
-        } else {
-          p.innerHTML = '';
-          for (var i = 0; i < input.files.length; i++) {
-            var img = document.createElement('img');
-            img.src = URL.createObjectURL(input.files[i]);
-            img.style.maxWidth = '100px';
-            img.style.borderRadius = '6px';
-            p.appendChild(img);
+    // 1. Detect if page loaded with ?success=true (from native HTML form redirect)
+    var urlParams = new URLSearchParams(window.location.search);
+    if ((urlParams.get('success') || '').toLowerCase() === 'true') {
+      if (successBox) successBox.style.display = 'block';
+    }
+
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var btn = form.querySelector('button[type="submit"]');
+      var originalBtnText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+      if (errorBox) errorBox.style.display = 'none';
+      if (successBox) successBox.style.display = 'none';
+
+      var data = {};
+      var errors = [];
+      var inputs = Array.from(form.querySelectorAll('input,textarea,select'));
+
+      for (var i = 0; i < inputs.length; i++) {
+        var input = inputs[i];
+        if (!input.name || input.type === 'submit') continue;
+
+        if (input.type === 'file' && input.files && input.files.length > 0) {
+          try {
+            var uploadedUrls = [];
+            for (var j = 0; j < input.files.length; j++) {
+              var fileInfo = input.files[j];
+              var fd = new FormData();
+              fd.append('file', fileInfo);
+              var r = await fetch('${connectorUrl}/postpipe/upload', { method: 'POST', body: fd });
+              var d = await r.json().catch(function() { return {}; });
+              if (!r.ok || !d.url) throw new Error(d.error || 'Upload failed');
+              uploadedUrls.push(d.url);
+            }
+            data[input.name] = input.multiple ? uploadedUrls : uploadedUrls[0];
+          } catch(err) {
+            errors.push(input.name + ': ' + (err.message || 'Upload error'));
           }
+        } else if (input.type === 'checkbox') {
+          data[input.name] = input.checked;
+        } else {
+          data[input.name] = input.value;
         }
       }
+
+      if (errors.length) {
+        if (errorBox) {
+          errorBox.textContent = 'Upload error: ' + errors.join(', ');
+          errorBox.style.display = 'block';
+        } else {
+          alert('Upload failed:\\n' + errors.join('\\n'));
+        }
+        btn.disabled = false;
+        btn.textContent = originalBtnText;
+        return;
+      }
+
+      try {
+        var res = await fetch('${embedUrl}', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+
+        var resData = await res.json().catch(function() { return null; });
+
+        if (res.ok && (!resData || resData.success !== false)) {
+          btn.textContent = '✓ Submitted!';
+          form.reset();
+          if (successBox) successBox.style.display = 'block';
+          form.querySelectorAll('[id^="preview-"]').forEach(function(el) {
+            if (el.tagName.toLowerCase() === 'img') { el.src = ''; el.style.display = 'none'; }
+            else { el.innerHTML = ''; }
+          });
+          setTimeout(function() {
+            btn.textContent = originalBtnText;
+            btn.disabled = false;
+          }, 3000);
+        } else {
+          var errMsg = (resData && (resData.error || resData.message)) || res.statusText || 'Submission failed';
+          if (errorBox) {
+            errorBox.textContent = 'Error: ' + errMsg;
+            errorBox.style.display = 'block';
+          } else {
+            alert('Submission failed: ' + errMsg);
+          }
+          btn.disabled = false;
+          btn.textContent = originalBtnText;
+        }
+      } catch(err) {
+        var netMsg = err.message || 'Network error occurred';
+        if (errorBox) {
+          errorBox.textContent = 'Error: ' + netMsg;
+          errorBox.style.display = 'block';
+        } else {
+          alert('Error: ' + netMsg);
+        }
+        btn.disabled = false;
+        btn.textContent = originalBtnText;
+      }
     });
-  });
-</script>` : '';
+
+    // File preview bindings
+    form.querySelectorAll('input[type="file"]').forEach(function(input) {
+      input.addEventListener('change', function() {
+        var p = document.getElementById('preview-' + input.name);
+        if (p && input.files && input.files.length > 0) {
+          if (p.tagName.toLowerCase() === 'img') {
+            p.src = URL.createObjectURL(input.files[0]);
+            p.style.display = 'block';
+          } else {
+            p.innerHTML = '';
+            for (var i = 0; i < input.files.length; i++) {
+              var img = document.createElement('img');
+              img.src = URL.createObjectURL(input.files[i]);
+              img.style.maxWidth = '100px';
+              img.style.borderRadius = '6px';
+              p.appendChild(img);
+            }
+          }
+        }
+      });
+    });
+  })();
+</script>`;
 
     const html = `
 <!DOCTYPE html>
@@ -197,7 +247,8 @@ ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
   <title>${name}</title>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; background: #fafafa; }
-    #pp-form-${formId} { max-width: 500px; margin: 0 auto; background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .pp-container { max-width: 500px; margin: 0 auto; }
+    #pp-form-${formId} { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .field-group { margin-bottom: 16px; }
     label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; color: #374151; }
     input[type="text"], input[type="email"], input[type="number"], input[type="datetime-local"], select, textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
@@ -206,16 +257,27 @@ ${options.map(o => `      <option value="${o}">${o}</option>`).join('\n')}
     button[type="submit"] { background: #4f46e5; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; width: 100%; transition: background 0.2s; }
     button[type="submit"]:hover { background: #4338ca; }
     button[type="submit"]:disabled { opacity: 0.7; cursor: not-allowed; }
+    .pp-alert-success { text-align: center; padding: 24px 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin-bottom: 16px; }
+    .pp-alert-error { padding: 12px 16px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; margin-bottom: 16px; color: #b91c1c; font-size: 13px; }
   </style>
 </head>
 <body>
-  <form id="pp-form-${formId}" action="${embedUrl}" method="POST">
-    <h2 style="margin-top:0;margin-bottom:20px;font-size:18px;color:#111827;">${name}</h2>
+  <div class="pp-container">
+    <div id="pp-success-${formId}" class="pp-alert-success" style="display:none;">
+      <div style="font-size:32px; color:#16a34a; margin-bottom:8px;">✓</div>
+      <h3 style="margin:0 0 6px; font-size:16px; font-weight:600; color:#15803d;">Thank you!</h3>
+      <p style="margin:0; font-size:13px; color:#166534;">Your submission has been received successfully.</p>
+    </div>
+    <div id="pp-error-${formId}" class="pp-alert-error" style="display:none;"></div>
+
+    <form id="pp-form-${formId}" action="${embedUrl}" method="POST">
+      <h2 style="margin-top:0;margin-bottom:20px;font-size:18px;color:#111827;">${name}</h2>
 ${fields.map(renderEmbedField).join('\n')}
-    <button type="submit">Submit Form</button>
-  </form>
+      <button type="submit">Submit Form</button>
+    </form>
+  </div>
 ${referenceScript}
-${imageUploadScript}
+${formSubmitScript}
 </body>
 </html>
 `.trim();
@@ -224,29 +286,64 @@ ${imageUploadScript}
 
 export default function MyPostpipeForm() {
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const formData = new FormData(e.target);
+    setError('');
+    
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     
     try {
       const res = await fetch('${embedUrl}', {
         method: 'POST',
+        headers: {
+          'Accept': 'application/json'
+        },
         body: formData
       });
-      if (res.ok) alert('Success!');
-      else alert('Error: ' + res.statusText);
+      
+      const data = await res.json().catch(() => null);
+      if (res.ok && (!data || data.success !== false)) {
+        setSuccess(true);
+        form.reset();
+      } else {
+        setError(data?.error || res.statusText || 'Submission failed');
+      }
     } catch(err) {
-      console.error(err);
-      alert('Network error');
+      setError(err?.message || 'Network error occurred');
     } finally {
       setLoading(false);
     }
   };
 
+  if (success) {
+    return (
+      <div className="p-6 text-center bg-emerald-500/10 border border-emerald-500/30 rounded-xl max-w-md mx-auto">
+        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl font-bold">✓</div>
+        <h3 className="text-lg font-semibold text-emerald-400 mb-1">Thank you!</h3>
+        <p className="text-sm text-neutral-300 mb-4">Your submission has been received successfully.</p>
+        <button 
+          type="button"
+          onClick={() => setSuccess(false)}
+          className="text-xs text-neutral-400 hover:text-white underline cursor-pointer"
+        >
+          Submit another response
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-w-md mx-auto">
+      {error && (
+        <div className="p-3 text-sm bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg">
+          {error}
+        </div>
+      )}
 ${fields.map(f => {
         const conf = FIELD_TYPES[f.type] || FIELD_TYPES.text;
         if (conf.category === 'Boolean') {

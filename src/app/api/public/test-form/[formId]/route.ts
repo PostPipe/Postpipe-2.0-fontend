@@ -36,7 +36,7 @@ export async function GET(
     }
 
     const submitUrl = `${req.nextUrl.origin}/api/public/submit/${formId}`;
-    const showSuccess = req.nextUrl.searchParams.get('success') === 'true';
+    const showSuccess = req.nextUrl.searchParams.get('success')?.toLowerCase() === 'true';
 
     const fields: {
         name: string;
@@ -625,17 +625,24 @@ export async function GET(
             try {
                 const res = await fetch('${submitUrl}', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
                     body: JSON.stringify(data),
                 });
-                const json = await res.json();
+                const json = await res.json().catch(() => null);
 
                 panel.classList.add('visible');
-                output.textContent = JSON.stringify(json, null, 2);
-                output.style.color = res.ok ? 'rgba(52,211,153,0.9)' : 'rgba(248,113,113,0.9)';
+                output.textContent = JSON.stringify(json || { status: res.status, statusText: res.statusText }, null, 2);
+                output.style.color = (res.ok && json?.success !== false) ? 'rgba(52,211,153,0.9)' : 'rgba(248,113,113,0.9)';
 
-                if (res.ok) btn.textContent = '✓ Submitted!';
-                else btn.textContent = '✗ Failed';
+                if (res.ok && json?.success !== false) {
+                    btn.textContent = '✓ Submitted!';
+                    form.reset();
+                } else {
+                    btn.textContent = '✗ Failed';
+                }
             } catch (err) {
                 panel.classList.add('visible');
                 output.textContent = 'Error: ' + err.message;

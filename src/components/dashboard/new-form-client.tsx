@@ -23,7 +23,16 @@ import {
     RotateCcw,
     Link2,
     Folders,
+    ChevronDown,
+    Search,
+    X,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { Logo } from '@/components/icons/logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -121,6 +130,7 @@ function SortableField({
         isDragging,
     } = useSortable({ id: field.id });
     const [typeSearch, setTypeSearch] = useState('');
+    const [isTypeOpen, setIsTypeOpen] = useState(false);
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -215,69 +225,135 @@ function SortableField({
                                         </span>
                                     )}
                                 </Label>
-                                <Select
-                                    value={field.type}
-                                    onValueChange={handleTypeChange}
+                                <Popover
+                                    open={isTypeOpen}
+                                    onOpenChange={(open) => {
+                                        setIsTypeOpen(open);
+                                        if (!open) setTypeSearch('');
+                                    }}
                                 >
-                                    <SelectTrigger
-                                        className='h-8 text-xs border-white/10 text-white bg-[#0a0a0a] focus:ring-1 focus:ring-white/20'
+                                    <PopoverTrigger asChild>
+                                        <button
+                                            type='button'
+                                            className='flex h-8 w-full items-center justify-between rounded-md border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white hover:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20 transition-colors'
+                                        >
+                                            <span className='truncate'>
+                                                {FIELD_TYPES[field.type]?.label || field.type || 'Select type…'}
+                                            </span>
+                                            <ChevronDown className='h-3.5 w-3.5 text-neutral-400 shrink-0 ml-1.5 opacity-50' />
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                        align='start'
+                                        data-lenis-prevent='true'
+                                        onWheel={(e) => e.stopPropagation()}
+                                        className='w-[var(--radix-popover-trigger-width)] min-w-[280px] p-0 bg-[#0c0c0e] border border-white/10 text-white shadow-2xl z-50 rounded-xl overflow-hidden'
                                     >
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className='max-h-[340px] p-0'>
                                         {/* Search input */}
-                                        <div className='sticky top-0 z-20 bg-[#09090D] border-b border-white/5 px-2 py-1.5'>
-                                            <input
-                                                autoFocus
-                                                placeholder='Search types…'
-                                                value={typeSearch}
-                                                onChange={(e) =>
-                                                    setTypeSearch(
-                                                        e.target.value,
-                                                    )
-                                                }
-                                                onKeyDown={(e) =>
-                                                    e.stopPropagation()
-                                                }
-                                                className='w-full bg-white/5 border border-white/10 rounded-md px-2 py-1 text-xs text-white placeholder:text-neutral-500 outline-none focus:border-indigo-500/50'
-                                            />
+                                        <div className='p-2 border-b border-white/5 bg-[#09090d]'>
+                                            <div className='flex items-center gap-2 px-2.5 py-1.5 bg-white/5 rounded-lg border border-white/10 focus-within:border-white/25 focus-within:bg-white/[0.07] transition-all'>
+                                                <Search className='w-3.5 h-3.5 text-neutral-400 shrink-0' />
+                                                <input
+                                                    placeholder='Search types…'
+                                                    value={typeSearch}
+                                                    onChange={(e) =>
+                                                        setTypeSearch(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className='w-full bg-transparent text-xs text-white placeholder:text-neutral-500 outline-none'
+                                                    autoFocus
+                                                />
+                                                {typeSearch && (
+                                                    <button
+                                                        type='button'
+                                                        onClick={() =>
+                                                            setTypeSearch('')
+                                                        }
+                                                        className='text-neutral-400 hover:text-white p-0.5'
+                                                    >
+                                                        <X className='w-3 h-3' />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className='overflow-y-auto max-h-[260px] bg-[#0a0a0a]'>
+
+                                        {/* Scrollable list of types */}
+                                        <div
+                                            data-lenis-prevent='true'
+                                            onWheel={(e) => e.stopPropagation()}
+                                            className='overflow-y-auto max-h-[260px] p-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-white/40 [&::-webkit-scrollbar-thumb]:rounded-full'
+                                            style={{
+                                                scrollbarWidth: 'thin',
+                                                scrollbarColor:
+                                                    'rgba(255,255,255,0.2) transparent',
+                                            }}
+                                        >
                                             {Object.keys(filteredGroups)
                                                 .length === 0 ? (
-                                                <p className='py-4 text-center text-xs text-neutral-500'>
+                                                <div className='py-6 text-center text-xs text-neutral-500'>
                                                     No types found
-                                                </p>
+                                                </div>
                                             ) : (
                                                 Object.entries(
                                                     filteredGroups,
                                                 ).map(([category, ftypes]) => (
-                                                    <SelectGroup key={category}>
-                                                        <SelectLabel
-                                                            className='text-xs font-semibold bg-[#050505] px-2 py-1.5 uppercase tracking-wider sticky top-0 z-10 text-neutral-400'
-                                                        >
+                                                    <div
+                                                        key={category}
+                                                        className='mb-2 last:mb-0'
+                                                    >
+                                                        <div className='text-[10px] font-semibold text-neutral-400 uppercase tracking-wider px-2 py-1 sticky top-0 bg-[#0c0c0e]/95 backdrop-blur-sm z-10'>
                                                             {category}
-                                                        </SelectLabel>
-                                                        {ftypes.map((f) => (
-                                                            <SelectItem
-                                                                key={f.value}
-                                                                value={f.value}
-                                                                className='pl-6 text-xs hover:bg-white/5 cursor-pointer focus:bg-white/5'
-                                                            >
-                                                                {f.label}
-                                                                {REFERENCE_TYPES.has(
-                                                                    f.value,
-                                                                ) && (
-                                                                    <span className='ml-2 text-[9px] text-neutral-500'></span>
-                                                                )}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectGroup>
+                                                        </div>
+                                                        <div className='space-y-0.5 mt-0.5'>
+                                                            {ftypes.map((f) => {
+                                                                const isSelected =
+                                                                    field.type ===
+                                                                    f.value;
+                                                                return (
+                                                                    <button
+                                                                        key={f.value}
+                                                                        type='button'
+                                                                        onClick={() => {
+                                                                            handleTypeChange(
+                                                                                f.value,
+                                                                            );
+                                                                            setIsTypeOpen(
+                                                                                false,
+                                                                            );
+                                                                        }}
+                                                                        className={cn(
+                                                                            'w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-left transition-colors',
+                                                                            isSelected
+                                                                                ? 'bg-white/15 text-white font-medium'
+                                                                                : 'text-neutral-300 hover:bg-white/5 hover:text-white',
+                                                                        )}
+                                                                    >
+                                                                        <div className='flex items-center gap-2 truncate'>
+                                                                            <span className='truncate'>
+                                                                                {f.label}
+                                                                            </span>
+                                                                            {REFERENCE_TYPES.has(
+                                                                                f.value,
+                                                                            ) && (
+                                                                                <span className='text-[8px] text-neutral-400 bg-white/5 border border-white/10 px-1 py-0.2 rounded uppercase tracking-widest shrink-0'>
+                                                                                    relational
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        {isSelected && (
+                                                                            <Check className='h-3.5 w-3.5 text-white shrink-0 ml-2' />
+                                                                        )}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
                                                 ))
                                             )}
                                         </div>
-                                    </SelectContent>
-                                </Select>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                         </div>
 
