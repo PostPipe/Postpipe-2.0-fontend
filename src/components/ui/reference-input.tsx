@@ -11,6 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -70,6 +75,7 @@ export function ReferenceFieldConfig({
   compact = false,
   className,
 }: ReferenceFieldConfigProps) {
+  const [openCollection, setOpenCollection] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 200);
 
@@ -102,30 +108,44 @@ export function ReferenceFieldConfig({
           <Link2 className="w-3 h-3" /> Target Collection
         </Label>
 
-        <Select
-          value={value?.collection ?? ""}
-          onValueChange={(col) => update({ collection: col })}
+        <Popover
+          open={openCollection}
+          onOpenChange={(open) => {
+            setOpenCollection(open);
+            if (!open) setSearch("");
+          }}
         >
-          <SelectTrigger
-            className={cn(
-              "h-8 text-xs bg-violet-500/10 border-violet-500/30 text-white",
-              "hover:border-violet-400/50 focus:ring-violet-500/30 transition-colors"
-            )}
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "flex h-8 w-full items-center justify-between rounded-md px-3 text-xs bg-violet-500/10 border border-violet-500/30 text-white",
+                "hover:border-violet-400/50 focus:outline-none focus:ring-1 focus:ring-violet-500/30 transition-colors"
+              )}
+            >
+              <span className="truncate">
+                {collections.find((c) => c.id === value?.collection)?.name ||
+                  value?.collection ||
+                  "Select collection…"}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0 ml-1.5" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            data-lenis-prevent="true"
+            onWheel={(e) => e.stopPropagation()}
+            className="w-[var(--radix-popover-trigger-width)] min-w-[240px] p-0 bg-[#09090D] border border-white/10 text-white shadow-xl z-50 rounded-lg overflow-hidden"
           >
-            <SelectValue placeholder="Select collection…" />
-          </SelectTrigger>
-          <SelectContent className="max-h-[260px] p-0">
-            {/* Search inside dropdown */}
-            <div className="sticky top-0 z-20 bg-[#09090D] border-b border-white/5 px-2 py-1.5">
-              <div className="flex items-center gap-2">
+            <div className="p-2 border-b border-white/5 bg-[#09090D]">
+              <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-md border border-white/10">
                 <Search className="w-3 h-3 text-neutral-500 shrink-0" />
                 <input
-                  autoFocus
                   placeholder="Search collections…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => e.stopPropagation()}
                   className="w-full bg-transparent text-xs text-white placeholder:text-neutral-500 outline-none"
+                  autoFocus
                 />
                 {search && (
                   <button onClick={() => setSearch("")} className="text-neutral-500 hover:text-white">
@@ -134,8 +154,15 @@ export function ReferenceFieldConfig({
                 )}
               </div>
             </div>
-
-            <div className="overflow-y-auto max-h-[200px]">
+            <div
+              data-lenis-prevent="true"
+              onWheel={(e) => e.stopPropagation()}
+              className="overflow-y-auto max-h-[200px] p-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-white/40 [&::-webkit-scrollbar-thumb]:rounded-full"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+              }}
+            >
               {filtered.length === 0 ? (
                 <p className="py-4 text-center text-xs text-neutral-500">
                   {collections.length === 0
@@ -143,25 +170,43 @@ export function ReferenceFieldConfig({
                     : "No matches found"}
                 </p>
               ) : (
-                <SelectGroup>
-                  <SelectLabel className="text-xs font-semibold text-violet-300 bg-black/40 px-2 py-1 uppercase tracking-wider">
+                <div className="space-y-0.5">
+                  <div className="text-[10px] font-semibold text-violet-300 px-2 py-1 uppercase tracking-wider">
                     Your Forms / Collections
-                  </SelectLabel>
-                  {filtered.map((c) => (
-                    <SelectItem key={c.id} value={c.id} className="pl-6 text-xs hover:bg-white/5">
-                      <span className="font-medium">{c.name}</span>
-                      {c.id !== c.name && (
-                        <span className="ml-1.5 font-mono text-[9px] text-neutral-500">
-                          {c.id}
-                        </span>
-                      )}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
+                  </div>
+                  {filtered.map((c) => {
+                    const isSelected = value?.collection === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          update({ collection: c.id });
+                          setOpenCollection(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-left transition-colors",
+                          isSelected
+                            ? "bg-violet-500/20 text-white font-medium"
+                            : "text-neutral-300 hover:bg-white/5 hover:text-white"
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-medium truncate">{c.name}</span>
+                          {c.id !== c.name && (
+                            <span className="font-mono text-[9px] text-neutral-500 truncate">
+                              {c.id}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
-          </SelectContent>
-        </Select>
+          </PopoverContent>
+        </Popover>
 
         {value?.collection && (
           <button
@@ -248,6 +293,7 @@ export function ReferenceInput({
   required = false,
   searchable = true,
 }: ReferenceInputProps) {
+  const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 200);
 
@@ -259,6 +305,8 @@ export function ReferenceInput({
     )
     .slice(0, 20);
 
+  const selectedName = collections.find((c) => c.id === value)?.name || value;
+
   return (
     <div className="space-y-2">
       {label && (
@@ -269,44 +317,82 @@ export function ReferenceInput({
           )}
         </div>
       )}
-      <Select
-        value={value || ""}
-        onValueChange={(val) => onValueChange(val || null)}
-      >
-        <SelectTrigger className="w-full h-10 text-sm bg-[#12121A] border-white/5 text-white">
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent className="max-h-[260px] p-0">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex h-10 w-full items-center justify-between rounded-md border border-white/5 bg-[#12121A] px-3 text-sm text-white hover:border-white/10 focus:outline-none focus:ring-1 focus:ring-white/20 transition-colors"
+          >
+            <span className={cn("truncate", !selectedName && "text-muted-foreground")}>
+              {selectedName || placeholder}
+            </span>
+            <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          data-lenis-prevent="true"
+          onWheel={(e) => e.stopPropagation()}
+          className="w-[var(--radix-popover-trigger-width)] min-w-[240px] p-0 bg-[#09090D] border border-white/10 text-white shadow-xl z-50 rounded-lg overflow-hidden"
+        >
           {searchable && (
-            <div className="sticky top-0 z-20 bg-[#09090D] border-b border-white/5 px-2 py-1.5">
-              <div className="flex items-center gap-2">
-                <Search className="w-3 h-3 text-neutral-500" />
+            <div className="p-2 border-b border-white/5 bg-[#09090D]">
+              <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-md border border-white/10">
+                <Search className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
                 <input
-                  autoFocus
                   placeholder="Search…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => e.stopPropagation()}
                   className="w-full bg-transparent text-xs text-white placeholder:text-neutral-500 outline-none"
+                  autoFocus
                 />
+                {searchTerm && (
+                  <button onClick={() => setSearchTerm("")} className="text-neutral-500 hover:text-white">
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             </div>
           )}
-          <div className="overflow-y-auto max-h-[200px]">
+          <div
+            data-lenis-prevent="true"
+            onWheel={(e) => e.stopPropagation()}
+            className="overflow-y-auto max-h-[200px] p-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-white/40 [&::-webkit-scrollbar-thumb]:rounded-full"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+            }}
+          >
             {filtered.length === 0 ? (
               <p className="py-4 text-center text-xs text-neutral-500">No collections found</p>
             ) : (
-              <SelectGroup>
-                {filtered.map((c) => (
-                  <SelectItem key={c.id} value={c.id} className="pl-6 text-xs">
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
+              <div className="space-y-0.5">
+                {filtered.map((c) => {
+                  const isSelected = value === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        onValueChange(c.id);
+                        setOpen(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-left transition-colors",
+                        isSelected
+                          ? "bg-white/15 text-white font-medium"
+                          : "text-neutral-300 hover:bg-white/5 hover:text-white"
+                      )}
+                    >
+                      <span className="truncate">{c.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
-        </SelectContent>
-      </Select>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
